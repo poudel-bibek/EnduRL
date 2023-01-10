@@ -1178,13 +1178,13 @@ class TraCIVehicle(KernelVehicle):
         # TODO : Brent
         return 0
 
-    def get_local_density(self, veh_id, distance, direction='front', error = None):
+    def get_local_density(self, veh_id, current_length, distance, direction='front', error = None):
         """
         Getting local density. In a circular track, the position resets to 0.
         Returns local density in veh/m
         """
         position = self.get_x_by_id(veh_id) 
-        length = self.get_length(veh_id)
+        #length = self.get_length(veh_id)
 
         # get Vehicle IDs
         veh_ids = self.kernel_api.vehicle.getIDList()
@@ -1194,12 +1194,38 @@ class TraCIVehicle(KernelVehicle):
 
         # vehicle positions in the range of interest
         if direction == 'front':
-            vehicle_pos = [item for item in vehicle_pos if item > position and item < position + distance]
-        else: 
-            vehicle_pos = [item for item in vehicle_pos if item < position and item > position - distance]
-        
-        num_vehicles = len(vehicle_pos)
-        local_density = num_vehicles*1000/ distance # veh/km : Normalize over local zone? vs Normalize over network length?
+            position_bound = [position, position + distance]
+            if position_bound[1]>=current_length:
+                position_bound = [position, current_length, (position + distance - current_length)] 
 
-    
+                num_vehicles = np.sum([1 if (pos>=position_bound[0] and pos<=position_bound[1]) |\
+                    (pos>0.0 and pos<=position_bound[2]) else 0 for pos in vehicle_pos])
+
+            else: 
+                num_vehicles = np.sum([1 if pos>=position_bound[0] and pos<=position_bound[1] else 0 for pos in vehicle_pos])
+        else: 
+            position_bound = [position - distance, position]
+            if position_bound[0]<=0:
+                position_bound = [0.0, position, current_length - (distance - position)]
+
+                num_vehicles = np.sum([1 if (pos>=position_bound[0] and pos<=position_bound[1]) |\
+                    (pos>position_bound[2] and pos<=current_length) else 0 for pos in vehicle_pos])
+            else: 
+                num_vehicles = np.sum([1 if pos>=position_bound[0] and pos<=position_bound[1] else 0 for pos in vehicle_pos])
+
+        local_density = num_vehicles*1000/ distance 
+        # veh/km : Normalize over local zone? vs Normalize over network length?
+        # Do we always want to look 80 m ahead? or make this a function of max speed?
         return local_density
+
+    def apply_tau_action(self, veh_id, tau):
+        """Apply the learned time-headway action to the vehicle."""
+
+        #print(f"\n\nApplying tau action: {tau}\n\n")
+        #print(self.kernel_api.vehicle.getIDList())
+        self.kernel_api.vehicle.setTau(veh_id, tau)
+
+    def get_time_headway(self, veh_id, error=-1001):
+        """See parent class."""
+        return self.__sumo_obs.get(veh_id, {}).get(tc.VAR_TAU, error)
+        

@@ -747,15 +747,46 @@ class KernelVehicle(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_local_density(self, veh_id, distance, direction='front', error = None):
+    def get_local_density(self, veh_id, current_length, distance, direction='front', error = None):
         """Return the local density of the specified vehicle.
 
         Parameters
         ----------
         veh_id : str or list of str
             vehicle id, or list of vehicle ids
+        current_length : float
         distance : Look ahead distance, float
         direction : str (front, back)
+        error : any, optional
+            value that is returned if the vehicle is not found
+
+        Returns
+        -------
+        float
+        """
+        pass
+
+    @abstractmethod
+    def apply_tau_action(self, veh_id, tau):
+        """Apply the specified tau action to the specified vehicle.
+
+        Parameters
+        ----------
+        veh_id : str
+            vehicle identifier
+        tau : float
+            time-headway action
+        """
+        pass
+
+    @abstractmethod
+    def get_time_headway(self, veh_id, error=None):
+        """Return the time headway of the specified vehicle.
+
+        Parameters
+        ----------
+        veh_id : str or list of str
+            vehicle id, or list of vehicle ids
         error : any, optional
             value that is returned if the vehicle is not found
 
