@@ -1177,3 +1177,29 @@ class TraCIVehicle(KernelVehicle):
         """See parent class."""
         # TODO : Brent
         return 0
+
+    def get_local_density(self, veh_id, distance, direction='front', error = None):
+        """
+        Getting local density. In a circular track, the position resets to 0.
+        Returns local density in veh/m
+        """
+        position = self.get_x_by_id(veh_id) 
+        length = self.get_length(veh_id)
+
+        # get Vehicle IDs
+        veh_ids = self.kernel_api.vehicle.getIDList()
+
+        # vehicle positions
+        vehicle_pos = [self.get_x_by_id(item) for item in veh_ids] 
+
+        # vehicle positions in the range of interest
+        if direction == 'front':
+            vehicle_pos = [item for item in vehicle_pos if item > position and item < position + distance]
+        else: 
+            vehicle_pos = [item for item in vehicle_pos if item < position and item > position - distance]
+        
+        num_vehicles = len(vehicle_pos)
+        local_density = num_vehicles*1000/ distance # veh/km : Normalize over local zone? vs Normalize over network length?
+
+    
+        return local_density

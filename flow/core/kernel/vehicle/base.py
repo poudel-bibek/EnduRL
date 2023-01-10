@@ -746,6 +746,25 @@ class KernelVehicle(object, metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
+    def get_local_density(self, veh_id, distance, direction='front', error = None):
+        """Return the local density of the specified vehicle.
+
+        Parameters
+        ----------
+        veh_id : str or list of str
+            vehicle id, or list of vehicle ids
+        distance : Look ahead distance, float
+        direction : str (front, back)
+        error : any, optional
+            value that is returned if the vehicle is not found
+
+        Returns
+        -------
+        float
+        """
+        pass
+
     ###########################################################################
     #                        Methods for Datapipeline                         #
     ###########################################################################
