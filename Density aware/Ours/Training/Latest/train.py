@@ -204,7 +204,7 @@ def train_rllib(submodule, flags):
         "config": {
             **config
         },
-        "checkpoint_freq": 20,
+        "checkpoint_freq": 2, #Bibek: Checkpoint every 2 iterations
         "checkpoint_at_end": True,
         "max_failures": 999,
         "stop": {
