@@ -114,32 +114,27 @@ class TraCISimulation(KernelSimulation):
                 if t not in self.stored_data[veh_id].keys():
                     self.stored_data[veh_id][t] = dict()
 
+                # Bibek: Modify below according to our needs (more data means more computation time)
                 # Add the speed, position, and lane data.
                 self.stored_data[veh_id][t].update({
                     "speed": kv.get_speed(veh_id),
-                    "lane_number": kv.get_lane(veh_id),
-                    "edge_id": kv.get_edge(veh_id),
-                    "relative_position": kv.get_position(veh_id),
+                    #"lane_number": kv.get_lane(veh_id),
+                    #"edge_id": kv.get_edge(veh_id),
+                    #"relative_position": kv.get_position(veh_id),
                     "x": position[0],
-                    "y": position[1],
+                    #"y": position[1],
                     "headway": kv.get_headway(veh_id),
                     "leader_id": kv.get_leader(veh_id),
                     "follower_id": kv.get_follower(veh_id),
-                    "leader_rel_speed":
-                        kv.get_speed(kv.get_leader(veh_id))
-                        - kv.get_speed(veh_id),
-                    "target_accel_with_noise_with_failsafe":
-                        kv.get_accel(veh_id, noise=True, failsafe=True),
-                    "target_accel_no_noise_no_failsafe":
-                        kv.get_accel(veh_id, noise=False, failsafe=False),
-                    "target_accel_with_noise_no_failsafe":
-                        kv.get_accel(veh_id, noise=True, failsafe=False),
-                    "target_accel_no_noise_with_failsafe":
-                        kv.get_accel(veh_id, noise=False, failsafe=True),
-                    "realized_accel":
-                        kv.get_realized_accel(veh_id),
-                    "road_grade": kv.get_road_grade(veh_id),
-                    "distance": kv.get_distance(veh_id),
+                    #"leader_rel_speed": kv.get_speed(kv.get_leader(veh_id)) - kv.get_speed(veh_id),
+                    #"target_accel_with_noise_with_failsafe": kv.get_accel(veh_id, noise=True, failsafe=True),
+                    #"target_accel_no_noise_no_failsafe": kv.get_accel(veh_id, noise=False, failsafe=False),
+                    #"target_accel_with_noise_no_failsafe": kv.get_accel(veh_id, noise=True, failsafe=False),
+                    #"target_accel_no_noise_with_failsafe": kv.get_accel(veh_id, noise=False, failsafe=True),
+                    "realized_accel": kv.get_realized_accel(veh_id),
+                    #"road_grade": kv.get_road_grade(veh_id),
+                    "distance_traveled": kv.get_distance(veh_id),
+                    "fuel_consumption": kv.get_fuel_consumption(veh_id),
                 })
 
     def close(self):
@@ -287,24 +282,26 @@ class TraCISimulation(KernelSimulation):
             self.master_kernel.network.network.name, run_id)
 
         # The name of all stored data-points (excluding id and time)
+        # Bibek: Need to change here as well
         stored_ids = [
             "x",
-            "y",
+            #"y",
             "speed",
             "headway",
             "leader_id",
-            "target_accel_with_noise_with_failsafe",
-            "target_accel_no_noise_no_failsafe",
-            "target_accel_with_noise_no_failsafe",
-            "target_accel_no_noise_with_failsafe",
+            #"target_accel_with_noise_with_failsafe",
+            #"target_accel_no_noise_no_failsafe",
+            #"target_accel_with_noise_no_failsafe",
+            #"target_accel_no_noise_with_failsafe",
             "realized_accel",
-            "road_grade",
-            "edge_id",
-            "lane_number",
-            "distance",
-            "relative_position",
+            #"road_grade",
+            #"edge_id",
+            #"lane_number",
+            "distance_traveled",
+            #"relative_position",
             "follower_id",
-            "leader_rel_speed",
+            #"leader_rel_speed",
+            "fuel_consumption",
         ]
 
         # Update the stored data to push to the csv file.

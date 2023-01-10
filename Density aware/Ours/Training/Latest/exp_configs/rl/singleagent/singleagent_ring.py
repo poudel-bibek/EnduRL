@@ -6,18 +6,17 @@ vehicles in a variable length ring road.
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import RLController, IDMController, ContinuousRouter
-from flow.envs import WaveAttenuationPOEnv
 from flow.networks import RingNetwork
 
 # Bibek: Load our custom environment
-from .density_aware_env import DensityAwareRLEnv 
+from flow.envs import DensityAwareRLEnv 
 
 # time horizon of a single rollout
 HORIZON = 6000 #Bibek (for our purposes, 6000 is good)
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
-N_CPUS = 2
+N_CPUS = 4
 
 # We place one autonomous vehicle and 22 human-driven vehicles in the network
 vehicles = VehicleParams()
