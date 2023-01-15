@@ -9,6 +9,7 @@ import collections
 import warnings
 from flow.controllers.car_following_models import SimCarFollowingController
 from flow.controllers.rlcontroller import RLController
+from flow.controllers.car_following_models import IDMController # Bibek
 from flow.controllers.lane_change_controllers import SimLaneChangeController
 from bisect import bisect_left
 import itertools
@@ -1177,7 +1178,8 @@ class TraCIVehicle(KernelVehicle):
         """See parent class."""
         # TODO : Brent
         return 0
-
+    
+    # Bibek
     def get_local_density(self, veh_id, current_length, distance, direction='front', error = None):
         """
         Getting local density. In a circular track, the position resets to 0.
@@ -1229,3 +1231,40 @@ class TraCIVehicle(KernelVehicle):
         """See parent class."""
         return self.__sumo_obs.get(veh_id, {}).get(tc.VAR_TAU, error)
         
+
+    def set_vehicle_type(self, veh_id, veh_type, accel_controller):
+        """
+        Only to be used to change type at end of warmup. Just for onen timestep? 
+        """
+        #from flow.controllers import BCMController
+
+        car_following_params = self.type_parameters[veh_type]["car_following_params"]
+        #current_controller = self.type_parameters[veh_type]["acceleration_controller"]
+
+        #print(f"Current controller :{current_controller, type(current_controller)}")
+        #print(f"New controller : {accel_controller, type(accel_controller)}")
+        self.__vehicles[veh_id]["acc_controller"] = accel_controller[0](veh_id,
+                                                                        car_following_params=car_following_params,
+                                                                        **accel_controller[1])
+
+        if accel_controller[0]!= IDMController:
+            if veh_id in self.__human_ids:
+                self.__human_ids.remove(veh_id)
+            if veh_id in self.__controlled_ids:
+                self.__controlled_ids.remove(veh_id)
+
+            # Although its not RL, set it as RL. This will make the IDS show up in the RL list (but may not be best to populate the RL list)
+            if veh_id not in self.__rl_ids:
+                self.__rl_ids.append(veh_id)
+        
+
+        # Set speed mode? Initial speed?
+        # specify the initial speed
+        self.__vehicles[veh_id]["initial_speed"] = self.type_parameters[veh_type]["initial_speed"]
+
+        # set the speed mode for the vehicle
+        speed_mode = self.type_parameters[veh_type]["car_following_params"].speed_mode
+        self.kernel_api.vehicle.setSpeedMode(veh_id, speed_mode)
+
+        self.__rl_ids.sort()
+        self.num_rl_vehicles = len(self.__rl_ids)
