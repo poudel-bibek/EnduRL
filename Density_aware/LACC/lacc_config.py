@@ -15,9 +15,8 @@ import os
 
 from flow.networks.ring import RingNetwork
 from flow.core.params import VehicleParams, SumoCarFollowingParams
-from flow.controllers import IDMController, BCMController
+from flow.controllers import IDMController
 from flow.controllers.routing_controllers import ContinuousRouter
-from flow.envs.ring.accel import AccelEnv
 from flow.envs.ring.density_aware_traditional_env import traditionalEnv
 
 
@@ -26,7 +25,7 @@ from flow.core.params import InitialConfig
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 
-def config_bcm(args, **kwargs):
+def config_lacc(args, **kwargs):
     name = "bcm"
     vehicles = VehicleParams()
 
@@ -38,8 +37,6 @@ def config_bcm(args, **kwargs):
     print("length: ", kwargs['length'])
     # Noise (And other sourve of randomness: speedDev, speedFactor, what is sigma?)
     # Max accel and decel 
-    # Target velocity : Desired velocity for all vehicles in the network (Accel env default is 10)
-    # Desired velocity (LORR paper, for a 260m ring length, desired velocity is 4.8). Desired velocity is picked as the equillibrum velocity for the ring length
     # Min gap (Seting min gap to 0 causes congestion to form early)
     # What should max_accel and max_decel be?
     # Set BCM controllers default as IDM, 
@@ -56,7 +53,7 @@ def config_bcm(args, **kwargs):
         num_vehicles=18)
 
     vehicles.add(
-        veh_id="bcm",
+        veh_id="lacc",
          acceleration_controller=(IDMController, {
             "noise": 0.2,
         }),
@@ -70,7 +67,7 @@ def config_bcm(args, **kwargs):
     if args.gen_emission:
         sim_params = SumoParams(sim_step=0.1, 
                                 render=args.render,
-                                emission_path=os.path.abspath(os.path.join(os.getcwd(), '..','test_time_rollout')))
+                                emission_path=os.path.abspath(os.path.join(os.getcwd(),'test_time_rollout')))
     else:
         sim_params = SumoParams(sim_step=0.1, 
                                 render=args.render,
@@ -85,7 +82,7 @@ def config_bcm(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            'fail_on_negative_reward': False, # Set this for traditional
+            "fail_on_negative_reward": False, # Set this for traditional
         },
     )
 

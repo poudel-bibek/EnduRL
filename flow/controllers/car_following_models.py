@@ -241,6 +241,7 @@ class LACController(BaseController):
 
     def get_accel(self, env):
         """See parent class."""
+        print("\nLACC\n")
         lead_id = env.k.vehicle.get_leader(self.veh_id)
         lead_vel = env.k.vehicle.get_speed(lead_id)
         this_vel = env.k.vehicle.get_speed(self.veh_id)
