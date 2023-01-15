@@ -19,13 +19,14 @@ from flow.controllers import IDMController
 from flow.controllers.routing_controllers import ContinuousRouter
 from flow.envs.ring.density_aware_traditional_env import traditionalEnv
 
-
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 
+# This is for clustered version of BCM
 # SET desired velocity for BCM according to ring length
+# Current assumption, desired velocity can be set from the  velocity upper bound
 
 def config_bcm(args, **kwargs):
     vehicles = VehicleParams()
@@ -64,8 +65,12 @@ def config_bcm(args, **kwargs):
             min_gap=0,
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=4,
+        num_vehicles= 4 if args.num_controlled is None else args.num_controlled, # Minimum
         color = 'yellow')
+
+    # Add specific properties of vehicles with this method_name id
+    kwargs['traditional_parms'] = {'v_des':4.8, # Add more if necessary
+                                    }
 
     if args.gen_emission:
         sim_params = SumoParams(sim_step=0.1, 
@@ -78,7 +83,7 @@ def config_bcm(args, **kwargs):
 
     env_params = EnvParams(
         horizon=args.horizon,
-        warmup_steps=args.warmup,
+        warmup_steps= 3000 if args.warmup is None else args.warmup,
         evaluate = True, # To prevent abrupt fails
         additional_params={
             "max_accel": 1,
@@ -86,6 +91,7 @@ def config_bcm(args, **kwargs):
             "target_velocity": 10,
             "sort_vehicles": False,
             "fail_on_negative_reward": False, # Set this for traditional
+            "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
         },
     )
 
@@ -95,6 +101,7 @@ def config_bcm(args, **kwargs):
             "lanes": 1,
             "speed_limit": 30,
             "resolution": 40,
+            
         },)
 
     initial_config = InitialConfig(
@@ -104,15 +111,15 @@ def config_bcm(args, **kwargs):
     )
 
     flow_params = dict(
-        exp_tag=kwargs['method_name'],
+        exp_tag= kwargs['method_name'],
         env_name= traditionalEnv, #AccelEnv,
-        network=RingNetwork,
-        simulator='traci',
-        sim=sim_params,
-        env=env_params,
-        net=net_params,
-        veh=vehicles,
-        initial=initial_config,
+        network= RingNetwork,
+        simulator= 'traci',
+        sim= sim_params,
+        env= env_params,
+        net= net_params,
+        veh= vehicles,
+        initial= initial_config,
     )
 
     return flow_params

@@ -1,13 +1,5 @@
 """
-Clustered BCM:
-    minimum number of vehicles required: 
-    Time to stabilize: 
-
-BCM with even distribution:
-    minimum number of vehicles required:
-    Time to stabilize:
-
-Desired velocity varies according to ring length:
+LACC
 """
 
 import random
@@ -19,14 +11,13 @@ from flow.controllers import IDMController
 from flow.controllers.routing_controllers import ContinuousRouter
 from flow.envs.ring.density_aware_traditional_env import traditionalEnv
 
-
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 
 def config_lacc(args, **kwargs):
-    name = "bcm"
+
     vehicles = VehicleParams()
 
     if args.length is None:
@@ -35,11 +26,7 @@ def config_lacc(args, **kwargs):
         kwargs['length'] = args.length
 
     print("length: ", kwargs['length'])
-    # Noise (And other sourve of randomness: speedDev, speedFactor, what is sigma?)
-    # Max accel and decel 
-    # Min gap (Seting min gap to 0 causes congestion to form early)
-    # What should max_accel and max_decel be?
-    # Set BCM controllers default as IDM, 
+    
     vehicles.add(
         veh_id="human",
         acceleration_controller=(IDMController, {
@@ -50,10 +37,10 @@ def config_lacc(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=18)
+        num_vehicles=13)
 
     vehicles.add(
-        veh_id="lacc",
+        veh_id= kwargs['method_name'],
          acceleration_controller=(IDMController, {
             "noise": 0.2,
         }),
@@ -61,8 +48,15 @@ def config_lacc(args, **kwargs):
             min_gap=0,
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=4,
-        color = 'yellow')
+        num_vehicles= 9 if args.num_controlled is None else args.num_controlled, # Minimum 
+        color = 'orange')
+
+    # Add specific properties of vehicles with this method_name id
+    # These params from LORR paper
+    kwargs['traditional_parms'] = {'k_1':0.4, # Add more if necessary
+                                    'k_2':0.7,
+                                    'h': 1.4,
+                                    'time_delay': 0.5,}
 
     if args.gen_emission:
         sim_params = SumoParams(sim_step=0.1, 
@@ -75,7 +69,7 @@ def config_lacc(args, **kwargs):
 
     env_params = EnvParams(
         horizon=args.horizon,
-        warmup_steps=args.warmup,
+        warmup_steps= 3000 if args.warmup is None else args.warmup,
         evaluate = True, # To prevent abrupt fails
         additional_params={
             "max_accel": 1,
@@ -83,6 +77,7 @@ def config_lacc(args, **kwargs):
             "target_velocity": 10,
             "sort_vehicles": False,
             "fail_on_negative_reward": False, # Set this for traditional
+            "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
         },
     )
 
@@ -101,7 +96,7 @@ def config_lacc(args, **kwargs):
     )
 
     flow_params = dict(
-        exp_tag=name,
+        exp_tag= kwargs['method_name'],
         env_name= traditionalEnv, #AccelEnv,
         network=RingNetwork,
         simulator='traci',

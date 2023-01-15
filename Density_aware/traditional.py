@@ -41,7 +41,8 @@ if __name__ == '__main__':
     parser.add_argument('--gen_emission', action='store_true', default=False)
 
     parser.add_argument('--horizon', type=int, default=12000)
-    parser.add_argument('--warmup', type=int, default=2500)
+    # Dont set default warmup, different controllers require different values set specific in config
+    parser.add_argument('--warmup', type=int, default=None) 
     parser.add_argument('--length', type=int, default=None)
 
     parser.add_argument('--shock', action='store_true', default=False)
@@ -51,6 +52,8 @@ if __name__ == '__main__':
     #TODO: remove all external sources of randomness, make system deterministic
     parser.add_argument('--noise', action='store_true', default=True) 
     parser.add_argument('--render', action='store_true', default=True)
+
+    parser.add_argument('--num_controlled', type=int, default=None)
 
     args = parser.parse_args()
     run(args)

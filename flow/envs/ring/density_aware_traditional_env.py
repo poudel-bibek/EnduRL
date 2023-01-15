@@ -51,7 +51,11 @@ class traditionalEnv(AccelEnv):
         if self.step_counter == self.warmup_steps:
             veh_type = self.method_name
             for veh_id in self.select_ids:
-                controller = (self.traditional_controller,{'v_des':4.8}) # Get the params to insert in controller here
+                if 'traditional_params' in self.env_params.additional_params:
+                    controller = (self.traditional_controller, \
+                        self.env_params.additional_params['traditional_params'])
+                else:
+                    controller = (self.traditional_controller,{})
                 self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
 
         if self.step_counter >= self.warmup_steps:
