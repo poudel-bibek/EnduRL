@@ -1,13 +1,5 @@
 """
-Clustered BCM:
-    minimum number of vehicles required: 
-    Time to stabilize: 
-
-BCM with even distribution:
-    minimum number of vehicles required:
-    Time to stabilize:
-
-Desired velocity varies according to ring length:
+FS
 """
 
 import random
@@ -24,12 +16,11 @@ from flow.core.params import InitialConfig
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 
-# This is for clustered version of BCM
-# SET desired velocity for BCM according to ring length
-# Current assumption, desired velocity can be set from the  velocity upper bound
+# Again, the desired velocity is set from the velocity upper bound 
 from util import get_desired_velocity
 
-def config_bcm(args, **kwargs):
+def config_fs(args, **kwargs):
+
     vehicles = VehicleParams()
 
     if args.length is None:
@@ -38,13 +29,7 @@ def config_bcm(args, **kwargs):
         kwargs['length'] = args.length
 
     print("length: ", kwargs['length'])
-    # Noise (And other sourve of randomness: speedDev, speedFactor, what is sigma?)
-    # Max accel and decel 
-    # Target velocity : Desired velocity for all vehicles in the network (Accel env default is 10)
-    # Desired velocity (LORR paper, for a 260m ring length, desired velocity is 4.8). Desired velocity is picked as the equillibrum velocity for the ring length
-    # Min gap (Seting min gap to 0 causes congestion to form early)
-    # What should max_accel and max_decel be?
-    # Set BCM controllers default as IDM, 
+    
     vehicles.add(
         veh_id="human",
         acceleration_controller=(IDMController, {
@@ -55,10 +40,10 @@ def config_bcm(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=18)
+        num_vehicles=21)
 
     vehicles.add(
-        veh_id=kwargs['method_name'],
+        veh_id= kwargs['method_name'],
          acceleration_controller=(IDMController, {
             "noise": 0.2,
         }),
@@ -66,14 +51,13 @@ def config_bcm(args, **kwargs):
             min_gap=0,
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= 4 if args.num_controlled is None else args.num_controlled, # Minimum
+        num_vehicles= 1 if args.num_controlled is None else args.num_controlled, # Minimum 
         color = 'yellow')
 
     # Add specific properties of vehicles with this method_name id
-    desired_velocity = 4.8 #get_desired_velocity(len(vehicles.ids), kwargs['length'])
+    desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'])
     print("Desired Velocity: ", desired_velocity, "m/s")
 
-    # Add specific properties of vehicles with this method_name id
     kwargs['traditional_parms'] = {'v_des': desired_velocity, # Add more if necessary
                                     }
 
@@ -88,7 +72,7 @@ def config_bcm(args, **kwargs):
 
     env_params = EnvParams(
         horizon=args.horizon,
-        warmup_steps= 3000 if args.warmup is None else args.warmup,
+        warmup_steps= 3500 if args.warmup is None else args.warmup,
         evaluate = True, # To prevent abrupt fails
         additional_params={
             "max_accel": 1,
@@ -106,7 +90,6 @@ def config_bcm(args, **kwargs):
             "lanes": 1,
             "speed_limit": 30,
             "resolution": 40,
-            
         },)
 
     initial_config = InitialConfig(
@@ -118,13 +101,13 @@ def config_bcm(args, **kwargs):
     flow_params = dict(
         exp_tag= kwargs['method_name'],
         env_name= traditionalEnv, #AccelEnv,
-        network= RingNetwork,
-        simulator= 'traci',
-        sim= sim_params,
-        env= env_params,
-        net= net_params,
-        veh= vehicles,
-        initial= initial_config,
+        network=RingNetwork,
+        simulator='traci',
+        sim=sim_params,
+        env=env_params,
+        net=net_params,
+        veh=vehicles,
+        initial=initial_config,
     )
 
     return flow_params

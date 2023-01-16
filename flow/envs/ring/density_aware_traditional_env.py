@@ -5,6 +5,7 @@ Environment for traditional models
 import numpy as np
 from gym.spaces.box import Box
 from flow.controllers import BCMController, LACController, IDMController
+from flow.controllers.velocity_controllers import FollowerStopper, PISaturation
 from flow.envs.ring.accel import AccelEnv
 
 class traditionalEnv(AccelEnv):
@@ -19,7 +20,7 @@ class traditionalEnv(AccelEnv):
         #network name is actually exp_tag (look at registry). A bit risky
         self.method_name = self.network.name.split('_')[0]
 
-        methods = ['bcm', 'lacc', 'idm']
+        methods = ['bcm', 'lacc', 'idm','fs','piws']
         if self.method_name is None or self.method_name not in methods:
             raise ValueError("The 'method' argument is required and must be one of {}.".format(methods))
         
@@ -29,7 +30,9 @@ class traditionalEnv(AccelEnv):
 
         self.control_dict = {'bcm': BCMController, 
                             'lacc': LACController, 
-                            'idm': IDMController}
+                            'idm': IDMController,
+                            'fs': FollowerStopper,
+                            'piws': PISaturation}
                             
         self.traditional_controller = self.control_dict.get(self.method_name)
 
@@ -46,7 +49,7 @@ class traditionalEnv(AccelEnv):
         """
         Docs here
         """
-        print("step", self.step_counter)
+        #print("step", self.step_counter)
         
         if self.step_counter == self.warmup_steps:
             veh_type = self.method_name
@@ -59,9 +62,19 @@ class traditionalEnv(AccelEnv):
                 self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
 
         if self.step_counter >= self.warmup_steps:
-            rl_actions = np.asarray([self.k.vehicle.get_acc_controller(veh_id).get_accel(self)\
-                 for veh_id in self.select_ids])
-
+            rl_actions = [self.k.vehicle.get_acc_controller(veh_id).get_accel(self)\
+                 for veh_id in self.select_ids]
+            # Sometimes in FS, rl_actions can be None:
+            # Under these conditions accelerations may not be useful and a human supervision would be best
+            # We set these conditions to 0 acceleration
+            # Although the simulation requires RL actions to be None during warmup.. and uses this as an identifier sometimes,
+            # After warmup, it is rarely so
+            # rl_actions = np.nan_to_num(rl_actions, nan=0.0) 
+            if None in rl_actions:
+                print(f"\nWARNING: acceleration = None obtained after warmup, at timestep {self.step_counter}\n")
+            rl_actions = np.asarray([float(i) if i is not None else 0.0 for i in rl_actions])
+            
+        #print("RL actions: ",rl_actions)
         return super().step(rl_actions)
 
  
