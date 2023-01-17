@@ -501,7 +501,7 @@ class IDMController(BaseController):
 
         return self.a * (1 - (v / self.v0)**self.delta - (s_star / h)**2)
 
-
+    
 class SimCarFollowingController(BaseController):
     """Controller whose actions are purely defined by the simulator.
 

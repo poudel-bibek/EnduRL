@@ -9,7 +9,8 @@ import collections
 import warnings
 from flow.controllers.car_following_models import SimCarFollowingController
 from flow.controllers.rlcontroller import RLController
-from flow.controllers.car_following_models import IDMController # Bibek
+from flow.controllers.car_following_models import IDMController 
+from flow.controllers.controllers_for_daware import ModifiedIDMController # Bibek
 from flow.controllers.lane_change_controllers import SimLaneChangeController
 from bisect import bisect_left
 import itertools
@@ -1247,7 +1248,7 @@ class TraCIVehicle(KernelVehicle):
                                                                         car_following_params=car_following_params,
                                                                         **accel_controller[1])
 
-        if accel_controller[0]!= IDMController:
+        if accel_controller[0]!= ModifiedIDMController:
             if veh_id in self.__human_ids:
                 self.__human_ids.remove(veh_id)
             if veh_id in self.__controlled_ids:
@@ -1268,3 +1269,27 @@ class TraCIVehicle(KernelVehicle):
 
         self.__rl_ids.sort()
         self.num_rl_vehicles = len(self.__rl_ids)
+
+    def set_shock_acceleration(self, env, veh_id, shock_accel):
+        """
+        Set shock acceleration for the vehicle
+        
+        """
+        # Only works for ModifiedIDM
+        env.k.vehicle.get_acc_controller(veh_id).set_shock(shock_accel)
+
+       
+        print("Actual Accel:", self.get_realized_accel(veh_id))
+
+        
+
+# Test stuff: 
+ #self.kernel_api.vehicle.setAccel(veh_id, shock_accel)
+#self.kernel_api.vehicle.setDecel(veh_id, shock_accel)
+#self.kernel_api.vehicle.setApparentDecel(veh_id, shock_accel)
+#self.kernel_api.vehicle.setEmergencyDecel(veh_id, shock_accel)
+
+#speed_mode = self.type_parameters["human"]["car_following_params"].speed_mode
+
+#print("Speed Mode:", speed_mode)
+#self.kernel_api.vehicle.setSpeedMode(veh_id, 32) # Turn off all checks

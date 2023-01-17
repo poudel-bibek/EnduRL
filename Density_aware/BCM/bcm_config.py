@@ -16,6 +16,8 @@ import os
 from flow.networks.ring import RingNetwork
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import IDMController
+from flow.controllers.controllers_for_daware import ModifiedIDMController
+
 from flow.controllers.routing_controllers import ContinuousRouter
 from flow.envs.ring.density_aware_traditional_env import traditionalEnv
 
@@ -31,6 +33,7 @@ from util import get_desired_velocity
 
 def config_bcm(args, **kwargs):
     vehicles = VehicleParams()
+    num_controlled = 4 if args.num_controlled is None else args.num_controlled # Minimum
 
     if args.length is None:
         kwargs['length'] = random.randint(220, 270)
@@ -47,11 +50,12 @@ def config_bcm(args, **kwargs):
     # Set BCM controllers default as IDM, 
     vehicles.add(
         veh_id="human",
-        acceleration_controller=(IDMController, {
-            "noise": 0.2,
+        acceleration_controller=(ModifiedIDMController, {
+            "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
+            #"noise": 0.2,
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0,
+            min_gap=args.min_gap, # Change in others
         ),
 
         routing_controller=(ContinuousRouter, {}),
@@ -59,23 +63,29 @@ def config_bcm(args, **kwargs):
 
     vehicles.add(
         veh_id=kwargs['method_name'],
-         acceleration_controller=(IDMController, {
-            "noise": 0.2,
+         acceleration_controller=(ModifiedIDMController, {
+            #"noise": 0.2, 
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0,
+            min_gap=args.min_gap, # Change in others
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= 4 if args.num_controlled is None else args.num_controlled, # Minimum
+        num_vehicles= num_controlled, 
         color = 'yellow')
-
+    
     # Add specific properties of vehicles with this method_name id
-    desired_velocity = 4.8 #get_desired_velocity(len(vehicles.ids), kwargs['length'])
+    desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'])
     print("Desired Velocity: ", desired_velocity, "m/s")
 
     # Add specific properties of vehicles with this method_name id
     kwargs['traditional_parms'] = {'v_des': desired_velocity, # Add more if necessary
                                     }
+
+    # Add shock params: 
+    kwargs['shock_params'] = {'shock': args.shock,
+                            'shock_start_time': args.shock_start_time,
+                            'shock_end_time': args.shock_end_time,
+                            'shock_model': args.shock_model} 
 
     if args.gen_emission:
         sim_params = SumoParams(sim_step=0.1, 
@@ -95,8 +105,8 @@ def config_bcm(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            "fail_on_negative_reward": False, # Set this for traditional
             "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
+            "shock_params": kwargs['shock_params'], # Hacky way to pass
         },
     )
 
@@ -129,3 +139,12 @@ def config_bcm(args, **kwargs):
 
     return flow_params
 
+### Test stuff: 
+# car_following_params=SumoCarFollowingParams(
+#             min_gap=args.min_gap, # Change in others
+        #     sigma= 0.0,
+        #     speed_dev= 0.0,
+        #     speed_factor= 1.0,
+        #     tau= 1.0,
+        #     speed_mode=7, # Test
+        # ),

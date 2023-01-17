@@ -226,8 +226,17 @@ class TraCISimulation(KernelSimulation):
                 sumo_call.append("true")
 
                 sumo_call.append("--quit-on-end")
-                sumo_call.append("true")
+                sumo_call.append("false")
                 
+                #Bibek: Test
+                sumo_call.append("--collision.action")
+                sumo_call.append("warn") # Can be [none,warn,teleport,remove]
+
+                #sumo_call.append("--ignore-accidents")
+                #sumo_call.append("true")
+
+                # End test 
+
                 logging.info(" Starting SUMO on port " + str(port))
                 logging.debug(" Cfg file: " + str(network.cfg))
                 if sim_params.num_clients > 1:

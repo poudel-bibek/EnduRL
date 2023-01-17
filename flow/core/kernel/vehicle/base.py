@@ -745,7 +745,9 @@ class KernelVehicle(object, metaclass=ABCMeta):
         float
         """
         pass
-
+    
+    # Bibek: They dont need to be here if we are not shipping for Aimsun
+    # Delete
     @abstractmethod
     def get_local_density(self, veh_id, current_length, distance, direction='front', error = None):
         """Return the local density of the specified vehicle.

@@ -22,6 +22,7 @@ from util import get_desired_velocity
 def config_fs(args, **kwargs):
 
     vehicles = VehicleParams()
+    num_controlled = 1 if args.num_controlled is None else args.num_controlled # Minimum
 
     if args.length is None:
         kwargs['length'] = random.randint(220, 270)
@@ -51,7 +52,7 @@ def config_fs(args, **kwargs):
             min_gap=0,
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= 1 if args.num_controlled is None else args.num_controlled, # Minimum 
+        num_vehicles= num_controlled,
         color = 'yellow')
 
     # Add specific properties of vehicles with this method_name id
@@ -79,7 +80,6 @@ def config_fs(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            "fail_on_negative_reward": False, # Set this for traditional
             "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
         },
     )

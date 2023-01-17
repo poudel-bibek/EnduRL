@@ -76,7 +76,6 @@ def config_lacc(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            "fail_on_negative_reward": False, # Set this for traditional
             "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
         },
     )

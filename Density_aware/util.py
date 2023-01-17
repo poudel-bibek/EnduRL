@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import fsolve
 
-# velocity upper bound from Wu et al
+# velocity upper bound from Wu et al (https://flow-project.github.io/papers/wu17a.pdf )
 # This is an approximation 
 
 def v_eq_max_function(v, *args):
@@ -30,3 +30,21 @@ def get_desired_velocity(num_vehicles, length):
     scaler = 0.93 # 93% of the upper bound may be desired? 
     print("Scaler: ", scaler)
     return get_velocity_upper_bound(num_vehicles, length) * scaler
+
+
+# Shock
+# Define shock models 
+
+def shock_model(identifier):
+    if identifier == 1:
+        return (0.2, 20, 20)
+
+    elif identifier == 2:
+        return (0.2, 20, 20)
+
+    elif identifier == 3:
+        return (0.2, 20, 20)
+
+    else: 
+        raise ValueError("Shock model identifier not recognized")
+        

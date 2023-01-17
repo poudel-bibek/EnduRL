@@ -51,6 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('--shock', action='store_true', default=False)
     parser.add_argument('--shock_start_time', type=int, default=8000)
     parser.add_argument('--shock_end_time', type=int, default=11500)
+    parser.add_argument('--shock_model', type=int, default= 1)
 
     #TODO: remove all external sources of randomness, make system deterministic
     # Speed_dev and Sigma?
@@ -58,6 +59,6 @@ if __name__ == '__main__':
     parser.add_argument('--render', action='store_true', default=True)
 
     parser.add_argument('--num_controlled', type=int, default=None)
-
+    parser.add_argument('--min_gap', type=float, default=0.0) # Small value to prevent collisions (Are collisions causing sim to stop?)
     args = parser.parse_args()
     run(args)
