@@ -1235,7 +1235,7 @@ class TraCIVehicle(KernelVehicle):
 
     def set_vehicle_type(self, veh_id, veh_type, accel_controller):
         """
-        Only to be used to change type at end of warmup. Just for onen timestep? 
+        Only to be used to change type at end of warmup. 
         """
         #from flow.controllers import BCMController
 
@@ -1247,7 +1247,7 @@ class TraCIVehicle(KernelVehicle):
         self.__vehicles[veh_id]["acc_controller"] = accel_controller[0](veh_id,
                                                                         car_following_params=car_following_params,
                                                                         **accel_controller[1])
-
+        
         if accel_controller[0]!= ModifiedIDMController:
             if veh_id in self.__human_ids:
                 self.__human_ids.remove(veh_id)

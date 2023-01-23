@@ -34,7 +34,8 @@ class classicEnv(AccelEnv):
         
         if self.method_name =='idm':
             # In case of IDM, all 22 vehicles are IDM
-            self.other_ids = self.select_ids
+            self.other_ids = self.all_ids
+            self.select_ids = [] # Because we dont want to change vehicle type at warmup end
     
         else: 
             # For other classic controllers, remaining ids i.e., not controlled by the method
@@ -162,7 +163,7 @@ class classicEnv(AccelEnv):
         if self.shock_counter < self.sm[2]: # '<' because Shock counter starts counting from 0, sm[2] is the number of shocks
             if self.step_counter >= shock_times[self.shock_counter][0] and \
                 self.step_counter <= shock_times[self.shock_counter][1]:
-                print(f"Shock params: {self.sm[0], self.sm[1], self.sm[2]} applied to vehicle {self.single_shock_id}\n")
+                print(f"Step = {self.step_counter}, Shock params: {self.sm[0], self.sm[1], self.sm[2]} applied to vehicle {self.single_shock_id}\n")
                 
                 controller.set_shock_accel(self.sm[0])
                 controller.set_shock_time(True)

@@ -48,7 +48,6 @@ class ModifiedIDMController(BaseController):
         it will automatically call this for each vehicle
         At shock times, we have to return the shock acceleration
         """
-        print("\n\nHello\n\n")
         # If the vehicle is a registered shock vehicle and shock model says shock now
         if self.shock_vehicle and self.shock_time:
             return self.get_shock_accel()
