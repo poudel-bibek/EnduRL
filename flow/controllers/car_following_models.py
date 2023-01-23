@@ -164,7 +164,7 @@ class BCMController(BaseController):
         speed limits, weather and lighting conditions, traffic density
         and traffic advisories
         """
-        print("\nBCM\n")
+        #print("\nBCM\n")
         lead_id = env.k.vehicle.get_leader(self.veh_id)
         if not lead_id:  # no car ahead
             return self.max_accel

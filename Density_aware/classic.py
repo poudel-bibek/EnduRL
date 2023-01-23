@@ -59,6 +59,8 @@ if __name__ == '__main__':
     parser.add_argument('--render', action='store_true', default=True)
 
     parser.add_argument('--num_controlled', type=int, default=None)
-    parser.add_argument('--min_gap', type=float, default=0.0) # Small value to prevent collisions (Are collisions causing sim to stop?)
+
+    # Collisions only occur at min_gap = 0.0
+    parser.add_argument('--min_gap', type=float, default=0.2) # Small value to prevent collisions (Are collisions causing sim to stop?)
     args = parser.parse_args()
     run(args)

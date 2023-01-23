@@ -9,7 +9,7 @@ from flow.networks.ring import RingNetwork
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import IDMController
 from flow.controllers.routing_controllers import ContinuousRouter
-from flow.envs.ring.density_aware_traditional_env import traditionalEnv
+from flow.envs.ring.density_aware_classic_env import classicEnv
 
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -59,7 +59,7 @@ def config_fs(args, **kwargs):
     desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'])
     print("Desired Velocity: ", desired_velocity, "m/s")
 
-    kwargs['traditional_parms'] = {'v_des': desired_velocity, # Add more if necessary
+    kwargs['classic_parms'] = {'v_des': desired_velocity, # Add more if necessary
                                     }
 
     if args.gen_emission:
@@ -80,7 +80,7 @@ def config_fs(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
+            "classic_params": kwargs['classic_parms'], # Hacky way to pass
         },
     )
 
@@ -100,7 +100,7 @@ def config_fs(args, **kwargs):
 
     flow_params = dict(
         exp_tag= kwargs['method_name'],
-        env_name= traditionalEnv, #AccelEnv,
+        env_name= classicEnv, #AccelEnv,
         network=RingNetwork,
         simulator='traci',
         sim=sim_params,

@@ -41,7 +41,7 @@ class ModifiedIDMController(BaseController):
 
         self.shock_vehicle = shock_vehicle
         self.shock_acceleration = 0.0 # Default
-        self.shock_time = False 
+        self.shock_time = False # Per time step decision on whether to shock or not
 
     def get_accel(self, env):
         """
@@ -57,11 +57,18 @@ class ModifiedIDMController(BaseController):
 
     def set_shock_accel(self, accel):
         self.shock_acceleration = accel
-        print(f"\nYAY: {self.veh_id, self.shock_acceleration}\n")
-        return accel
-        
+        #print(f"\nFrom the controller: {self.veh_id, self.shock_acceleration}\n")
+        #return accel
+    
     def get_shock_accel(self):
+        #print("Shock")
         return self.shock_acceleration
+
+    def set_shock_time(self, shock_time):
+        self.shock_time = shock_time
+
+    def get_shock_time(self):
+        return self.shock_time
 
     def get_idm_accel(self, env):
         """
@@ -84,4 +91,5 @@ class ModifiedIDMController(BaseController):
                 0, v * self.T + v * (v - lead_vel) /
                 (2 * np.sqrt(self.a * self.b)))
 
+        #print("IDM")
         return self.a * (1 - (v / self.v0)**self.delta - (s_star / h)**2)

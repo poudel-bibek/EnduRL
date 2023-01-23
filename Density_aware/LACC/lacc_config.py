@@ -9,7 +9,7 @@ from flow.networks.ring import RingNetwork
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import IDMController
 from flow.controllers.routing_controllers import ContinuousRouter
-from flow.envs.ring.density_aware_traditional_env import traditionalEnv
+from flow.envs.ring.density_aware_classic_env import classicEnv
 
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -53,7 +53,7 @@ def config_lacc(args, **kwargs):
 
     # Add specific properties of vehicles with this method_name id
     # These params from LORR paper
-    kwargs['traditional_parms'] = {'k_1':0.4, # Add more if necessary
+    kwargs['classic_parms'] = {'k_1':0.4, # Add more if necessary
                                     'k_2':0.7,
                                     'h': 1.4,
                                     'time_delay': 0.5,}
@@ -76,7 +76,7 @@ def config_lacc(args, **kwargs):
             "max_decel": 1,
             "target_velocity": 10,
             "sort_vehicles": False,
-            "traditional_params": kwargs['traditional_parms'], # Hacky way to pass
+            "classic_params": kwargs['classic_parms'], # Hacky way to pass
         },
     )
 
@@ -96,7 +96,7 @@ def config_lacc(args, **kwargs):
 
     flow_params = dict(
         exp_tag= kwargs['method_name'],
-        env_name= traditionalEnv, #AccelEnv,
+        env_name= classicEnv, #AccelEnv,
         network=RingNetwork,
         simulator='traci',
         sim=sim_params,

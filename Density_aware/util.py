@@ -36,15 +36,19 @@ def get_desired_velocity(num_vehicles, length):
 # Define shock models 
 
 def shock_model(identifier):
+    # Accel/ Decel value, duration, frequency (in the interval between shock start and shock end)
+    # Duration: In seconds, for which each shock is applied
+    # Frequency: In the interval, how many shocks are applied
+    #  
     if identifier == 1:
-        return (0.2, 20, 20)
+        return (-0.2, 10, 10)
+        #return (0.2, 20, 20)
 
     elif identifier == 2:
-        return (0.2, 20, 20)
+        return (0.2, 20, 10)
 
     elif identifier == 3:
-        return (0.2, 20, 20)
+        return (0.2, 20, 10)
 
     else: 
         raise ValueError("Shock model identifier not recognized")
-        

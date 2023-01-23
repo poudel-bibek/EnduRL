@@ -10,8 +10,9 @@ from flow.envs.ring.lane_change_accel import LaneChangeAccelEnv, \
 from flow.envs.ring.accel import AccelEnv
 from flow.envs.ring.wave_attenuation import WaveAttenuationEnv, \
     WaveAttenuationPOEnv
+
 from flow.envs.ring.density_aware_env import DensityAwareRLEnv #Bibek
-from flow.envs.ring.density_aware_traditional_env import traditionalEnv #Bibek
+from flow.envs.ring.density_aware_classic_env import classicEnv #Bibek
 
 from flow.envs.merge import MergePOEnv
 from flow.envs.test import TestEnv
@@ -35,7 +36,7 @@ __all__ = [
     'WaveAttenuationEnv',
     'WaveAttenuationPOEnv',
     'DensityAwareRLEnv', #Bibek
-    'traditionalEnv', #Bibek
+    'classicEnv', #Bibek
     'TrafficLightGridEnv',
     'TrafficLightGridPOEnv',
     'TrafficLightGridBenchmarkEnv',

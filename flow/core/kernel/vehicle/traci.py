@@ -1270,20 +1270,23 @@ class TraCIVehicle(KernelVehicle):
         self.__rl_ids.sort()
         self.num_rl_vehicles = len(self.__rl_ids)
 
-    def set_shock_acceleration(self, env, veh_id, shock_accel):
-        """
-        Set shock acceleration for the vehicle
-        
-        """
-        # Only works for ModifiedIDM
-        env.k.vehicle.get_acc_controller(veh_id).set_shock(shock_accel)
-
-       
-        print("Actual Accel:", self.get_realized_accel(veh_id))
+    
 
         
 
 # Test stuff: 
+
+# def set_shock_acceleration(self, env, veh_id, shock_accel):
+#         """
+#         Set shock acceleration for the vehicle
+        
+#         """
+#         # Only works for ModifiedIDM
+#         env.k.vehicle.get_acc_controller(veh_id).set_shock(shock_accel)
+
+       
+#         print("Actual Accel:", self.get_realized_accel(veh_id))
+
  #self.kernel_api.vehicle.setAccel(veh_id, shock_accel)
 #self.kernel_api.vehicle.setDecel(veh_id, shock_accel)
 #self.kernel_api.vehicle.setApparentDecel(veh_id, shock_accel)
