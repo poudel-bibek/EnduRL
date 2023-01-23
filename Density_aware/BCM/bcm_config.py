@@ -32,6 +32,7 @@ from flow.core.params import EnvParams
 from util import get_desired_velocity
 
 def config_bcm(args, **kwargs):
+    
     vehicles = VehicleParams()
     num_controlled = 4 if args.num_controlled is None else args.num_controlled # Minimum
 
@@ -52,7 +53,7 @@ def config_bcm(args, **kwargs):
         veh_id="human",
         acceleration_controller=(ModifiedIDMController, {
             "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
-            #"noise": 0.2,
+            "noise": args.noise ,
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=args.min_gap, # Change in others
@@ -64,7 +65,7 @@ def config_bcm(args, **kwargs):
     vehicles.add(
         veh_id=kwargs['method_name'],
          acceleration_controller=(ModifiedIDMController, {
-            #"noise": 0.2, 
+            "noise": args.noise, 
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=args.min_gap, # Change in others
@@ -80,13 +81,6 @@ def config_bcm(args, **kwargs):
     # Add specific properties of vehicles with this method_name id
     kwargs['classic_parms'] = {'v_des': desired_velocity, # Add more if necessary
                                     }
-
-    # Add shock params: 
-    kwargs['shock_params'] = {'shock': args.shock,
-                            'shock_start_time': args.shock_start_time,
-                            'shock_end_time': args.shock_end_time,
-                            'shock_model': args.shock_model} 
-
     if args.gen_emission:
         sim_params = SumoParams(sim_step=0.1, 
                                 render=args.render,

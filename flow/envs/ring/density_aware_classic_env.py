@@ -21,19 +21,24 @@ class classicEnv(AccelEnv):
 
         #network name is actually exp_tag (look at registry). A bit risky
         self.method_name = self.network.name.split('_')[0]
-
+        
         methods = ['bcm', 'lacc', 'idm','fs','piws']
         if self.method_name is None or self.method_name not in methods:
             raise ValueError("The 'method' argument is required and must be one of {}.".format(methods))
         
         self.all_ids = [veh_id for veh_id in self.network.vehicles.ids]
-
+        
         # Set the vehicles that are controlled by the method
         self.select_ids = [veh_id for veh_id in self.all_ids\
              if self.method_name in veh_id] #replace filter with a lambda function?
-
-        # remaining ids
-        self.other_ids = [veh_id for veh_id in self.all_ids if veh_id not in self.select_ids]
+        
+        if self.method_name =='idm':
+            # In case of IDM, all 22 vehicles are IDM
+            self.other_ids = self.select_ids
+    
+        else: 
+            # For other classic controllers, remaining ids i.e., not controlled by the method
+            self.other_ids = [veh_id for veh_id in self.all_ids if veh_id not in self.select_ids]
 
         self.control_dict = {'bcm': BCMController, 
                             'lacc': LACController, 
@@ -87,7 +92,7 @@ class classicEnv(AccelEnv):
                 # All vehicles that are not controller vehicles have the ability to shock
                 self.shock_veh_ids = [veh_id for veh_id in self.other_ids \
                     if self.k.vehicle.get_acc_controller(veh_id).shock_vehicle == True]
-
+                
                 # Randomly choose one to perform shock, for a start
                 self.single_shock_id = np.random.choice(self.shock_veh_ids, 1 )[0]
 
@@ -135,7 +140,7 @@ class classicEnv(AccelEnv):
 
     def perform_shock(self, shock_times):
         # Facts: We can only set intended acceleration, actual (realized) acceleration is computed by the simulator
-        print(f"Step: {self.step_counter}, Shock counter: {self.shock_counter}")
+        #print(f"Step: {self.step_counter}, Shock counter: {self.shock_counter}")
 
         # This is instantiated for every veh_id, we get for just the vehicle we selected as the shock vehicle
         controller = self.k.vehicle.get_acc_controller(self.single_shock_id) 
@@ -166,7 +171,7 @@ class classicEnv(AccelEnv):
         
         
     def get_time_steps(self, duration, frequency):
-        
+
         # TODO: Change this multiplier (10) to work with env sim steps (1/env_steps or something)
         duration = duration*10 
 

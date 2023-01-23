@@ -8,6 +8,8 @@ import os
 from flow.networks.ring import RingNetwork
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import IDMController
+from flow.controllers.controllers_for_daware import ModifiedIDMController
+
 from flow.controllers.routing_controllers import ContinuousRouter
 from flow.envs.ring.density_aware_classic_env import classicEnv
 
@@ -19,6 +21,7 @@ from flow.core.params import EnvParams
 def config_lacc(args, **kwargs):
 
     vehicles = VehicleParams()
+    num_controlled = 9 if args.num_controlled is None else args.num_controlled
 
     if args.length is None:
         kwargs['length'] = random.randint(220, 270)
@@ -29,11 +32,12 @@ def config_lacc(args, **kwargs):
     
     vehicles.add(
         veh_id="human",
-        acceleration_controller=(IDMController, {
-            "noise": 0.2,
+        acceleration_controller=(ModifiedIDMController, {
+            "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
+            "noise": args.noise,
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0,
+            min_gap= args.min_gap,
         ),
 
         routing_controller=(ContinuousRouter, {}),
@@ -41,14 +45,14 @@ def config_lacc(args, **kwargs):
 
     vehicles.add(
         veh_id= kwargs['method_name'],
-         acceleration_controller=(IDMController, {
-            "noise": 0.2,
+         acceleration_controller=(ModifiedIDMController, {
+            "noise": args.noise,
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0,
+            min_gap= args.min_gap,
         ),
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= 9 if args.num_controlled is None else args.num_controlled, # Minimum 
+        num_vehicles= num_controlled, # Minimum 
         color = 'orange')
 
     # Add specific properties of vehicles with this method_name id
@@ -77,6 +81,7 @@ def config_lacc(args, **kwargs):
             "target_velocity": 10,
             "sort_vehicles": False,
             "classic_params": kwargs['classic_parms'], # Hacky way to pass
+            "shock_params": kwargs['shock_params'], # Hacky way to pass
         },
     )
 
