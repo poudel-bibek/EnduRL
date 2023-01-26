@@ -1,14 +1,19 @@
 """
 Three metrics each for Safety, Efficiency and Stability
 """
+import os 
+
 import argparse
 import numpy as np
 import pandas as pd
 
+from eval_plots import plot_speeds
 
 class EvalMetrics():
-    def __init__(self, args):
+    def __init__(self, args, **kwargs):
         self.args = args
+        self.kwargs = kwargs
+
         self.emissions_file_path = self.args.emissions_file_path
         self.horizon = self.args.horizon
         self.warmup = self.args.warmup
@@ -17,10 +22,7 @@ class EvalMetrics():
         self.start_time = self.args.start_time
         self.end_time = self.args.end_time
 
-        self.dataframe = pd.read_csv(self.emissions_file_path)
         
-        #print(self.dataframe.head())
-        #print(self.dataframe.columns)
 
     def safety(self, ):
         """
@@ -43,41 +45,102 @@ class EvalMetrics():
                         A measure of how closely consecutive vehicles are following each other. Time headway is a measure of traffic density (capacity utiliztion) Also related to space headway.
         """
 
-        # This is fuel consumed
-        fuel_consumption_column = self.dataframe['fuel_consumption']
+        
+        file = self.kwargs['files'][0]
+        self.dataframe = pd.read_csv(file)
         
         #filter for each vehicle
         vehicle_ids = self.dataframe['id'].unique()
+
+        ###############
+        print("####################")
+        # Fuel consumption:
         fuel_total= []
         distances_travelled =[]
 
+        print("Vehicle ids: ", vehicle_ids)
+
         for vehicle_id in vehicle_ids:
-            fuel_vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]['fuel_consumption'].values
-            fuel_vehicle = fuel_vehicle[self.start_time:self.end_time]
+            # Get the fuel consumed by vehicles from start to end 
+            # For newer sumo version:
+            # The unit is mg/s or ml/s (used rather interchangably in sumo) i.e., this is fuel consumed per second
+            # But the reading itself is of one timestep i.e., 0.1 seconds
+            # Convert that to fuel consumed per time step, ml/step = ml/s * 0.1 
+            # SEE: https://sumo.dlr.de/pydoc/traci._vehicle.html#VehicleDomain-getFuelConsumption
+
+            # Since we use version 1.1.0, we need to use the following:
+            # This is the fuel consumed in the last time step (0.1 seconds) in ml
+
+            # Also there was a mismatch between documentation and API
+            # See: https://github.com/eclipse/sumo/issues/5659
+            # See: https://www.eclipse.org/lists/sumo-user/msg04350.html
+
+            # So this is in ml/s
+            vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+            fuel_vehicle = vehicle['fuel_consumption'].values
+            
+            # Filter for the start and end time, convert to ml/step
+            # TODO: Get conversion factor 0.1 from env params
+            fuel_vehicle = fuel_vehicle[self.start_time:self.end_time] *0.1 
+            #print(vehicle_id, fuel_vehicle.shape, fuel_vehicle)
+
+            # Append the fuel consumed by each vehicle
             fuel_total.append(fuel_vehicle)
 
-            distance_vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]['distance_traveled'].values
+            distance_vehicle = vehicle['distance_traveled'].values
             #print(vehicle_id, distance_vehicle.shape, distance_vehicle[self.end_time], distance_vehicle[self.start_time])
 
             # Get the distance traveled by vehicles from start to end (meters)
             distances_travelled.append(distance_vehicle[self.end_time] - distance_vehicle[self.start_time])
             
         fuel_total = np.asarray(fuel_total)
-        #print(fuel_total.shape)
+        print(fuel_total.shape)
 
         # Fuel consumed from start to end (Milli liters)
         fuel_total_sum = np.sum(fuel_total, axis=1)
-        # Convert to gallons
-        fuel_total_sum = fuel_total_sum * 0.000264172
+        #print(f"Total fuel consumed by each vehicle (milli liters): \n{fuel_total_sum}\n")
 
-        #print(fuel_total_sum)
+        # Convert to gallons
+        fuel_total_sum = fuel_total_sum #* 0.000264172 # The data does not make sense with this conversion (it must already be in gallons)
+        print(f"Fuel consumed by each vehicle (gallons): \n{fuel_total_sum}\n")
         
         # vehicle miles traveled (VMT) (Miles)
         vmt = np.asarray(distances_travelled) * 0.000621371
-        #print(vmt)
+        print(f"Vehicle miles travelled by each vehicle (miles): \n{vmt}\n")
 
+        # MPG is fuel mileage (Miles per gallon) = VMT / fuel mile
         mpgs = vmt / fuel_total_sum
-        print(mpgs)
+        print(f"Miles per gallon for each vehicle (mpg):\n{mpgs}\n")
+
+        ###############
+        print("####################")
+        # Average speed:
+        # Average speed of the 22 vehicles during the shocks.
+
+        speeds_total = []
+        # Get the average speed of each vehicle
+        for vehicle_id in vehicle_ids: 
+            vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+
+            # Get the average speed of each vehicle during shock time
+            avg_speed = vehicle['speed'].values[self.start_time:self.end_time]
+            #print(vehicle_id, avg_speed.shape, avg_speed)
+
+            speeds_total.append(avg_speed)
+        
+        speeds_total = np.asarray(speeds_total)
+        print(speeds_total.shape)
+
+        # If eval_plots is True, pass this to the plot function
+        if self.args.eval_plots:
+            plot_speeds(speeds_total, vehicle_ids)
+
+        speeds_total_avg = np.mean(speeds_total, axis=1)
+        print(f"\nAverage speed of each vehicle (m/s): \n{speeds_total_avg}\n")
+
+        ###############
+        # Time Headway
+        
 
     def stability(self, ):
         """
@@ -97,17 +160,33 @@ class EvalMetrics():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluating metrics for the agent')
 
-    parser.add_argument('--emissions_file_path', type=str, 
+    parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
 
     parser.add_argument('--horizon', type=int, default=6000)
     parser.add_argument('--warmup', type=int, default=2500)
 
-    parser.add_argument('--start_time', type=int, default=2500)
-    parser.add_argument('--end_time', type=int, default=8500) # Warmup + Horizon
+    parser.add_argument('--start_time', type=int, default=8000)
+    parser.add_argument('--end_time', type=int, default=11500) # Warmup + Horizon
 
-    metrics = EvalMetrics(parser.parse_args())
+    parser.add_argument('--num_rollouts', type=int, default=1)
+    parser.add_argument('--eval_plots', type=bool, default=True)
 
+    args = parser.parse_args()
+    files = [args.emissions_file_path + '/' + item for item in os.listdir(args.emissions_file_path)]
+    
+    # Add more upon necessity
+    kwargs = {'files': files,
+    }
+    print(f"Calculating metrics for {args.num_rollouts} rollouts on files: \n{files}\n")
+
+    metrics = EvalMetrics(args, **kwargs)
     metrics.safety()
     metrics.efficiency()
     metrics.stability()
+
+
+    # TODO: Controlled vehicles and human vehicle have separate stats
+    #
+    #
+    #

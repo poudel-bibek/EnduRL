@@ -5,3 +5,10 @@ Velocity plot 3: Comparative velocity plot of two or more different environments
 Space time plot:
 
 """
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+# pass args as well
+def plot_speeds(total_speeds, vehicle_ids):
+    return 0

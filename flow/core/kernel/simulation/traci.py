@@ -226,7 +226,7 @@ class TraCISimulation(KernelSimulation):
                 sumo_call.append("true")
 
                 sumo_call.append("--quit-on-end")
-                sumo_call.append("false")
+                sumo_call.append("true")
                 
                 #Bibek: Test
                 sumo_call.append("--collision.action")

@@ -245,12 +245,17 @@ class LACController(BaseController):
         lead_id = env.k.vehicle.get_leader(self.veh_id)
         lead_vel = env.k.vehicle.get_speed(lead_id)
         this_vel = env.k.vehicle.get_speed(self.veh_id)
+
         headway = env.k.vehicle.get_headway(self.veh_id)
-        L = env.k.vehicle.get_length(self.veh_id)
+        # Bibek, after discussing with Mr. Chou, decided to use this
+        L = 0 #env.k.vehicle.get_length(self.veh_id)
+
         ex = headway - L - self.h * this_vel
         ev = lead_vel - this_vel
+
         u = self.k_1*ex + self.k_2*ev
         a_dot = -(self.a/self.tau) + (u/self.tau)
+
         self.a = a_dot*env.sim_step + self.a
 
         return self.a

@@ -1,6 +1,10 @@
 """
 Controllers written for Density Aware RL agent
 IDM controllers that can also provide shock
+
+This Modified IDM Controller contains: 
+
+**This does not come from any past published works with other forms of modifications** 
 """
 import math 
 import numpy as np

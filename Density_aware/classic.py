@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--horizon', type=int, default=15000)
     # Dont set default warmup, different controllers require different values set specific in config
-    
+
     parser.add_argument('--warmup', type=int, default=None) 
     parser.add_argument('--length', type=int, default=None)
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('--shock_end_time', type=int, default=11500)
     parser.add_argument('--shock_model', type=int, default= 1)
      
-    parser.add_argument('--render', action='store_true', default=True)
+    parser.add_argument('--render', action='store_true', default=False)
     parser.add_argument('--num_controlled', type=int, default=None)
 
     # Collisions only occur at min_gap = 0.0
