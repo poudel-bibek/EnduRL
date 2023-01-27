@@ -64,6 +64,11 @@ if __name__ == '__main__':
     parser.add_argument('--num_controlled', type=int, default=None)
 
     # Collisions only occur at min_gap = 0.0
+    # Default value of min gap is 2.5m, since vehicle length is 5m
+    # A collision is registered when gaps between vehicles are less than min_gap
+    # Should we make IDM min_gap = 0.0 and controller min_gap = 2.5m (set nothing, it will take default)
+    # If we do set a high min_gap, vehicles will never go close enough to collide (or reduce TTC to a risky value)
+    # 0.2 is small enough?
     parser.add_argument('--min_gap', type=float, default=0.2) # Small value to prevent collisions (Are collisions causing sim to stop?)
     
     parser.add_argument('--noise', type=float, default=0.2)

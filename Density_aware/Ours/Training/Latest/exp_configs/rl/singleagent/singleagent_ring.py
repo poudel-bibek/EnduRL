@@ -19,6 +19,7 @@ N_ROLLOUTS = 20
 N_CPUS = 4
 
 # We place one autonomous vehicle and 22 human-driven vehicles in the network
+# Following Wu el. al. , humans have a minGap of 0.0 and RL has a default (2.5)
 vehicles = VehicleParams()
 vehicles.add(
     veh_id="human",

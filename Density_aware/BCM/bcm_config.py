@@ -56,7 +56,8 @@ def config_bcm(args, **kwargs):
             "noise": args.noise ,
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=args.min_gap, # Change in others
+            min_gap= args.min_gap, # Test 2.5 , 
+            #speed_mode=0, # Test 0, 7
         ),
 
         routing_controller=(ContinuousRouter, {}),
@@ -68,7 +69,8 @@ def config_bcm(args, **kwargs):
             "noise": args.noise, 
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=args.min_gap, # Change in others
+            min_gap=args.min_gap, 
+            #speed_mode=0,# Test
         ),
         routing_controller=(ContinuousRouter, {}),
         num_vehicles= num_controlled, 

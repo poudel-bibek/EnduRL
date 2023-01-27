@@ -542,6 +542,7 @@ class TraCIVehicle(KernelVehicle):
         """See parent class."""
         return self.num_not_departed
 
+    # Bibek: Good god
     def get_fuel_consumption(self, veh_id, error=-1001):
         """Return fuel consumption in gallons/s."""
         ml_to_gallons = 0.000264172
@@ -1180,7 +1181,7 @@ class TraCIVehicle(KernelVehicle):
         # TODO : Brent
         return 0
     
-    # Bibek
+    # Bibek: I wrote the things below
     def get_local_density(self, veh_id, current_length, distance, direction='front', error = None):
         """
         Getting local density. In a circular track, the position resets to 0.

@@ -1,0 +1,45 @@
+Failure # 1 (occurred at 2023-01-09_17-53-12)
+Traceback (most recent call last):
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/tune/trial_runner.py", line 426, in _process_trial
+    result = self.trial_executor.fetch_result(trial)
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/tune/ray_trial_executor.py", line 378, in fetch_result
+    result = ray.get(trial_future[0], DEFAULT_GET_TIMEOUT)
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/worker.py", line 1457, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(RayOutOfMemoryError): [36mray::PPO.train()[39m (pid=25814, ip=141.225.10.134)
+  File "python/ray/_raylet.pyx", line 636, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 619, in ray._raylet.execute_task.function_executor
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/agents/trainer.py", line 444, in train
+    raise e
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/agents/trainer.py", line 433, in train
+    result = Trainable.train(self)
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/tune/trainable.py", line 176, in train
+    result = self._train()
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/agents/trainer_template.py", line 129, in _train
+    fetches = self.optimizer.step()
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/optimizers/multi_gpu_optimizer.py", line 140, in step
+    self.num_envs_per_worker, self.train_batch_size)
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/optimizers/rollout.py", line 29, in collect_samples
+    next_sample = ray_get_and_free(fut_sample)
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/rllib/utils/memory.py", line 33, in ray_get_and_free
+    result = ray.get(object_ids)
+ray.exceptions.RayTaskError(RayOutOfMemoryError): [36mray::RolloutWorker[39m (pid=25813, ip=141.225.10.134)
+  File "python/ray/_raylet.pyx", line 627, in ray._raylet.execute_task
+  File "/home/bibek/anaconda3/envs/flow/lib/python3.7/site-packages/ray/memory_monitor.py", line 130, in raise_if_low_memory
+    self.error_threshold))
+ray.memory_monitor.RayOutOfMemoryError: More than 95% of the memory on node bibek-Alienware-Aurora-R12 is used (29.5 / 31.04 GB). The top 10 memory consumers are:
+
+PID	MEM	COMMAND
+15022	1.22GiB	/opt/teamviewer/tv_bin/TeamViewer_Desktop
+1290	0.55GiB	/usr/bin/gnome-shell
+26228	0.4GiB	ray::PPO.train()
+25814	0.4GiB	ray::PPO.train()
+25079	0.37GiB	ray::PPO.train()
+13340	0.36GiB	/usr/lib/firefox/firefox -new-window
+8775	0.36GiB	ray::PPO.__ray_terminate__()
+5057	0.36GiB	ray::PPO.train()
+6719	0.36GiB	ray::PPO.train()
+4223	0.36GiB	ray::PPO.train()
+
+In addition, up to 0.19 GiB of shared memory is currently being used by the Ray object store. You can set the object store size with the `object_store_memory` parameter when starting Ray, and the max Redis size with `redis_max_memory`. Note that Ray assumes all system memory is available for use by workers. If your system has other applications running, you should manually set these memory limits to a lower value.
+
