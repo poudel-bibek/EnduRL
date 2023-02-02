@@ -61,7 +61,7 @@ def config_bcm(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=18)
+        num_vehicles=10 if args.stability else 18)
 
     vehicles.add(
         veh_id=kwargs['method_name'],

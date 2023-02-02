@@ -10,7 +10,7 @@ from PIwS.piws_config import config_piws
 
 
 def run(args, **kwargs):
-
+   
     config_dict = {'bcm': config_bcm, 
                     'lacc': config_lacc, 
                     'idm': config_idm,
@@ -24,10 +24,20 @@ def run(args, **kwargs):
 
     # Add kwargs if necessary
     # Add shock params: 
-    kwargs['shock_params'] = {'shock': args.shock,
+    if args.stability:
+        # If stability test, by default set shock to True
+        args.shock = True
+        kwargs['shock_params'] = {'shock': args.shock,
                             'shock_start_time': args.shock_start_time,
                             'shock_end_time': args.shock_end_time,
-                            'shock_model': args.shock_model} 
+                            'shock_model': -1, # Shock model identifier is -1 for stability experiments 
+                            'stability': args.stability, } 
+    else: 
+        kwargs['shock_params'] = {'shock': args.shock,
+                            'shock_start_time': args.shock_start_time,
+                            'shock_end_time': args.shock_end_time,
+                            'shock_model': args.shock_model,
+                            'stability': args.stability,} 
 
     kwargs['method_name'] = args.method
     config_func = config_dict.get(kwargs['method_name'])
@@ -57,7 +67,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--shock', action='store_true', default=False)
     parser.add_argument('--shock_start_time', type=int, default=8000)
-    parser.add_argument('--shock_end_time', type=int, default=11500)
+    parser.add_argument('--shock_end_time', type=int, default=11000)
     parser.add_argument('--shock_model', type=int, default= 1)
      
     parser.add_argument('--render', action='store_true', default=False)
@@ -74,5 +84,9 @@ if __name__ == '__main__':
     parser.add_argument('--noise', type=float, default=0.2)
     #TODO: remove all external sources of randomness, make system deterministic
     parser.add_argument('--no_noise', action='store_true', default=True)
+
+    parser.add_argument('--stability', action='store_true', default=False)
+
     args = parser.parse_args()
     run(args)
+

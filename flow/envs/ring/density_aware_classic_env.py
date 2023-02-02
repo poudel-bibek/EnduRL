@@ -62,6 +62,8 @@ class classicEnv(AccelEnv):
         # what model to use for the shock (intensity, duration, frequency)
         self.sm = shock_model(self.shock_params['shock_model'])
         
+        self.stability = self.shock_params['stability']
+        
         # count how many times, shock has been applies
         self.shock_counter = 0
 
@@ -108,7 +110,11 @@ class classicEnv(AccelEnv):
         
         # Between shock start and end times, perform shock
         if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time: #<= is fine, handeled in perform_shock
-            self.perform_shock(self.shock_times)
+            if self.stability:
+                self.perform_shock_stability(self.shock_times)
+
+            else: 
+                self.perform_shock(self.shock_times)
 
         # At warmup, change vehicle type from all IDM to (method types)
         if self.step_counter == self.warmup_steps:
@@ -170,7 +176,34 @@ class classicEnv(AccelEnv):
 
                 self.current_duration_counter += 1
         
+    # For stability
+    def perform_shock_stability(self, shock_times):
+        # Shock_time for each ModifiedIDM controller is set to False by default 
+        # We manipulate the speed of the vehicle instead
+        # Since we only want to vary the speed of the leader (human_0), no need to make use of random choice in single_shock_id
+        self.single_shock_id = 'human_9'
         
+        # velocity shock model 
+        # dip_velocity, duration, frequency = self.sm
+        speed_limit = self.k.vehicle.get_max_speed('human_1')# Hacky, get the speed limit of other vehicles instead
+
+        # When the velocity is not being dip, the max speed is set to speed limit (get from net_params, additional_params).
+        self.k.vehicle.set_max_speed(self.single_shock_id, speed_limit) 
+
+        # Reset duration counter and increase shock counter, after completion of a shock duration
+        if self.current_duration_counter == self.sm[1]*10:
+            self.shock_counter += 1
+            self.current_duration_counter = 0
+        
+        if self.shock_counter < self.sm[2]: # '<' because Shock counter starts counting from 0, sm[2] is the number of shocks
+            if self.step_counter >= shock_times[self.shock_counter][0] and \
+                self.step_counter <= shock_times[self.shock_counter][1]:
+                print(f"Step = {self.step_counter}, Shock params: {self.sm[0], self.sm[1], self.sm[2]} applied to vehicle {self.single_shock_id}\n")
+                
+                self.k.vehicle.set_max_speed(self.single_shock_id, self.sm[0])
+
+                self.current_duration_counter += 1
+
     def get_time_steps(self, duration, frequency):
 
         # TODO: Change this multiplier (10) to work with env sim steps (1/env_steps or something)

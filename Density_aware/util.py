@@ -39,16 +39,20 @@ def shock_model(identifier):
     # Accel/ Decel value, duration, frequency (in the interval between shock start and shock end)
     # Duration: In seconds, for which each shock is applied
     # Frequency: In the interval, how many shocks are applied
-    #  
     if identifier == 1:
-        return (-0.2, 10, 10)
-        #return (0.2, 20, 20)
+        return (-1.4, 2, 10)
 
     elif identifier == 2:
-        return (0.2, 20, 10)
+        return (1.4, 2, 10)
 
-    elif identifier == 3:
-        return (0.2, 20, 10)
+    # Stability test
+    elif identifier == -1:
+        # velocity, duration, frequency
+        # Stability tests have velocity manipulation, so the first param here is speed at the velocity dip
+        # Duration and frequency are also used 
+        # Just apply once is enough
+        return (5, 2, 1)
+        return (2, 10, 10)
 
     else: 
         raise ValueError("Shock model identifier not recognized")
