@@ -382,9 +382,9 @@ class EvalMetrics():
             print(f"Flow (veh/hour): {round(flow,2)}\n")
             flows_mother.append(flow)
 
-            if self.args.save_plots:
-                self.plotter.plot_speeds() # Speeds are plotted over entire horizon
-                self.plotter.plot_fuel_consumption(np.asarray(mpgs_avg_mother), np.asarray(mpgs_std_mother)) # Fuel is plotted between start and end times
+        if self.args.save_plots:
+            self.plotter.plot_speeds() # Speeds are plotted over entire horizon
+            self.plotter.plot_fuel_consumption(np.asarray(mpgs_avg_mother), np.asarray(mpgs_std_mother)) # Fuel is plotted between start and end times
 
         return mpgs_avg_mother, mpgs_std_mother, speeds_avg_mother, speeds_std_mother, flows_mother
 
@@ -443,7 +443,7 @@ class EvalMetrics():
                 for i in range(len(speeds_total_std)):
                     if speeds_total_std[i] <= self.args.idm_noise:
                         # Check the next 10 steps
-                        if np.all(speeds_total_std[i:i+10] < self.args.idm_noise):
+                        if np.all(speeds_total_std[i:i+100] < self.args.idm_noise):
                             # TODO: Get the 10 from env_params
                             tts = i/10
                             break
@@ -477,8 +477,8 @@ if __name__ == '__main__':
     parser.add_argument('--idm_noise', type=float, default=0.2)
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc']:
-        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc]")
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc', 'wu', 'ours']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours]")
 
     files = [f"{args.emissions_file_path}/{args.method}/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}") \
         if item.endswith('.csv')]

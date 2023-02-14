@@ -1,23 +1,36 @@
 Created on top of snapshot of FLOW code obtained on Jan 3, 2023
 
-## Part 1: Generate rollouts
-To evaluate Wu et al.:
-
-To evaluate ours:  
+### Part 1: Training
 ```
-python test_rllib.py [Location of trained policy] [checkpoint number] --gen_emission --num_rollouts 10 --render_mode no_render
+python train.py --exp_config singleagent_ring
 ```
-To generate rollouts from traditional models and save to csv files:
 
+To view tensorboard while training: 
+```
+tensorboard --logdir=~/ray_results/
+```
+
+## Part 1: Generate rollouts from trained RL agent or using Classic controllers and save as csv files.
+### RL agents:
+Replace the method name to be one of: ours, wu
+
+```
+python test_rllib.py [Location of trained policy] [checkpoint number] --method wu --gen_emission --num_rollouts 10 --shock --render --length 260
+```
+
+### Classic controllers:
+For all (replace the method_name to be one of: bcm, lacc, piws, fs, idm)
 ```
 python classic.py --method [method_name] --render --length 260 --num_rollouts [no_of_rollouts] --shock --gen_emission
 ```
 
-For stability tests where just the leader adds perturbations, include --stability to the line above
+For stability tests where just the leader adds perturbations, include --stability to the lines above
 
 ## Part 2: Evaluate the generated rollouts
 
 To evaluate the generated rollouts into Safety, Efficiency and Stability metrics:
+Replace the method name to be one of: bcm, idm, fs, piws, lacc, wu, ours
+
 ```
 python eval_metrics.py --method [method_name] --num_rollouts [no_of_rollouts]
 ```

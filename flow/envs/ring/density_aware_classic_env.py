@@ -8,7 +8,7 @@ from flow.controllers import BCMController, LACController, IDMController
 from flow.controllers.velocity_controllers import FollowerStopper, PISaturation
 from flow.envs.ring.accel import AccelEnv
 
-from util import shock_model, get_time_steps
+from flow.density_aware_util import shock_model, get_time_steps
 
 class classicEnv(AccelEnv):
     """
@@ -73,6 +73,9 @@ class classicEnv(AccelEnv):
         # Get the shock id of a single vehicle, randomly shuffled every time a shock is applied (not every time-step)
         self.single_shock_id = [] 
 
+        # Precise shock times
+        self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
+
     @property
     def action_space(self):
         """See class definition."""
@@ -101,18 +104,11 @@ class classicEnv(AccelEnv):
 
                 if self.shock_veh_ids == []:
                     raise ValueError("No shock vehicles found")
-
-        if self.step_counter == self.shock_start_time:
-            _, duration, frequency = self.sm 
-
-            # Precise shock times after calculations
-            self.shock_times = get_time_steps(duration, frequency, self.shock_start_time, self.shock_end_time) #self.get_time_steps(duration, frequency)
         
         # Between shock start and end times, perform shock
         if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time: #<= is fine, handeled in perform_shock
             if self.stability:
                 self.perform_shock_stability(self.shock_times)
-
             else: 
                 self.perform_shock(self.shock_times)
 
@@ -217,25 +213,3 @@ class classicEnv(AccelEnv):
         # Prevent large negative rewards or else sim quits
         # print("FAIL:", kwargs['fail'])
         return 1
-
-# Moved to utils from inside of the class
-# def get_time_steps(self, duration, frequency):
-
-    #     # TODO: Change this multiplier (10) to work with env sim steps (1/env_steps or something)
-    #     duration = duration*10 
-
-    #     # Based on this frequency, get the time steps at which the shock is applied
-    #     start_times = np.linspace(self.shock_start_time, self.shock_end_time - duration, frequency, dtype=int)
-    #     end_times = np.linspace(self.shock_start_time + duration, self.shock_end_time, frequency, dtype=int)
-    #     shock_time_steps = np.stack((start_times, end_times), axis=1)
-
-    #     print("Start times: ", start_times)
-    #     print("End times: ", end_times)
-    #     print("Shock times: \n", shock_time_steps)
-
-    #     # TODO: Perform overlap tests and warn if there is overlap
-    #     # if start_times[1] < end_times[0]:
-    #     #     import sys
-    #     #     sys.exit()
-        
-    #     return shock_time_steps

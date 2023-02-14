@@ -246,8 +246,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='./metrics_plots')
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc']:
-        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc]")
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc', 'wu', 'ours']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours]")
 
     files = [f"{args.emissions_file_path}/{args.method}_stability/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}_stability") if item.endswith('.csv')]
     

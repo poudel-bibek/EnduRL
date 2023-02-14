@@ -10,7 +10,7 @@ from flow.envs import WaveAttenuationPOEnv
 from flow.networks import RingNetwork
 
 # time horizon of a single rollout
-HORIZON = 6000 #Bibek (for our purposes, 6000 is good)
+HORIZON = 3000 #Bibek (for our purposes, 6000 is good), Wu et al is 3000 (this affects batch_size and reward?)
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers

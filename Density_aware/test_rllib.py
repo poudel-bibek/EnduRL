@@ -1,15 +1,17 @@
-"""Visualizer for rllib experiments.
+"""
+This is modified code from the visualizer_rllib.py file.
+May contain some code that is not used.
 
-Attributes
-----------
-EXAMPLE_USAGE : str
-    Example call to the function, which is
-    ::
+Should be able to specify the ring length
+Should be able to set shock vehicles 
+Should be able to specify the warmup, horizon, shock time
 
-        python ./test_rllib.py /tmp/ray/result_dir 1
+Should be able to calculate shock times according to shock model and accelerate accordingly
 
-parser : ArgumentParser
-    Command-line argument parser
+If a shock start time is set to 8000, this program excludes the warmuptime and starts counting timesteps after warmup end
+So the clock will display 8000+ warmup as shock start time.
+So just set an offset that corrects this behavior to make it consistent across classic controllers and RL
+Rollout files does contain behavior or RL before warmup 
 """
 
 import argparse
@@ -32,21 +34,10 @@ from flow.utils.rllib import get_flow_params
 from flow.utils.rllib import get_rllib_config
 from flow.utils.rllib import get_rllib_pkl
 
-# Bibek 
 import json 
-#from flow.controllers.controllers_for_daware import ModifiedIDMController
 from common_args import update_arguments
-from util import shock_model, get_time_steps
+from flow.density_aware_util import shock_model, get_time_steps
 import random 
-
-"""
-Should be able to specify the ring length
-Should be able to set shock vehicles 
-Should be able to specify the warmup, horizon, shock time
-
-Should be able to calculate shock times according to shock model and accelerate accordingly
-
-"""
 
 
 EXAMPLE_USAGE = """
@@ -58,18 +49,12 @@ Here the arguments are:
 2 - the number of the checkpoint
 """
 
-
 def visualizer_rllib(args):
-    """Visualizer for RLlib experiments.
-
-    This function takes args (see function create_parser below for
-    more detailed information on what information can be fed to this
-    visualizer), and renders the experiment associated with it.
-    """
+    
     result_dir = args.result_dir if args.result_dir[-1] != '/' \
         else args.result_dir[:-1]
 
-    print("\n1.:",result_dir)
+    #print("\n1.:",result_dir)
     config = get_rllib_config(result_dir)
     
     # Modify the config here, its in the dict form. below they are instantiated
@@ -139,40 +124,16 @@ def visualizer_rllib(args):
         sys.exit(1)
 
     sim_params.restart_instance = True
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    emission_path = '{0}/test_time_rollout/'.format(dir_path)
-    sim_params.emission_path = emission_path if args.gen_emission else None
 
-    # pick your rendering mode
-    # if args.render_mode == 'sumo_web3d':
-    #     sim_params.num_clients = 2
-    #     sim_params.render = False
-    # elif args.render_mode == 'drgb':
-    #     sim_params.render = 'drgb'
-    #     sim_params.pxpm = 4
-    # elif args.render_mode == 'sumo_gui':
-    #     sim_params.render = False  # will be set to True below
-    # elif args.render_mode == 'no_render':
-    #     sim_params.render = False
-    # if args.save_render:
-    #     if args.render_mode != 'sumo_gui':
-    #         sim_params.render = 'drgb'
-    #         sim_params.pxpm = 4
-    #     sim_params.save_render = True
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    rl_folder_name = f"{args.method}_stability" if args.stability else args.method
+    emission_path = f"{dir_path}/test_time_rollout/{rl_folder_name}" #'{0}/test_time_rollout/'.format(dir_path)
+
+    sim_params.emission_path = emission_path if args.gen_emission else None
 
     # Create and register a gym+rllib env
     create_env, env_name = make_create_env(params=flow_params, version=0)
     register_env(env_name, create_env)
-
-    # check if the environment is a single or multiagent environment, and
-    # get the right address accordingly
-    # single_agent_envs = [env for env in dir(flow.envs)
-    #                      if not env.startswith('__')]
-
-    # if flow_params['env_name'] in single_agent_envs:
-    #     env_loc = 'flow.envs'
-    # else:
-    #     env_loc = 'flow.envs.multiagent'
 
     # Start the environment with the gui turned on and a path for the
     # emission file
@@ -190,6 +151,7 @@ def visualizer_rllib(args):
     agent = agent_cls(env=env_name, config=config)
     checkpoint = result_dir + '/checkpoint_' + args.checkpoint_num
     checkpoint = checkpoint + '/checkpoint-' + args.checkpoint_num
+    print("\n\n2.:",checkpoint,"\n\n")
     agent.restore(checkpoint)
 
     if hasattr(agent, "local_evaluator") and \
@@ -241,6 +203,11 @@ def visualizer_rllib(args):
     final_inflows = []
     mean_speed = []
     std_speed = []
+
+    warmup_offset = args.warmup 
+    shock_start_time = args.shock_start_time - warmup_offset
+    shock_end_time = args.shock_end_time - warmup_offset
+
     for i in range(args.num_rollouts):
         vel = []
         state = env.reset()
@@ -249,43 +216,31 @@ def visualizer_rllib(args):
         else:
             ret = 0
 
-        intensity, duration, frequency =  shock_model(args.shock_model)
-        shock_times = get_time_steps(duration, frequency, args.shock_start_time, args.shock_end_time)
+        shock_model_id = -1 if args.stability else args.shock_model
+        intensity, duration, frequency =  shock_model(shock_model_id)
+        shock_times = get_time_steps(duration, frequency, shock_start_time, shock_end_time)
 
         shock_counter = 0
         current_duration_counter = 0
-        
+        vehicles = env.unwrapped.k.vehicle
+        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+
         # This program counts for warmup or not? 
         # This will start running only after warmup ends 
         for step in range(env_params.horizon):
-            vehicles = env.unwrapped.k.vehicle
+            
             speeds = vehicles.get_speed(vehicles.get_ids())
 
              # TODO: update for stability
             # perform_shock function RL version
-            if args.shock and step >= args.shock_start_time and step <= args.shock_end_time:
-               
-                # randomly select one vehicle from all humans
-                single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+            if args.shock and step >= shock_start_time and step <= shock_end_time:
+                if args.stability:
+                    perform_shock_stability(env, shock_times, current_duration_counter, step, intensity, duration, frequency)
+                else:
+                    single_shock_id, shock_counter, current_duration_counter = perform_shock(env, vehicles, single_shock_id, \
+                        shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency)
 
-                controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
-
-                # Default: at times when shock is not applied, get acceleration from IDM
-                controller.set_shock_time(False)
-
-                if current_duration_counter == duration*10:
-                    current_duration_counter = 0
-                    shock_counter += 1
-                    
-                if shock_counter< frequency:
-                    if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
-                        
-                        print(f"Step = {step}, Shock params: {intensity}, {duration}, {frequency} applied to vehicle {single_shock_id}\n")
-                        
-                        controller.set_shock_time(True) 
-                        controller.set_shock_accel(intensity)
-
-                        current_duration_counter+= 1
+                
 
             # only include non-empty speeds
             if speeds:
@@ -338,73 +293,88 @@ def visualizer_rllib(args):
         else:
             print('Round {}, Return: {}'.format(i, ret))
 
-    print('==== Summary of results ====')
-    print("Return:")
-    print(mean_speed)
-    if multiagent:
-        for agent_id, rew in rets.items():
-            print('For agent', agent_id)
-            print(rew)
-            print('Average, std return: {}, {} for agent {}'.format(
-                np.mean(rew), np.std(rew), agent_id))
-    else:
-        print(rets)
-        print('Average, std: {}, {}'.format(
-            np.mean(rets), np.std(rets)))
+    print('==== END ====')
+    # print("Return:")
+    # print(mean_speed)
+    # if multiagent:
+    #     for agent_id, rew in rets.items():
+    #         print('For agent', agent_id)
+    #         print(rew)
+    #         print('Average, std return: {}, {} for agent {}'.format(
+    #             np.mean(rew), np.std(rew), agent_id))
+    # else:
+    #     print(rets)
+    #     print('Average, std: {}, {}'.format(
+    #         np.mean(rets), np.std(rets)))
 
-    print("\nSpeed, mean (m/s):")
-    print(mean_speed)
-    print('Average, std: {}, {}'.format(np.mean(mean_speed), np.std(
-        mean_speed)))
-    print("\nSpeed, std (m/s):")
-    print(std_speed)
-    print('Average, std: {}, {}'.format(np.mean(std_speed), np.std(
-        std_speed)))
+    # print("\nSpeed, mean (m/s):")
+    # print(mean_speed)
+    # print('Average, std: {}, {}'.format(np.mean(mean_speed), np.std(
+    #     mean_speed)))
+    # print("\nSpeed, std (m/s):")
+    # print(std_speed)
+    # print('Average, std: {}, {}'.format(np.mean(std_speed), np.std(
+    #     std_speed)))
 
-    # Compute arrival rate of vehicles in the last 500 sec of the run
-    print("\nOutflows (veh/hr):")
-    print(final_outflows)
-    print('Average, std: {}, {}'.format(np.mean(final_outflows),
-                                        np.std(final_outflows)))
-    # Compute departure rate of vehicles in the last 500 sec of the run
-    print("Inflows (veh/hr):")
-    print(final_inflows)
-    print('Average, std: {}, {}'.format(np.mean(final_inflows),
-                                        np.std(final_inflows)))
-    # Compute throughput efficiency in the last 500 sec of the
-    print("Throughput efficiency (veh/hr):")
-    print(throughput_efficiency)
-    print('Average, std: {}, {}'.format(np.mean(throughput_efficiency),
-                                        np.std(throughput_efficiency)))
+    # # Compute arrival rate of vehicles in the last 500 sec of the run
+    # print("\nOutflows (veh/hr):")
+    # print(final_outflows)
+    # print('Average, std: {}, {}'.format(np.mean(final_outflows),
+    #                                     np.std(final_outflows)))
+    # # Compute departure rate of vehicles in the last 500 sec of the run
+    # print("Inflows (veh/hr):")
+    # print(final_inflows)
+    # print('Average, std: {}, {}'.format(np.mean(final_inflows),
+    #                                     np.std(final_inflows)))
+    # # Compute throughput efficiency in the last 500 sec of the
+    # print("Throughput efficiency (veh/hr):")
+    # print(throughput_efficiency)
+    # print('Average, std: {}, {}'.format(np.mean(throughput_efficiency),
+    #                                     np.std(throughput_efficiency)))
 
     # terminate the environment
     env.unwrapped.terminate()
 
-    """
-    Bibek: Emission file is generated without this block of code
+def perform_shock_stability(env, shock_times, current_duration_counter, step, intensity, duration, frequency):
+    single_shock_id = 'human_0'
+    speed_limit = env.unwrapped.k.vehicle.get_max_speed(single_shock_id)
 
-    # if prompted, convert the emission file into a csv file
-    if args.gen_emission:
-        time.sleep(0.1)
+    # Be default, shock is not applied
+    env.unwrapped.k.vehicle.set_max_speed(single_shock_id, speed_limit)
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        emission_filename = '{0}-emission.xml'.format(env.network.name)
+    if current_duration_counter == duration*10:
+        shock_counter += 1
+        current_duration_counter = 0
+        
+    if shock_counter< frequency:
+        if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
+            print(f"Step = {step}, Shock params: {intensity}, {duration}, {frequency} applied to vehicle {single_shock_id}\n")
+            env.unwrapped.k.vehicle.set_max_speed(single_shock_id, intensity)
+            current_duration_counter+=1
 
-        emission_path = \
-            '{0}/test_time_rollout/{1}'.format(dir_path, emission_filename)
-
-        # convert the emission file into a csv file
-        emission_to_csv(emission_path)
-
-        # print the location of the emission csv file
-        emission_path_csv = emission_path[:-4] + ".csv"
-        print("\nGenerated emission file at " + emission_path_csv)
-
-        # delete the .xml version of the emission file
-        os.remove(emission_path)
-    """
     
+def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency):
 
+    controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
+
+    # Default: at times when shock is not applied, get acceleration from IDM
+    controller.set_shock_time(False)
+
+    if current_duration_counter == duration*10:
+        shock_counter += 1
+        current_duration_counter = 0
+        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+        
+    if shock_counter< frequency:
+        if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
+            
+            print(f"Step = {step}, Shock params: {intensity}, {duration}, {frequency} applied to vehicle {single_shock_id}\n")
+            
+            controller.set_shock_time(True) 
+            controller.set_shock_accel(intensity)
+
+            current_duration_counter+= 1
+    return single_shock_id, shock_counter, current_duration_counter
 
 def create_parser():
     """Create the parser to capture CLI arguments."""
@@ -442,6 +412,8 @@ def create_parser():
     #          'with pyglet rendering.')
 
     #parser.add_argument('--render_mode',type=str,default='sumo_gui', help='Pick the render mode. Options include sumo_web3d, rgbd and sumo_gui')
+    
+    parser.add_argument('--method',type=str,default=None, help='Method name, can be [wu, ours]')
     return parser
 
 
@@ -450,6 +422,9 @@ if __name__ == '__main__':
     parser = create_parser()
     parser = update_arguments(parser)
     args = parser.parse_args()
+
+    if args.method is None:
+        raise ValueError("Method name must be specified, can be [wu, ours]")
 
     ray.init(num_cpus=1)
     visualizer_rllib(args)
