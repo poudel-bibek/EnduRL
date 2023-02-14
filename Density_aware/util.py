@@ -52,7 +52,28 @@ def shock_model(identifier):
         # Duration and frequency are also used 
         # Just apply once is enough
         return (5, 2, 1)
-        return (2, 10, 10)
+        #return (2, 10, 10)
 
     else: 
         raise ValueError("Shock model identifier not recognized")
+
+## Shock utils
+def get_time_steps(duration, frequency, shock_start_time, shock_end_time):
+        # Convert duration to env steps
+        duration = duration*10
+
+        # Based on this frequency, get the time steps at which the shock is applied
+        start_times = np.linspace(shock_start_time, shock_end_time - duration, frequency, dtype=int)
+        end_times = np.linspace(shock_start_time + duration, shock_end_time, frequency, dtype=int)
+        shock_time_steps = np.stack((start_times, end_times), axis=1)
+
+        print("Start times: ", start_times)
+        print("End times: ", end_times)
+        print("Shock times: \n", shock_time_steps)
+
+        # TODO: Perform overlap tests and warn if there is overlap
+        # if start_times[1] < end_times[0]:
+        #     import sys
+        #     sys.exit()
+
+        return shock_time_steps

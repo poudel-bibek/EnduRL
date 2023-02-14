@@ -1,48 +1,48 @@
 Created on top of snapshot of FLOW code obtained on Jan 3, 2023
 
-
+## Part 1: Generate rollouts
 To evaluate Wu et al.:
 
 To evaluate ours:  
 ```
-python test_rllib.py ~/ray_results/density_aware_rl/PPO_DensityAwareRLEnv-v0_5898a1aa_2023-01-10_10-10-48wg04npbq 2 --gen_emission --num_rollouts 10 --render_mode no_render
+python test_rllib.py [Location of trained policy] [checkpoint number] --gen_emission --num_rollouts 10 --render_mode no_render
 ```
-To evaluate traditional models:
+To generate rollouts from traditional models and save to csv files:
 
-# Foobar
-
-Foobar is a Python library for dealing with word pluralization.
-
-## Installation
-
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
-
-```bash
-pip install foobar
+```
+python classic.py --method [method_name] --render --length 260 --num_rollouts [no_of_rollouts] --shock --gen_emission
 ```
 
-## Usage
+For stability tests where just the leader adds perturbations, include --stability to the line above
 
-```python
-import foobar
+## Part 2: Evaluate the generated rollouts
 
-# returns 'words'
-foobar.pluralize('word')
-
-# returns 'geese'
-foobar.pluralize('goose')
-
-# returns 'phenomenon'
-foobar.singularize('phenomena')
+To evaluate the generated rollouts into Safety, Efficiency and Stability metrics:
+```
+python eval_metrics.py --method [method_name] --num_rollouts [no_of_rollouts]
 ```
 
-## Contributing
+To add plots to the metrics, include --save_plots
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+For Stability plots
+```
+python eval_plots.py --method [method_name]
+```
 
-Please make sure to update tests as appropriate.
+-------------------------------------
+
 
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
+
+------------
+Locations: 
+
+./Ours/Trained_policies/Last_good/weak_accept_policy/PPO_DensityAwareRlEnv-v0_719f478a_2022-06-05_13-36-42okip6tqy 18
+
+./Wu_et_al/Trained_policies/trained_here/PPO_WaveAttenuationPOEnv-v0_e2342e4c_2023-01-09_13-29-073it85esn 46
+
+./Wu_et_al/Trained_policies/from_flow_code 200
+
+Requirements have been modified 

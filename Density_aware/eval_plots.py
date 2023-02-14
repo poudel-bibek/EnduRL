@@ -36,7 +36,10 @@ class Plotter:
         self.start_time = self.args.start_time
         self.end_time = self.args.end_time
 
-        self.save_dir = self.args.save_dir
+        self.save_dir = kwargs['plots_dir'] #self.args.save_dir
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
     # pass args as well
     def plot_speeds(self, ):
         
@@ -127,6 +130,8 @@ class Plotter:
         i = 0 
         fontsize = 16
 
+        dampening_ratio_mother= []
+
         # Generate for each rollout file that was found  
         for file in self.kwargs['files']:
             self.dataframe = pd.read_csv(file)
@@ -144,8 +149,16 @@ class Plotter:
             controlled_name = controlled[0].split('_')[0]
             print(f"Controlled vehicle name: {controlled_name}")
 
-            sorted_ids = ['human_0'] + [f'{controlled_name}_{item}' for item in range(n_controlled)]
-            sorted_ids = sorted_ids + [f'human_{item}' for item in range(n_human - 1, 0, -1)]
+            if controlled_name == 'idm':
+                shocker = 'idm_0'
+                sorted_ids = ['idm_0'] + [f'{controlled_name}_{item}' for item in range(1, n_controlled)]
+                end = n_controlled
+            else: 
+                shocker = 'human_0'
+                sorted_ids = ['human_0'] + [f'{controlled_name}_{item}' for item in range(n_controlled)]
+                sorted_ids = sorted_ids + [f'human_{item}' for item in range(n_human - 1, 0, -1)]
+                end = n_controlled + 1
+
             print(f"Sorted ids: {sorted_ids}")
             
             # Speed of all vehicles across time, for one file
@@ -153,7 +166,7 @@ class Plotter:
             for vehicle_id in sorted_ids:
                 speed = self.dataframe[self.dataframe['id'] == vehicle_id]['speed']
                 # speed in the time window
-                speed = speed[self.args.start_time - lookout_time : self.args.end_time - 13*lookout_time]
+                speed = speed[self.args.start_time - lookout_time : self.args.end_time - 10*lookout_time]
                 speeds_total.append(speed)
 
             speeds_total = np.array(speeds_total)
@@ -165,16 +178,17 @@ class Plotter:
             ax.plot(speeds_total[0], label='Leading human', color='black')
             
             # plot controlled 
-            for j in range(1, n_controlled + 1):
+            for j in range(1, end):
                 ax.plot(speeds_total[j], color='slateblue') # , label=f'{controlled_name}_{j - 1}',
 
-            # plot all followers
-            for k in range(n_controlled + 1, speeds_total.shape[0]):
-                ax.plot(speeds_total[k], color='teal') #  label=f'Human_{k - n_controlled}'
+            if controlled_name != 'idm':
+                # plot all followers
+                for k in range(n_controlled + 1, speeds_total.shape[0]):
+                    ax.plot(speeds_total[k], color='teal') #  label=f'Human_{k - n_controlled}'
+                ax.plot([], [], label=f'Follower human', color='teal') 
 
             # Add a label for each color black, slateblue, teal
             ax.plot([], [], label=f'{controlled_name}', color='slateblue')
-            ax.plot([], [], label=f'Follower human', color='teal') 
             
             ax.legend()
             ax.set_xlabel('Timesteps')
@@ -198,19 +212,30 @@ class Plotter:
 
             # Calculate the metric (Damping/ Wave attenuation ratio) between human_0 and human_9
             lowest_speed_lead = np.min(speeds_total[0])
-            lowest_speed_follow = np.min(speeds_total[n_controlled])
-
-            print(f"Lowest speed of lead: {lowest_speed_lead}")
-            print(f"Lowest speed of follow: {lowest_speed_follow}")
+            print(f"Lowest speed of lead (index 0): {lowest_speed_lead}")
+            if controlled_name == 'idm':
+                lowest_speed_follow = np.min(speeds_total[2])
+                print(f"Lowest speed of follow (index 2): {lowest_speed_follow}")
+            else:
+                lowest_speed_follow = np.min(speeds_total[end])
+                print(f"Lowest speed of follow (index {end}): {lowest_speed_follow}")
+            
+            
 
             dampening_ratio = lowest_speed_lead / lowest_speed_follow
-            print(f"Dampening ratio: {dampening_ratio}")
-        
+            dampening_ratio_mother.append(dampening_ratio)
+            
+
+        #############################
+        print("\n####################")
+        print(f'\nDampening ratio: {dampening_ratio_mother}\nAvg = {round(np.mean(dampening_ratio_mother),2)}\tStd = {round(np.std(dampening_ratio_mother),2)}')
+       
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
+    parser.add_argument('--method', type=str, default=None)
     parser.add_argument('--horizon', type=int, default=6000)
     parser.add_argument('--warmup', type=int, default=2500)
 
@@ -221,12 +246,16 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='./metrics_plots')
 
     args = parser.parse_args()
-    files = [args.emissions_file_path + '/' + item for item in os.listdir(args.emissions_file_path) if item.endswith('.csv')]
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc]")
+
+    files = [f"{args.emissions_file_path}/{args.method}_stability/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}_stability") if item.endswith('.csv')]
     
     # Add more upon necessity
     kwargs = {'files': files,
+                'plots_dir': f"{args.save_dir}/{args.method}/"
     }
-    print(f"Calculating metrics for {args.num_rollouts} rollouts on files: \n{files}\n")
+   
 
     plotter = Plotter(args, **kwargs)
     plotter.plot_stability()

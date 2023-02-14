@@ -32,6 +32,22 @@ from flow.utils.rllib import get_flow_params
 from flow.utils.rllib import get_rllib_config
 from flow.utils.rllib import get_rllib_pkl
 
+# Bibek 
+import json 
+#from flow.controllers.controllers_for_daware import ModifiedIDMController
+from common_args import update_arguments
+from util import shock_model, get_time_steps
+import random 
+
+"""
+Should be able to specify the ring length
+Should be able to set shock vehicles 
+Should be able to specify the warmup, horizon, shock time
+
+Should be able to calculate shock times according to shock model and accelerate accordingly
+
+"""
+
 
 EXAMPLE_USAGE = """
 example usage:
@@ -53,7 +69,29 @@ def visualizer_rllib(args):
     result_dir = args.result_dir if args.result_dir[-1] != '/' \
         else args.result_dir[:-1]
 
+    print("\n1.:",result_dir)
     config = get_rllib_config(result_dir)
+    
+    # Modify the config here, its in the dict form. below they are instantiated
+    flow_params_modify = json.loads(config["env_config"]["flow_params"])
+
+    # 1. Be able to specify ring length
+    if args.length is not None:
+        flow_params_modify["env"]["additional_params"]["ring_length"] = [args.length,args.length]
+    
+    # 2. Be able to set shock vehicles (set the IDM vehicles to ModifiedIDM)
+    # "veh" is a list with the first element as humans. Right now all humans are shock vehicles, modify for stability tests
+    flow_params_modify["veh"][0]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
+                                                                                        "shock_vehicle": True}] 
+
+    # 3. Be able to specify warmup, horizon, shock time
+    flow_params_modify["env"]["horizon"] = args.horizon
+    flow_params_modify["env"]["warmup_steps"] = args.warmup
+
+    # shock params argument does not exist, so we need to add it
+    #flow_params_modify["env"]["additional_params"]["shock_params"] = {"shock_time": args.shock_time, "shock_duration": args.shock_duration}
+
+    config["env_config"]["flow_params"] = json.dumps(flow_params_modify)
 
     # check if we have a multiagent environment but in a
     # backwards compatible way
@@ -106,21 +144,21 @@ def visualizer_rllib(args):
     sim_params.emission_path = emission_path if args.gen_emission else None
 
     # pick your rendering mode
-    if args.render_mode == 'sumo_web3d':
-        sim_params.num_clients = 2
-        sim_params.render = False
-    elif args.render_mode == 'drgb':
-        sim_params.render = 'drgb'
-        sim_params.pxpm = 4
-    elif args.render_mode == 'sumo_gui':
-        sim_params.render = False  # will be set to True below
-    elif args.render_mode == 'no_render':
-        sim_params.render = False
-    if args.save_render:
-        if args.render_mode != 'sumo_gui':
-            sim_params.render = 'drgb'
-            sim_params.pxpm = 4
-        sim_params.save_render = True
+    # if args.render_mode == 'sumo_web3d':
+    #     sim_params.num_clients = 2
+    #     sim_params.render = False
+    # elif args.render_mode == 'drgb':
+    #     sim_params.render = 'drgb'
+    #     sim_params.pxpm = 4
+    # elif args.render_mode == 'sumo_gui':
+    #     sim_params.render = False  # will be set to True below
+    # elif args.render_mode == 'no_render':
+    #     sim_params.render = False
+    # if args.save_render:
+    #     if args.render_mode != 'sumo_gui':
+    #         sim_params.render = 'drgb'
+    #         sim_params.pxpm = 4
+    #     sim_params.save_render = True
 
     # Create and register a gym+rllib env
     create_env, env_name = make_create_env(params=flow_params, version=0)
@@ -160,8 +198,12 @@ def visualizer_rllib(args):
     else:
         env = gym.make(env_name)
 
-    if args.render_mode == 'sumo_gui':
-        env.sim_params.render = True  # set to True after initializing agent and env
+    # if args.render_mode == 'sumo_gui':
+    #     env.sim_params.render = True  # set to True after initializing agent and env
+    if args.render: 
+        env.sim_params.render = True
+    else: 
+        env.sim_params.render = False
 
     if multiagent:
         rets = {}
@@ -206,9 +248,44 @@ def visualizer_rllib(args):
             ret = {key: [0] for key in rets.keys()}
         else:
             ret = 0
-        for _ in range(env_params.horizon):
+
+        intensity, duration, frequency =  shock_model(args.shock_model)
+        shock_times = get_time_steps(duration, frequency, args.shock_start_time, args.shock_end_time)
+
+        shock_counter = 0
+        current_duration_counter = 0
+        
+        # This program counts for warmup or not? 
+        # This will start running only after warmup ends 
+        for step in range(env_params.horizon):
             vehicles = env.unwrapped.k.vehicle
             speeds = vehicles.get_speed(vehicles.get_ids())
+
+             # TODO: update for stability
+            # perform_shock function RL version
+            if args.shock and step >= args.shock_start_time and step <= args.shock_end_time:
+               
+                # randomly select one vehicle from all humans
+                single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+
+                controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
+
+                # Default: at times when shock is not applied, get acceleration from IDM
+                controller.set_shock_time(False)
+
+                if current_duration_counter == duration*10:
+                    current_duration_counter = 0
+                    shock_counter += 1
+                    
+                if shock_counter< frequency:
+                    if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
+                        
+                        print(f"Step = {step}, Shock params: {intensity}, {duration}, {frequency} applied to vehicle {single_shock_id}\n")
+                        
+                        controller.set_shock_time(True) 
+                        controller.set_shock_accel(intensity)
+
+                        current_duration_counter+= 1
 
             # only include non-empty speeds
             if speeds:
@@ -351,41 +428,28 @@ def create_parser():
              'or PPO), or a user-defined trainable function or '
              'class registered in the tune registry. '
              'Required for results trained with flow-0.2.0 and before.')
-    parser.add_argument(
-        '--num_rollouts',
-        type=int,
-        default=1,
-        help='The number of rollouts to visualize.')
-    parser.add_argument(
-        '--gen_emission',
-        action='store_true',
-        help='Specifies whether to generate an emission file from the '
-             'simulation')
+    
     parser.add_argument(
         '--evaluate',
         action='store_true',
         help='Specifies whether to use the \'evaluate\' reward '
              'for the environment.')
-    parser.add_argument(
-        '--render_mode',
-        type=str,
-        default='sumo_gui',
-        help='Pick the render mode. Options include sumo_web3d, '
-             'rgbd and sumo_gui')
-    parser.add_argument(
-        '--save_render',
-        action='store_true',
-        help='Saves a rendered video to a file. NOTE: Overrides render_mode '
-             'with pyglet rendering.')
-    parser.add_argument(
-        '--horizon',
-        type=int,
-        help='Specifies the horizon.')
+
+    # parser.add_argument(
+    #     '--save_render',
+    #     action='store_true',
+    #     help='Saves a rendered video to a file. NOTE: Overrides render_mode '
+    #          'with pyglet rendering.')
+
+    #parser.add_argument('--render_mode',type=str,default='sumo_gui', help='Pick the render mode. Options include sumo_web3d, rgbd and sumo_gui')
     return parser
 
 
 if __name__ == '__main__':
+
     parser = create_parser()
+    parser = update_arguments(parser)
     args = parser.parse_args()
+
     ray.init(num_cpus=1)
     visualizer_rllib(args)

@@ -8,7 +8,7 @@ from flow.controllers import BCMController, LACController, IDMController
 from flow.controllers.velocity_controllers import FollowerStopper, PISaturation
 from flow.envs.ring.accel import AccelEnv
 
-from util import shock_model
+from util import shock_model, get_time_steps
 
 class classicEnv(AccelEnv):
     """
@@ -106,7 +106,7 @@ class classicEnv(AccelEnv):
             _, duration, frequency = self.sm 
 
             # Precise shock times after calculations
-            self.shock_times = self.get_time_steps(duration, frequency)
+            self.shock_times = get_time_steps(duration, frequency, self.shock_start_time, self.shock_end_time) #self.get_time_steps(duration, frequency)
         
         # Between shock start and end times, perform shock
         if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time: #<= is fine, handeled in perform_shock
@@ -181,11 +181,16 @@ class classicEnv(AccelEnv):
         # Shock_time for each ModifiedIDM controller is set to False by default 
         # We manipulate the speed of the vehicle instead
         # Since we only want to vary the speed of the leader (human_0), no need to make use of random choice in single_shock_id
-        self.single_shock_id = 'human_9'
-        
-        # velocity shock model 
-        # dip_velocity, duration, frequency = self.sm
-        speed_limit = self.k.vehicle.get_max_speed('human_1')# Hacky, get the speed limit of other vehicles instead
+        if self.method_name =='idm':
+            self.single_shock_id = 'idm_0'
+            speed_limit = self.k.vehicle.get_max_speed('idm_1')
+
+        else: 
+            self.single_shock_id = 'human_0'
+            
+            # velocity shock model 
+            # dip_velocity, duration, frequency = self.sm
+            speed_limit = self.k.vehicle.get_max_speed('human_1')# Hacky, get the speed limit of other vehicles instead
 
         # When the velocity is not being dip, the max speed is set to speed limit (get from net_params, additional_params).
         self.k.vehicle.set_max_speed(self.single_shock_id, speed_limit) 
@@ -204,28 +209,6 @@ class classicEnv(AccelEnv):
 
                 self.current_duration_counter += 1
 
-    def get_time_steps(self, duration, frequency):
-
-        # TODO: Change this multiplier (10) to work with env sim steps (1/env_steps or something)
-        duration = duration*10 
-
-        # Based on this frequency, get the time steps at which the shock is applied
-        start_times = np.linspace(self.shock_start_time, self.shock_end_time - duration, frequency, dtype=int)
-        end_times = np.linspace(self.shock_start_time + duration, self.shock_end_time, frequency, dtype=int)
-        shock_time_steps = np.stack((start_times, end_times), axis=1)
-
-        print("Start times: ", start_times)
-        print("End times: ", end_times)
-        print("Shock times: \n", shock_time_steps)
-
-        # TODO: Perform overlap tests and warn if there is overlap
-        # if start_times[1] < end_times[0]:
-        #     import sys
-        #     sys.exit()
-        
-        return shock_time_steps
-        
-        
     def additional_command(self):
         # Dont set observed for classic methods
         pass
@@ -234,3 +217,25 @@ class classicEnv(AccelEnv):
         # Prevent large negative rewards or else sim quits
         # print("FAIL:", kwargs['fail'])
         return 1
+
+# Moved to utils from inside of the class
+# def get_time_steps(self, duration, frequency):
+
+    #     # TODO: Change this multiplier (10) to work with env sim steps (1/env_steps or something)
+    #     duration = duration*10 
+
+    #     # Based on this frequency, get the time steps at which the shock is applied
+    #     start_times = np.linspace(self.shock_start_time, self.shock_end_time - duration, frequency, dtype=int)
+    #     end_times = np.linspace(self.shock_start_time + duration, self.shock_end_time, frequency, dtype=int)
+    #     shock_time_steps = np.stack((start_times, end_times), axis=1)
+
+    #     print("Start times: ", start_times)
+    #     print("End times: ", end_times)
+    #     print("Shock times: \n", shock_time_steps)
+
+    #     # TODO: Perform overlap tests and warn if there is overlap
+    #     # if start_times[1] < end_times[0]:
+    #     #     import sys
+    #     #     sys.exit()
+        
+    #     return shock_time_steps

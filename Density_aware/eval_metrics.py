@@ -36,9 +36,10 @@ class EvalMetrics():
 
         self.plotter = Plotter(args, **kwargs)
         
-        self.save_dir = self.args.save_dir
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+        # only required for plots (Maybe later required to save the eval metrics data)
+        # self.save_dir = kwargs['plots_dir'] #self.args.save_dir
+        # if not os.path.exists(self.save_dir):
+        #     os.makedirs(self.save_dir)
 
 
     def safety(self, ):
@@ -243,17 +244,7 @@ class EvalMetrics():
             time_headways_avg_mother.append(avg_time_headway)
             time_headways_std_mother.append(std_time_headway)
             
-            #############################
-            print("####################")
-
-        ############################
-        print("####################")
-        print("\nFinal Aggregated Safety Metrics (across all files):\n")
-        print(f"Time to Collision across rollouts (s):\n\tWorst= {ttc_worst_mother} \n\tAvg= {round(np.mean(ttc_worst_mother),2)}, std= {round(np.std(ttc_worst_mother),2)}\n\n\tBest: Avg= {round(np.mean(ttc_best_mother),2)}, \
-            std= {round(np.std(ttc_best_mother),2)}\n\tAverage: Avg= {round(np.mean(ttc_avg_mother),2)}, std= {round(np.std(ttc_avg_mother),2)}\n\tStd: Avg= {round(np.mean(ttc_std_mother),2)}, std= {round(np.std(ttc_std_mother),2)}\n")
-        print(f"Time headway across rollouts (s): {time_headways_avg_mother} \n\tAvg= {round(np.mean(time_headways_avg_mother),2)}, std= {round(np.mean(time_headways_std_mother),2)}\n")
-
-   
+        return ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, time_headways_avg_mother, time_headways_std_mother
 
     def efficiency(self, ):
         """
@@ -391,17 +382,12 @@ class EvalMetrics():
             print(f"Flow (veh/hour): {round(flow,2)}\n")
             flows_mother.append(flow)
 
-        #############################
-        print("####################")
-        print("####################")
-        print("\nFinal Aggregated Efficiency Metrics (across all files):\n")
-        print(f"MPG across rollouts (miles/gallon): {mpgs_avg_mother} \n\tAvg= {round(np.mean(mpgs_avg_mother),2)}, std= {round(np.mean(mpgs_std_mother),2)}\n")
-        print(f"Speed across rollouts (m/s): {speeds_avg_mother} \n\tAvg= {round(np.mean(speeds_avg_mother),2)}, std= {round(np.mean(speeds_std_mother),2)}\n")
-        print(f"Throughput/ Flow across rollouts (veh/hr): {flows_mother} \n\tAvg= {round(np.mean(flows_mother),2)}, std= {round(np.std(flows_mother),2)}\n")
+            if self.args.save_plots:
+                self.plotter.plot_speeds() # Speeds are plotted over entire horizon
+                self.plotter.plot_fuel_consumption(np.asarray(mpgs_avg_mother), np.asarray(mpgs_std_mother)) # Fuel is plotted between start and end times
 
-        if self.args.save_plots:
-            self.plotter.plot_speeds() # Speeds are plotted over entire horizon
-            self.plotter.plot_fuel_consumption(np.asarray(mpgs_avg_mother), np.asarray(mpgs_std_mother)) # Fuel is plotted between start and end times
+        return mpgs_avg_mother, mpgs_std_mother, speeds_avg_mother, speeds_std_mother, flows_mother
+
 
     def stability(self, ):
         """
@@ -467,22 +453,15 @@ class EvalMetrics():
                 
             #print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts}\n")
             tts_mother.append(tts)
-        # across files
-        tts_avg = np.mean(tts_mother)
-        tts_std = np.std(tts_mother)
 
-        #############################
-        print("####################")
-        print("\nFinal Aggregated Stability Metrics (across all files):\n")
-        print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts_mother} \n\tAvg= {round(tts_avg,2)}, std= {round(tts_std,2)}\n")
-        
+        return tts_mother
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluating metrics for the agent')
 
     parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
-
+    parser.add_argument('--method', type=str, default=None)
     parser.add_argument('--horizon', type=int, default=6000)
     parser.add_argument('--warmup', type=int, default=2500)
 
@@ -498,20 +477,42 @@ if __name__ == '__main__':
     parser.add_argument('--idm_noise', type=float, default=0.2)
 
     args = parser.parse_args()
-    files = [args.emissions_file_path + '/' + item for item in os.listdir(args.emissions_file_path) if item.endswith('.csv')]
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc]")
+
+    files = [f"{args.emissions_file_path}/{args.method}/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}") \
+        if item.endswith('.csv')]
     
     # Add more upon necessity
     kwargs = {'files': files,
+              'plots_dir': f"{args.save_dir}/{args.method}/"
     }
     print(f"Calculating metrics for {args.num_rollouts} rollouts on files: \n{files}\n")
-
     metrics = EvalMetrics(args, **kwargs)
-    metrics.safety()
-    metrics.efficiency()
-    metrics.stability()
+    ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, time_headways_avg_mother, time_headways_std_mother = metrics.safety()
+    mpgs_avg_mother, mpgs_std_mother, speeds_avg_mother, speeds_std_mother, flows_mother = metrics.efficiency()
+    tts_mother = metrics.stability()
 
+    print("####################")
+    print("####################")
+    print("\nFinal Aggregated Safety Metrics (across all files):\n")
+    print(f"Time to Collision across rollouts (s):\n\tWorst= {ttc_worst_mother} \n\tAvg= {round(np.mean(ttc_worst_mother),2)}, std= {round(np.std(ttc_worst_mother),2)}\n\n\tBest: Avg= {round(np.mean(ttc_best_mother),2)}, \
+        std= {round(np.std(ttc_best_mother),2)}\n\tAverage: Avg= {round(np.mean(ttc_avg_mother),2)}, std= {round(np.std(ttc_avg_mother),2)}\n\tStd: Avg= {round(np.mean(ttc_std_mother),2)}, std= {round(np.std(ttc_std_mother),2)}\n")
+    print(f"Time headway across rollouts (s): {time_headways_avg_mother} \n\tAvg= {round(np.mean(time_headways_avg_mother),2)}, std= {round(np.mean(time_headways_std_mother),2)}\n")
+    
+    print("####################")
+    print("\nFinal Aggregated Efficiency Metrics (across all files):\n")
+    print(f"MPG across rollouts (miles/gallon): {mpgs_avg_mother} \n\tAvg= {round(np.mean(mpgs_avg_mother),2)}, std= {round(np.mean(mpgs_std_mother),2)}\n")
+    print(f"Speed across rollouts (m/s): {speeds_avg_mother} \n\tAvg= {round(np.mean(speeds_avg_mother),2)}, std= {round(np.mean(speeds_std_mother),2)}\n")
+    print(f"Throughput/ Flow across rollouts (veh/hr): {flows_mother} \n\tAvg= {round(np.mean(flows_mother),2)}, std= {round(np.std(flows_mother),2)}\n")
+    
+    print("####################")
+    tts_avg = np.mean(tts_mother)
+    tts_std = np.std(tts_mother)
+    print("\nFinal Aggregated Stability Metrics (across all files):\n")
+    print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts_mother} \n\tAvg= {round(tts_avg,2)}, std= {round(tts_std,2)}\n")
 
-    # TODO: Controlled vehicles and human vehicle have separate stats
+    # TODO: Controlled vehicles and human vehicle have separate stats?
     #
     #
     #

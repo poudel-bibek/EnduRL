@@ -46,6 +46,7 @@ class ModifiedIDMController(BaseController):
         self.shock_vehicle = shock_vehicle
         self.shock_acceleration = 0.0 # Default
         self.shock_time = False # Per time step decision on whether to shock or not
+        print("HELLO FROM THE CONTROLLER")
 
     def get_accel(self, env):
         """

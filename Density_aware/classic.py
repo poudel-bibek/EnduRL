@@ -2,12 +2,13 @@ import random
 import argparse
 from flow.core.experiment import Experiment
 
-from BCM.bcm_config import config_bcm
-from LACC.lacc_config import config_lacc
-from IDM.idm_config import config_idm
-from FS.fs_config import config_fs
-from PIwS.piws_config import config_piws
+from Config.bcm_config import config_bcm
+from Config.lacc_config import config_lacc
+from Config.idm_config import config_idm
+from Config.fs_config import config_fs
+from Config.piws_config import config_piws
 
+from common_args import update_arguments
 
 def run(args, **kwargs):
    
@@ -55,22 +56,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--method', type=str, default=None)
-    parser.add_argument('--num_rollouts', type=int, default=1)
-    # store_true gen_emission
-    parser.add_argument('--gen_emission', action='store_true', default=False)
-
-    parser.add_argument('--horizon', type=int, default=15000)
-    # Dont set default warmup, different controllers require different values set specific in config
-
-    parser.add_argument('--warmup', type=int, default=None) 
-    parser.add_argument('--length', type=int, default=None)
-
-    parser.add_argument('--shock', action='store_true', default=False)
-    parser.add_argument('--shock_start_time', type=int, default=8000)
-    parser.add_argument('--shock_end_time', type=int, default=11000)
-    parser.add_argument('--shock_model', type=int, default= 1)
-     
-    parser.add_argument('--render', action='store_true', default=False)
     parser.add_argument('--num_controlled', type=int, default=None)
 
     # Collisions only occur at min_gap = 0.0
@@ -79,14 +64,10 @@ if __name__ == '__main__':
     # Should we make IDM min_gap = 0.0 and controller min_gap = 2.5m (set nothing, it will take default)
     # If we do set a high min_gap, vehicles will never go close enough to collide (or reduce TTC to a risky value)
     # 0.2 is small enough?
+
     parser.add_argument('--min_gap', type=float, default=0.2) # Small value to prevent collisions (Are collisions causing sim to stop?)
     
-    parser.add_argument('--noise', type=float, default=0.2)
-    #TODO: remove all external sources of randomness, make system deterministic
-    parser.add_argument('--no_noise', action='store_true', default=True)
-
-    parser.add_argument('--stability', action='store_true', default=False)
-
+    parser = update_arguments(parser)
     args = parser.parse_args()
     run(args)
 
