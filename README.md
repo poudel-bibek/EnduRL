@@ -1,5 +1,20 @@
 Created on top of snapshot of FLOW code obtained on Jan 3, 2023
 
+### Installation instructions 
+
+Developed and tested on Ubuntu 18.04.5 LTS, Python 3.7.3
+
+- Install Anaconda
+- Clone this repository
+- Use the following commands
+
+```
+conda env create -f environment.yml
+conda activate flow
+python setup.py develop
+pip install -U pip setuptools
+```
+Note: the requirements in this repo have redis version removed.
 ### Part 1: Training
 ```
 python train.py --exp_config singleagent_ring
@@ -10,7 +25,7 @@ To view tensorboard while training:
 tensorboard --logdir=~/ray_results/
 ```
 
-## Part 1: Generate rollouts from trained RL agent or using Classic controllers and save as csv files.
+## Part 2: Generate rollouts from trained RL agent or using Classic controllers and save as csv files.
 ### RL agents:
 Replace the method name to be one of: ours, wu
 
@@ -26,7 +41,7 @@ python classic.py --method [method_name] --render --length 260 --num_rollouts [n
 
 For stability tests where just the leader adds perturbations, include --stability to the lines above
 
-## Part 2: Evaluate the generated rollouts
+## Part 3: Evaluate the generated rollouts
 
 To evaluate the generated rollouts into Safety, Efficiency and Stability metrics:
 Replace the method name to be one of: bcm, idm, fs, piws, lacc, wu, ours

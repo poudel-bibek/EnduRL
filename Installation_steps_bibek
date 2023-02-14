@@ -1,3 +1,0 @@
-Steps: 
-1. Remove redis version from requirements.txt and environment.yml
-2. pip install -U pip setuptools
