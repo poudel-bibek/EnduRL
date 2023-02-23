@@ -49,7 +49,7 @@ def get_desired_velocity(num_vehicles, length, method_name = None):
 # Shock
 # Define shock models 
 
-def shock_model(identifier, length = None):
+def get_shock_model(identifier, length = None):
     # Accel/ Decel value, duration, frequency (in the interval between shock start and shock end)
     # Duration: In seconds, for which each shock is applied
     # Frequency: In the interval, how many shocks are applied
@@ -173,6 +173,6 @@ def get_time_steps(durations, frequency, shock_start_time, shock_end_time):
         return shock_time_steps
 
 # use 
-sm = shock_model(2)
+# sm = shock_model(2)
 # get_time_steps(durations, frequency, 8000, 10000)
 #print(sm[0][1])

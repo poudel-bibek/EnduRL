@@ -36,7 +36,7 @@ from flow.utils.rllib import get_rllib_pkl
 
 import json 
 from common_args import update_arguments
-from flow.density_aware_util import shock_model, get_time_steps, get_time_steps_stability
+from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
 import random 
 
 
@@ -219,7 +219,7 @@ def visualizer_rllib(args):
             ret = 0
 
         shock_model_id = -1 if args.stability else args.shock_model
-        intensities, durations, frequency =  shock_model(shock_model_id, length = args.length) if args.stability else shock_model(shock_model_id)
+        intensities, durations, frequency =  get_shock_model(shock_model_id, length = args.length) if args.stability else get_shock_model(shock_model_id)
         if args.stability:
             shock_times = get_time_steps_stability(durations, frequency, shock_start_time, shock_end_time)
         else:

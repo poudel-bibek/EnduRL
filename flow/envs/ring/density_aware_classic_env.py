@@ -8,7 +8,7 @@ from flow.controllers import BCMController, LACController, IDMController
 from flow.controllers.velocity_controllers import FollowerStopper, PISaturation
 from flow.envs.ring.accel import AccelEnv
 
-from flow.density_aware_util import shock_model, get_time_steps, get_time_steps_stability
+from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
 
 class classicEnv(AccelEnv):
     """
@@ -63,9 +63,9 @@ class classicEnv(AccelEnv):
         
         # what model to use for the shock (intensity, duration, frequency)
         if self.stability:
-            self.sm = shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"])
+            self.sm = get_shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"])
         else: 
-            self.sm = shock_model(self.shock_params['shock_model'])
+            self.sm = get_shock_model(self.shock_params['shock_model'])
             
         # count how many times, shock has been applies
         self.shock_counter = 0
