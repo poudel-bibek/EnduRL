@@ -8,7 +8,7 @@ from flow.controllers import BCMController, LACController, IDMController
 from flow.controllers.velocity_controllers import FollowerStopper, PISaturation
 from flow.envs.ring.accel import AccelEnv
 
-from flow.density_aware_util import shock_model, get_time_steps
+from flow.density_aware_util import shock_model, get_time_steps, get_time_steps_stability
 
 class classicEnv(AccelEnv):
     """
@@ -59,11 +59,14 @@ class classicEnv(AccelEnv):
         # when to end the shock
         self.shock_end_time = self.shock_params['shock_end_time'] 
 
-        # what model to use for the shock (intensity, duration, frequency)
-        self.sm = shock_model(self.shock_params['shock_model'])
-        
         self.stability = self.shock_params['stability']
         
+        # what model to use for the shock (intensity, duration, frequency)
+        if self.stability:
+            self.sm = shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"])
+        else: 
+            self.sm = shock_model(self.shock_params['shock_model'])
+            
         # count how many times, shock has been applies
         self.shock_counter = 0
 
@@ -74,7 +77,10 @@ class classicEnv(AccelEnv):
         self.single_shock_id = [] 
 
         # Precise shock times
-        self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
+        if self.stability:
+            self.shock_times = get_time_steps_stability(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
+        else:
+            self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
 
     @property
     def action_space(self):
@@ -152,7 +158,7 @@ class classicEnv(AccelEnv):
         controller.set_shock_time(False) 
 
         # Reset duration counter and increase shock counter, after completion of a shock duration
-        if self.current_duration_counter == self.sm[1]*10:
+        if self.current_duration_counter == self.sm[1][self.shock_counter]*10:
             self.shock_counter += 1
             self.current_duration_counter = 0
 
@@ -165,9 +171,9 @@ class classicEnv(AccelEnv):
         if self.shock_counter < self.sm[2]: # '<' because Shock counter starts counting from 0, sm[2] is the number of shocks
             if self.step_counter >= shock_times[self.shock_counter][0] and \
                 self.step_counter <= shock_times[self.shock_counter][1]:
-                print(f"Step = {self.step_counter}, Shock params: {self.sm[0], self.sm[1], self.sm[2]} applied to vehicle {self.single_shock_id}\n")
+                print(f"Step = {self.step_counter}, Shock params: {self.sm[0][self.shock_counter], self.sm[1][self.shock_counter], self.sm[2]} applied to vehicle {self.single_shock_id}\n")
                 
-                controller.set_shock_accel(self.sm[0])
+                controller.set_shock_accel(self.sm[0][self.shock_counter])
                 controller.set_shock_time(True)
 
                 self.current_duration_counter += 1

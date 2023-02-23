@@ -36,7 +36,7 @@ from flow.utils.rllib import get_rllib_pkl
 
 import json 
 from common_args import update_arguments
-from flow.density_aware_util import shock_model, get_time_steps
+from flow.density_aware_util import shock_model, get_time_steps, get_time_steps_stability
 import random 
 
 
@@ -68,6 +68,8 @@ def visualizer_rllib(args):
     # "veh" is a list with the first element as humans. Right now all humans are shock vehicles, modify for stability tests
     flow_params_modify["veh"][0]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
                                                                                         "shock_vehicle": True}] 
+    # 2.1 modify the mingap for human vehicles (only at test time)
+    flow_params_modify["veh"][0]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
 
     # 3. Be able to specify warmup, horizon, shock time
     flow_params_modify["env"]["horizon"] = args.horizon
@@ -217,8 +219,11 @@ def visualizer_rllib(args):
             ret = 0
 
         shock_model_id = -1 if args.stability else args.shock_model
-        intensity, duration, frequency =  shock_model(shock_model_id)
-        shock_times = get_time_steps(duration, frequency, shock_start_time, shock_end_time)
+        intensities, durations, frequency =  shock_model(shock_model_id, length = args.length) if args.stability else shock_model(shock_model_id)
+        if args.stability:
+            shock_times = get_time_steps_stability(durations, frequency, shock_start_time, shock_end_time)
+        else:
+            shock_times = get_time_steps(durations, frequency, shock_start_time, shock_end_time)
 
         shock_counter = 0
         current_duration_counter = 0
@@ -235,10 +240,10 @@ def visualizer_rllib(args):
             # perform_shock function RL version
             if args.shock and step >= shock_start_time and step <= shock_end_time:
                 if args.stability:
-                    perform_shock_stability(env, shock_times, current_duration_counter, step, intensity, duration, frequency)
+                    single_shock_id, shock_counter, current_duration_counter = perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency) # For stability the values are single values
                 else:
                     single_shock_id, shock_counter, current_duration_counter = perform_shock(env, vehicles, single_shock_id, \
-                        shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency)
+                        shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency)
 
                 
 
@@ -335,9 +340,11 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-def perform_shock_stability(env, shock_times, current_duration_counter, step, intensity, duration, frequency):
+def perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency):
     single_shock_id = 'human_0'
-    speed_limit = env.unwrapped.k.vehicle.get_max_speed(single_shock_id)
+    
+    reference_speed_limit_id = 'human_1'
+    speed_limit = env.unwrapped.k.vehicle.get_max_speed(reference_speed_limit_id)
 
     # Be default, shock is not applied
     env.unwrapped.k.vehicle.set_max_speed(single_shock_id, speed_limit)
@@ -352,15 +359,16 @@ def perform_shock_stability(env, shock_times, current_duration_counter, step, in
             env.unwrapped.k.vehicle.set_max_speed(single_shock_id, intensity)
             current_duration_counter+=1
 
+    return single_shock_id, shock_counter, current_duration_counter
     
-def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency):
+def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency):
 
     controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
 
     # Default: at times when shock is not applied, get acceleration from IDM
     controller.set_shock_time(False)
 
-    if current_duration_counter == duration*10:
+    if current_duration_counter == durations[shock_counter]*10:
         shock_counter += 1
         current_duration_counter = 0
         single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
@@ -368,10 +376,10 @@ def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, cu
     if shock_counter< frequency:
         if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
             
-            print(f"Step = {step}, Shock params: {intensity}, {duration}, {frequency} applied to vehicle {single_shock_id}\n")
+            print(f"Step = {step}, Shock params: {intensities[shock_counter]}, {durations[shock_counter]}, {frequency} applied to vehicle {single_shock_id}\n")
             
             controller.set_shock_time(True) 
-            controller.set_shock_accel(intensity)
+            controller.set_shock_accel(intensities[shock_counter])
 
             current_duration_counter+= 1
     return single_shock_id, shock_counter, current_duration_counter

@@ -127,10 +127,12 @@ class TraCISimulation(KernelSimulation):
                     "leader_id": kv.get_leader(veh_id),
                     "follower_id": kv.get_follower(veh_id),
                     #"leader_rel_speed": kv.get_speed(kv.get_leader(veh_id)) - kv.get_speed(veh_id),
-                    #"target_accel_with_noise_with_failsafe": kv.get_accel(veh_id, noise=True, failsafe=True),
+                    "target_accel_with_noise_with_failsafe": kv.get_accel(veh_id, noise=True, failsafe=True),
                     #"target_accel_no_noise_no_failsafe": kv.get_accel(veh_id, noise=False, failsafe=False),
                     #"target_accel_with_noise_no_failsafe": kv.get_accel(veh_id, noise=True, failsafe=False),
                     #"target_accel_no_noise_with_failsafe": kv.get_accel(veh_id, noise=False, failsafe=True),
+                    
+                    "shock_time": int(kv.get_shock_time(veh_id)), # If kernel vehicle is ModifiedIDMController
                     "realized_accel": kv.get_realized_accel(veh_id),
                     #"road_grade": kv.get_road_grade(veh_id),
                     "distance_traveled": kv.get_distance(veh_id),
@@ -310,6 +312,7 @@ class TraCISimulation(KernelSimulation):
             #"target_accel_with_noise_no_failsafe",
             #"target_accel_no_noise_with_failsafe",
             "realized_accel",
+            "target_accel_with_noise_with_failsafe",
             #"road_grade",
             #"edge_id",
             #"lane_number",
@@ -318,6 +321,7 @@ class TraCISimulation(KernelSimulation):
             "follower_id",
             #"leader_rel_speed",
             "fuel_consumption",
+            "shock_time"
         ]
 
         # Update the stored data to push to the csv file.

@@ -8,6 +8,8 @@ from flow.core.params import NetParams
 from flow.envs.base import Env
 
 from gym.spaces.box import Box
+from gym.spaces.discrete import Discrete
+from gym.spaces.tuple import Tuple
 
 from copy import deepcopy
 import numpy as np
@@ -23,6 +25,23 @@ ADDITIONAL_ENV_PARAMS = {
     'ring_length': [220, 270],
 }
 
+def calculate_threshold(network_length, num_vehicles, max_speed):
+    """
+    Calculate optimal gap for free flow conditions 
+    Calculate the threshold based on the 2 second rule? solely based on the max speed?
+    Right now the gap is calculated based on network length and number of vehicles
+    """
+    return (network_length - num_vehicles * 5) / num_vehicles 
+
+def get_max_density(local_zone, min_gap=0.0, vehicle_length=5.0):
+    """
+    How many vehicles max can fit in the local zone?
+    """
+    max_vehicles = local_zone/(vehicle_length + min_gap)
+    max_density = max_vehicles*1000/local_zone # density is in veh/km
+    return max_density
+
+
 class DensityAwareRLEnv(Env):
     """
     Docs here
@@ -37,24 +56,37 @@ class DensityAwareRLEnv(Env):
                     'Environment parameter \'{}\' not supplied'.format(p))
 
         super().__init__(env_params, sim_params, network, simulator)
-        # CONSTANTS
-        self.MAX_DENSITY = 200 # vehicle length is 5m, so max 200 vehicles in 1000m 
-        # Get max speed from net params
-        self.MAX_SPEED = self.k.network.max_speed()
+
+        
+        self.MAX_SPEED = self.k.network.max_speed() # Is the speed limit
+
         self.LOCAL_ZONE = 80 # m
+        self.MAX_DENSITY = get_max_density(self.LOCAL_ZONE) # vehicle length is 5m, so max 200 vehicles in 1000m 
+        self.MAX_DECEL = self.env_params.additional_params['max_decel']
+        #self.min_approach_gap = 1.5 # m
+
+        # These are used in reward
+        #self.local_density = 1e-3 # prevent division by zero
+        #self.local_density_last = 1e-3 
+
+        # This is used in observation
+        self.history_length = 20
+        self.density_history = [1e-3 for i in range(self.history_length)]
+
+        # Detection flags
+        self.approching_congestion = False
+        self.leaving_congestion = False
+        self.near_free_flow = False
 
     @property
     def action_space(self):
         """ 
-        Two actions: 
-        1. Acceleration
-        2. Gap
         """
         return Box(
-            low=-1, 
-            high=1, 
-            shape=(2, ),
-            dtype = np.float32)
+            low=-np.abs(self.env_params.additional_params['max_decel']),
+            high=self.env_params.additional_params['max_accel'],
+            shape=(self.initial_vehicles.num_rl_vehicles, ),
+            dtype=np.float32)
         
 
     @property
@@ -64,105 +96,147 @@ class DensityAwareRLEnv(Env):
         1. RL speed
         2. Difference in RL Lead speed
         3. Difference in RL and Lead position
-        4. Difference in Lag and RL speed
-        5. Difference in Lag and RL position
         6. Local density ahead
-        7. Local density behind
         """
+        
+        # return Tuple(
+        #     (Box(low=-float('inf'), 
+        #     high=float('inf'), 
+        #     shape=(13,), 
+        #     dtype = np.float32),
+        #     Discrete(2),
+        #     Discrete(2), 
+        #     Discrete(2)))
 
-        return Box(
-            low=-float('inf'), 
-            high=float('inf'), 
-            shape=(7, ),
-            dtype = np.float32)
+        shp = 3 + self.history_length + 3
+        return Box(low=-float('inf'), high=float('inf'), shape=(shp,), dtype = np.float32)
 
+            
     def _apply_rl_actions(self, rl_actions):
         """ 
-        Current logic: 
-            Acceleration behavior is only respected if the time-gap is not perfect.
-            If the time-gap is perfect, then the RL agent is forced to maintain the gap by maintaining velocity.
         """
-        rl_id = self.k.vehicle.get_rl_ids()[0]
-        desired_accel, desired_tau = rl_actions[0], rl_actions[1]
+        
+        self.k.vehicle.apply_acceleration(
+            self.k.vehicle.get_rl_ids(), rl_actions)
+    
+    def detect_conditions(self):
+        """
+        Detect and turn on/ off the falgs 
+        """
+    
+        # Detect 
+        changes = []
+        for i in range(self.history_length-1):
+            changes.append(self.density_history[i+1]/self.density_history[i]) # present/ past
 
-        # Does desired time-headway gap require scaling? Is a non-negative value
-        self.k.vehicle.apply_tau_action(rl_id, max(0,5*desired_tau)) #TODO: Check if this works, how?
+        #print("Changes: ", changes)
+        # Turn on 
+        self.approching_congestion = False
+        self.leaving_congestion = False
+        self.near_free_flow = False
 
-        # measure the current time-headway
-        current_gap = self.k.vehicle.get_headway(rl_id)
-        self.gap_error = desired_tau - current_gap
-
-        if np.abs(self.gap_error)>=0.1:  #TODO: Check if this is a good threshold
-            self.k.vehicle.apply_acceleration(rl_id, 0.0)
+        # At a time only one can be on
+        # if any change is greater than 1.5, then it is approaching congestion
+        if any([change > 1.1 for change in changes]):
+            self.approching_congestion = True
+        elif any([change < 0.9 for change in changes]):
+            self.leaving_congestion = True
         else:
-            self.k.vehicle.apply_acceleration(rl_id, desired_accel)
-        
-        
+            self.near_free_flow = True
+
+
     def compute_reward(self, rl_actions, **kwargs):
         """ 
         
         """
-        
-        # reward from Wu et al. (2018)
-        # in the warmup steps
-        if rl_actions is None:
-            return 0
+        # for warmup 
+        if rl_actions is None: 
+            return 0 
 
         vel = np.array([
             self.k.vehicle.get_speed(veh_id)
             for veh_id in self.k.vehicle.get_ids()
         ])
+        
+        # Fail the current episode if these
+        if any(vel <-100) or kwargs['fail']:
+            return 0 
+        
+        intensity = np.abs(rl_actions[0]) # absolute value of acceleration
+        direction = np.sign(intensity) # direction 1.0 = acceleration, -1.0 = deceleration
+        #print("Intensity, Direction: ", intensity, direction)
 
-        if any(vel < -100) or kwargs['fail']:
-            return 0.
+        #rl_id = self.k.vehicle.get_rl_ids()[0]
+        #rl_speed = self.k.vehicle.get_speed(rl_id)
+        
+        response_scaler = 4
 
-        # reward average velocity
-        eta_2 = 4.
-        reward = eta_2 * np.mean(vel) / 20
+        reward = 0
+        penalty = -2
 
-        # punish accelerations (should lead to reduced stop-and-go waves)
-        eta = 4  # 0.25
-        mean_actions = np.mean(np.abs(np.array(rl_actions)))
-        accel_threshold = 0
+        # Reward 
+        if self.approching_congestion:
 
-        if mean_actions > accel_threshold:
-            reward += eta * (accel_threshold - mean_actions)
+            if direction == -1.0:
+                reward += response_scaler * (self.MAX_DECEL - intensity)
+                #print("One")
+            else:
+                reward -= penalty
+                #print("Two")
+            
+        elif self.leaving_congestion:
+            if direction == 1.0:
+                reward += response_scaler * intensity
+                #print("Three")
+            else:
+                reward -= penalty
+                #print("Four")
+        else:
+            reward += np.mean(vel)
+            #print("Five")
+        
+        # Reward a high average speed regardless of the siatuation
+        reward += np.mean(vel)
 
-        # Ours 
-        #actual_gap = self.k.vehicle.get_headway(rl_id) 
-        #self.gap_error =  actual_gap - desired_gap
+        # Penalize too much control actions regardless of the siatuation
+        reward -= 4*np.mean(np.abs(rl_actions))
 
+        #print("Reward: ", reward)
         return float(reward)
 
     def get_state(self):
         """ 
         
         """
-        # After warmup is done, this method gets called twice for some reason
+
         rl_id = self.k.vehicle.get_rl_ids()[0]
         lead_id = self.k.vehicle.get_leader(rl_id)
-        lag_id = self.k.vehicle.get_follower(rl_id)
         current_length = self.k.network.length()
+        current_density = self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE)
+
+        self.detect_conditions()
+        self.density_history.pop(0)
+        self.density_history.append(current_density)
+        #print("Max density: ", self.MAX_DENSITY)
+        #print("Density history: ", self.density_history)
+         
+        observation = [] 
+        observation.append(self.k.vehicle.get_speed(rl_id)/ self.MAX_SPEED)
+        observation.append((self.k.vehicle.get_speed(lead_id) - self.k.vehicle.get_speed(rl_id))/self.MAX_SPEED)
+        observation.append((self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(rl_id))/current_length)
+
+        for i in self.density_history:
+            observation.append(i/self.MAX_DENSITY)
+
+        observation.append(int(self.approching_congestion))
+        observation.append(int(self.leaving_congestion))
+        observation.append(int(self.near_free_flow))
         
-        observation = np.array([
-            self.k.vehicle.get_speed(rl_id)/ self.MAX_SPEED,
-            (self.k.vehicle.get_speed(lead_id) - self.k.vehicle.get_speed(rl_id))/self.MAX_SPEED,
-            (self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(rl_id))/current_length,
-            (self.k.vehicle.get_speed(rl_id) - self.k.vehicle.get_speed(lag_id))/self.MAX_SPEED,
-            (self.k.vehicle.get_x_by_id(rl_id) - self.k.vehicle.get_x_by_id(lag_id))/current_length,
-
-            # These two are defined in flow.core.kernel.vehicle.
-            self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE)/self.MAX_DENSITY,
-            self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE, direction='back')/self.MAX_DENSITY,
-        ])
-
-        #print(f"Max speed = {self.MAX_SPEED}")
-        #print(observation)
-        return observation
+        #print("Observation = ", observation)
+        return np.array(observation)
 
     def reset(self):
         """ 
-
         """
         # skip if ring length is None
         if self.env_params.additional_params['ring_length'] is None:
@@ -211,11 +285,31 @@ class DensityAwareRLEnv(Env):
     def additional_command(self):
         """ 
         Define which vehicles are observed for visualization purposes.
+        According to the local density range
         """
         
         # specify observed vehicles
         rl_id = self.k.vehicle.get_rl_ids()[0]
-        lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
-        self.k.vehicle.set_observed(lead_id)
+        rl_position = self.k.vehicle.get_x_by_id(rl_id)
+        
+        local_zone = self.LOCAL_ZONE
+        current_length = self.k.network.length()
+
+        all_vehicle_ids = self.k.vehicle.get_ids()
+        #veh_pos = [self.k.vehicle.get_x_by_id(v_id) for v_id in all_vehicle_ids]
+
+        position_bound = [rl_position, rl_position + local_zone]
+        if position_bound[1] > current_length:
+            position_bound = [rl_position, current_length, (rl_position + local_zone - current_length)]
+            observed_vehicles = [v_id for v_id in all_vehicle_ids if (self.k.vehicle.get_x_by_id(v_id) >= position_bound[0]\
+                and self.k.vehicle.get_x_by_id(v_id) <= position_bound[1]) | (self.k.vehicle.get_x_by_id(v_id)>0.0 and self.k.vehicle.get_x_by_id(v_id)<=position_bound[2])]
+        
+        else:
+            observed_vehicles = [v_id for v_id in all_vehicle_ids if self.k.vehicle.get_x_by_id(v_id) >= position_bound[0]\
+                and self.k.vehicle.get_x_by_id(v_id) <= position_bound[1]]
+
+        for veh_id in observed_vehicles:
+            self.k.vehicle.set_observed(veh_id)
+        
 
 

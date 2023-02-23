@@ -19,7 +19,7 @@ from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 
 # Again, the desired velocity is set from the velocity upper bound 
-from util import get_desired_velocity
+from flow.density_aware_util import get_desired_velocity
 
 def config_fs(args, **kwargs):
 
@@ -44,7 +44,7 @@ def config_fs(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=17 if args.stability else 21)
+        num_vehicles=21 if args.stability else 21) # 17 for stable
 
     vehicles.add(
         veh_id= kwargs['method_name'],
@@ -59,7 +59,7 @@ def config_fs(args, **kwargs):
         color = 'yellow')
 
     # Add specific properties of vehicles with this method_name id
-    desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'])
+    desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'], args.method)
     print("Desired Velocity: ", desired_velocity, "m/s")
 
     kwargs['classic_parms'] = {'v_des': desired_velocity, # Add more if necessary

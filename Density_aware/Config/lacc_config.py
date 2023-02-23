@@ -41,7 +41,7 @@ def config_lacc(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=9 if args.stability else 13)
+        num_vehicles=13 if args.stability else 13) # 9 for stable
 
     vehicles.add(
         veh_id= kwargs['method_name'],

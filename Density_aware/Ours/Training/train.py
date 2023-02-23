@@ -149,7 +149,7 @@ def setup_exps_rllib(flow_params,
     config["gamma"] = 0.999  # discount rate
 
     #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) 
-    config["model"].update({"fcnet_hiddens": [256, 256, 256], "fcnet_activation": "sigmoid"}) 
+    config["model"].update({"fcnet_hiddens": [128, 128, 128], "fcnet_activation": "tanh"}) 
     config["lr"] = 5e-05 # default 5e-05
 
     config["use_gae"] = True

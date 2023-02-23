@@ -42,7 +42,7 @@ def config_idm(args, **kwargs):
         ),
         
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= 18 if args.stability else num_controlled,  
+        num_vehicles= 22 if args.stability else num_controlled,  # 18 for stable
         color = 'yellow')
 
     # Add specific properties of vehicles with this method_name id

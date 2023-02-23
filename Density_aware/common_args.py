@@ -23,8 +23,8 @@ def update_arguments(parser):
     parser.add_argument('--shock', action='store_true', default=False)
     parser.add_argument('--shock_start_time', type=int, default=8000)
     parser.add_argument('--shock_end_time', type=int, default=11000)
-    parser.add_argument('--shock_model', type=int, default= 1)
-
+    parser.add_argument('--shock_model', type=int, default= 2)
+    parser.add_argument('--min_gap', type=float, default=0.1) # Small value to prevent collisions (Are collisions causing sim to stop?)
     parser.add_argument('--render', action='store_true', default=False)
     
     return parser

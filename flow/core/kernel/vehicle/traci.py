@@ -1230,9 +1230,20 @@ class TraCIVehicle(KernelVehicle):
         self.kernel_api.vehicle.setTau(veh_id, tau)
 
     def get_time_headway(self, veh_id, error=-1001):
-        """See parent class."""
+        """
+        """
         return self.__sumo_obs.get(veh_id, {}).get(tc.VAR_TAU, error)
         
+    def get_shock_time(self, veh_id):
+        """
+        """
+        controller = self.__vehicles[veh_id]["acc_controller"]
+        #print(f"Controller: {controller, type(controller)}")
+        
+        if isinstance(controller, ModifiedIDMController):
+            return controller.get_shock_time()
+        else:
+            return 0
 
     def set_vehicle_type(self, veh_id, veh_type, accel_controller):
         """

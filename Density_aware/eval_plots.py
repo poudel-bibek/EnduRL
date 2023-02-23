@@ -77,6 +77,7 @@ class Plotter:
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Speed (m/s)')
+        ax.set_ylim(0,5.5)
         ax.legend()
         plt.savefig(self.save_dir + '/speeds.png')
 
@@ -246,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='./metrics_plots')
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'piws', 'lacc', 'wu', 'ours']:
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours]")
 
     files = [f"{args.emissions_file_path}/{args.method}_stability/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}_stability") if item.endswith('.csv')]

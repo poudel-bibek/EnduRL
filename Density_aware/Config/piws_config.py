@@ -41,7 +41,7 @@ def config_piws(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=17 if args.stability else 21)
+        num_vehicles=21 if args.stability else 21) # 17 for stable
 
     vehicles.add(
         veh_id= kwargs['method_name'],

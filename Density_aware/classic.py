@@ -65,7 +65,6 @@ if __name__ == '__main__':
     # If we do set a high min_gap, vehicles will never go close enough to collide (or reduce TTC to a risky value)
     # 0.2 is small enough?
 
-    parser.add_argument('--min_gap', type=float, default=0.2) # Small value to prevent collisions (Are collisions causing sim to stop?)
     
     parser = update_arguments(parser)
     args = parser.parse_args()

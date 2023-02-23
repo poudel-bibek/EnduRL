@@ -5,6 +5,7 @@ Created on top of snapshot of FLOW code obtained on Jan 3, 2023
 Developed and tested on Ubuntu 18.04.5 LTS, Python 3.7.3
 
 - Install Anaconda
+- Setup (SUMO versio 1.1.0)[https://github.com/eclipse/sumo/releases/tag/v1_1_0] in your system
 - Clone this repository
 - Use the following commands
 
@@ -69,8 +70,12 @@ Locations:
 
 ./Ours/Trained_policies/Last_good/weak_accept_policy/PPO_DensityAwareRlEnv-v0_719f478a_2022-06-05_13-36-42okip6tqy 18
 
-./Wu_et_al/Trained_policies/trained_here/PPO_WaveAttenuationPOEnv-v0_e2342e4c_2023-01-09_13-29-073it85esn 46
-
-./Wu_et_al/Trained_policies/from_flow_code 200
+./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 
 
 Requirements have been modified 
+
+---------------------
+To generate rollouts without shock: 
+python classic.py --method bcm --render --length 220 --num_rollouts 20 --gen_emission
+
+for LACC, Shock start and end times are 1140 and 1500 respectively

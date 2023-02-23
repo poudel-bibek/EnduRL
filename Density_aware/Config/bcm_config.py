@@ -29,7 +29,7 @@ from flow.core.params import EnvParams
 # This is for clustered version of BCM
 # SET desired velocity for BCM according to ring length
 # Current assumption, desired velocity can be set from the  velocity upper bound
-from util import get_desired_velocity
+from flow.density_aware_util import get_desired_velocity
 
 def config_bcm(args, **kwargs):
     
@@ -61,7 +61,7 @@ def config_bcm(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=14 if args.stability else 18)
+        num_vehicles= 18 if args.stability else 18) # 14 for stable
 
     vehicles.add(
         veh_id=kwargs['method_name'],
