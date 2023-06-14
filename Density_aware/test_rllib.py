@@ -56,7 +56,7 @@ def visualizer_rllib(args):
 
     #print("\n1.:",result_dir)
     config = get_rllib_config(result_dir)
-    
+    #print(config)
     # Modify the config here, its in the dict form. below they are instantiated
     flow_params_modify = json.loads(config["env_config"]["flow_params"])
 

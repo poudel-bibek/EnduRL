@@ -150,7 +150,7 @@ def setup_exps_rllib(flow_params,
 
     #Bibek: To match the results of https://arxiv.org/pdf/1710.05465.pdf
     #Update "fcnet_hiddenns and fcnet_activation". Looks like tanh is set by default
-    config["model"].update({"fcnet_hiddens": [32, 32, 32], "fcnet_activation": "tanh"}) 
+    config["model"].update({"fcnet_hiddens": [3, 3], "fcnet_activation": "tanh"}) # [32, 32, 32], default is [3,3]?
 
     config["use_gae"] = True
     config["lambda"] = 0.97
@@ -160,7 +160,7 @@ def setup_exps_rllib(flow_params,
 
     #clip_actions = flow_params['env'].clip_actions
     #print("clip_actions", clip_actions)
-    #config["clip_actions"] = False # Bibek
+    config["clip_actions"] = False # Bibek, from thier params this is false
     #print(config)
 
     # save the flow params for replay

@@ -1283,7 +1283,81 @@ class TraCIVehicle(KernelVehicle):
         self.__rl_ids.sort()
         self.num_rl_vehicles = len(self.__rl_ids)
 
-    
+    def get_veh_list_local_zone(self, veh_id, current_length, distance, direction='front', error = None):
+        """
+        Getting local density. In a circular track, the position resets to 0.
+        Returns local density in veh/m
+        """
+        position = self.get_x_by_id(veh_id) 
+        #length = self.get_length(veh_id)
+
+        # get Vehicle IDs
+        veh_ids = self.kernel_api.vehicle.getIDList()
+
+        # vehicle positions
+        vehicle_pos = [self.get_x_by_id(item) for item in veh_ids] 
+
+        # vehicle positions in the range of interest
+        if direction == 'front':
+            position_bound = [position, position + distance]
+            if position_bound[1]>=current_length:
+                position_bound = [position, current_length, (position + distance - current_length)] 
+
+                veh_selected = [veh_ids[i] if (vehicle_pos[i]>=position_bound[0] and vehicle_pos[i]<=position_bound[1]) |\
+                    (vehicle_pos[i]>0.0 and vehicle_pos[i]<=position_bound[2]) else 0 for i in range(len(vehicle_pos))]
+
+            else: 
+                veh_selected = [veh_ids[i] if vehicle_pos[i]>=position_bound[0] and vehicle_pos[i]<=position_bound[1] else 0 for i in range(len(vehicle_pos))]
+        else: 
+            position_bound = [position - distance, position]
+            if position_bound[0]<=0:
+                position_bound = [0.0, position, current_length - (distance - position)]
+
+                veh_selected = [veh_ids[i] if (vehicle_pos[i]>=position_bound[0] and vehicle_pos[i]<=position_bound[1]) |\
+                    (vehicle_pos[i]>position_bound[2] and vehicle_pos[i]<=current_length) else 0 for i in range(len(vehicle_pos))]
+            else: 
+                veh_selected = [veh_ids[i] if vehicle_pos[i]>=position_bound[0] and vehicle_pos[i]<=position_bound[1] else 0 for i in range(len(vehicle_pos))]
+        # filter zeros
+        veh_selected = list(filter(lambda a: a != 0, veh_selected))
+        return veh_selected
+        
+    def get_num_veh_local_zone(self, veh_id, current_length, distance, direction='front', error = None):
+        """
+        Getting local density. In a circular track, the position resets to 0.
+        Returns local density in veh/m
+        """
+        position = self.get_x_by_id(veh_id) 
+        #length = self.get_length(veh_id)
+
+        # get Vehicle IDs
+        veh_ids = self.kernel_api.vehicle.getIDList()
+
+        # vehicle positions
+        vehicle_pos = [self.get_x_by_id(item) for item in veh_ids] 
+
+        # vehicle positions in the range of interest
+        if direction == 'front':
+            position_bound = [position, position + distance]
+            if position_bound[1]>=current_length:
+                position_bound = [position, current_length, (position + distance - current_length)] 
+
+                num_vehicles = np.sum([1 if (pos>=position_bound[0] and pos<=position_bound[1]) |\
+                    (pos>0.0 and pos<=position_bound[2]) else 0 for pos in vehicle_pos])
+
+            else: 
+                num_vehicles = np.sum([1 if pos>=position_bound[0] and pos<=position_bound[1] else 0 for pos in vehicle_pos])
+        else: 
+            position_bound = [position - distance, position]
+            if position_bound[0]<=0:
+                position_bound = [0.0, position, current_length - (distance - position)]
+
+                num_vehicles = np.sum([1 if (pos>=position_bound[0] and pos<=position_bound[1]) |\
+                    (pos>position_bound[2] and pos<=current_length) else 0 for pos in vehicle_pos])
+            else: 
+                num_vehicles = np.sum([1 if pos>=position_bound[0] and pos<=position_bound[1] else 0 for pos in vehicle_pos])
+
+        return num_vehicles
+
 
         
 

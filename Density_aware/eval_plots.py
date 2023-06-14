@@ -47,6 +47,7 @@ class Plotter:
         # Collect average speed line across files 
         avg_speeds_collector = [] 
         for file in self.kwargs['files']:
+            
 
             self.dataframe = pd.read_csv(file)
             self.vehicle_ids = self.dataframe['id'].unique()
@@ -127,7 +128,7 @@ class Plotter:
         """
 
         print("Generating stability plot.. (Make sure the files are correct)")
-        lookout_time = 200 # timesteps ahead and behind the shock 
+        lookout_time = 20 # timesteps ahead and behind the shock 
         i = 0 
         fontsize = 16
 
@@ -135,6 +136,7 @@ class Plotter:
 
         # Generate for each rollout file that was found  
         for file in self.kwargs['files']:
+            print(f"File: {file}")
             self.dataframe = pd.read_csv(file)
             self.vehicle_ids = self.dataframe['id'].unique()
             print(f"Vehicles: {self.vehicle_ids}")
@@ -164,10 +166,21 @@ class Plotter:
             
             # Speed of all vehicles across time, for one file
             speeds_total = []
+            
+            # # The speed for RL also contains the warmup time, so we need to remove that
+            # if args.method == 'rl':
+            #     self.args.start_time = self.args.start_time - self.args.warmup
+            #     self.args.end_time = self.args.end_time - self.args.warmup
+
             for vehicle_id in sorted_ids:
                 speed = self.dataframe[self.dataframe['id'] == vehicle_id]['speed']
+
+                #print(f"Speed: {speed.shape}")
+
                 # speed in the time window
-                speed = speed[self.args.start_time - lookout_time : self.args.end_time - 10*lookout_time]
+                # shock itself will last at most like 20 timesteps. 
+                # It will take some time for that shock to propagate to the floower
+                speed = speed[self.args.start_time : self.args.start_time + args.propogate_time]
                 speeds_total.append(speed)
 
             speeds_total = np.array(speeds_total)
@@ -184,10 +197,10 @@ class Plotter:
 
             if controlled_name != 'idm':
                 # plot all followers
-                for k in range(n_controlled + 1, speeds_total.shape[0]):
-                    ax.plot(speeds_total[k], color='teal') #  label=f'Human_{k - n_controlled}'
-                ax.plot([], [], label=f'Follower human', color='teal') 
-
+                # for k in range(n_controlled + 1, speeds_total.shape[0]):
+                #     ax.plot(speeds_total[k], color='teal') #  label=f'Human_{k - n_controlled}'
+                # ax.plot([], [], label=f'Follower human', color='teal') 
+                ax.plot(speeds_total[n_controlled +1], label=f'Follower human', color='teal')
             # Add a label for each color black, slateblue, teal
             ax.plot([], [], label=f'{controlled_name}', color='slateblue')
             
@@ -211,7 +224,7 @@ class Plotter:
             plt.savefig(self.save_dir + f'/stability_{i}.png')
             i+=1 
 
-            # Calculate the metric (Damping/ Wave attenuation ratio) between human_0 and human_9
+            # # Calculate the metric (Damping/ Wave attenuation ratio) between human_0 and human_9
             lowest_speed_lead = np.min(speeds_total[0])
             print(f"Lowest speed of lead (index 0): {lowest_speed_lead}")
             if controlled_name == 'idm':
@@ -224,6 +237,7 @@ class Plotter:
             
 
             dampening_ratio = lowest_speed_lead / lowest_speed_follow
+
             dampening_ratio_mother.append(dampening_ratio)
             
 
@@ -237,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
     parser.add_argument('--method', type=str, default=None)
-    parser.add_argument('--horizon', type=int, default=6000)
+    parser.add_argument('--horizon', type=int, default=15000)
     parser.add_argument('--warmup', type=int, default=2500)
 
     parser.add_argument('--start_time', type=int, default=8000)
@@ -245,6 +259,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--num_rollouts', type=int, default=1)
     parser.add_argument('--save_dir', type=str, default='./metrics_plots')
+    parser.add_argument('--propogate_time', type=int, default=100)
 
     args = parser.parse_args()
     if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:

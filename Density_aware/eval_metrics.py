@@ -43,14 +43,13 @@ class EvalMetrics():
         2. Time Headway 
         3. Variation of Acceleration/ Deceleration rate during shocks
         """
-        time_headways_worst_mother = []
-        time_headways_avg_mother = []
-        time_headways_std_mother = []
+        
         ttc_worst_mother = []
         ttc_best_mother = []
         ttc_avg_mother = []
         ttc_std_mother = []
-        cav_mother = []
+        
+        drac_worst_mother = []
 
         for file in self.kwargs['files']:
             self.dataframe = pd.read_csv(file)
@@ -146,7 +145,7 @@ class EvalMetrics():
                         #not_shock_times = np.logical_not(np.logical_or(leader_shock_times, vehicle_shock_times))
 
                         # Instead of doing gymnastics with the positions, we can just use the space headway
-                        relative_positions = vehicle['space_headway'].values
+                        relative_positions = vehicle['space_headway'].values # This is gap
                         relative_positions = relative_positions[self.start_time:self.end_time] #[not_shock_times]
 
 
@@ -175,7 +174,8 @@ class EvalMetrics():
                         #print(f"Before clip:: {time_to_collision.shape}")
 
                         # only consider negative values, positive wont collide
-                        time_to_collision = time_to_collision[time_to_collision < 0.0]
+                        time_to_collision = time_to_collision[time_to_collision < 0.0] # Since we take leader - follower, negative values mean collision. If opposite, postive values mean collision
+                    
                         #print(f"After clip:: {time_to_collision.shape}\n")
 
                         time_to_collision_total.append(time_to_collision.astype(object))
@@ -202,7 +202,7 @@ class EvalMetrics():
             print(f"Standard deviation of time to collision for each vehicle (s): \n{time_to_collision_std}\n")
 
             # A single value 
-            worst_ttc = np.max(time_to_collision_worst) # worst of all vehicles (average is doone at multiple rollouts )
+            worst_ttc = np.max(time_to_collision_worst) # worst of all vehicles (average is doone at multiple rollouts ), this is negative
             best_ttc = np.min(time_to_collision_best) #  best of all vehicles
             avg_ttc = np.mean(time_to_collision_avg) # Average of average of all vehicles
             std_ttc = np.mean(time_to_collision_std) # Average of std of all vehicles
@@ -213,142 +213,109 @@ class EvalMetrics():
             ttc_best_mother.append(best_ttc)
             ttc_avg_mother.append(avg_ttc)
             ttc_std_mother.append(std_ttc)
-
-            #############################
-            print("####################")
-
-            # Time Headway (Average and standard deviation)
-            time_headway_total = []
-
-            for vehicle_id in self.vehicle_ids:
-                # For IDM check for all vehicles
-                if args.method == "idm":
-                    if vehicle_id == "idm_0":
-                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
-
-                        # Shock times omit code in short 
-                        leader_id = vehicle['leader_id'].unique()
-                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
-                        
-                        #leader_shock_times = leader['shock_time'].values[self.start_time:self.end_time]
-                        #vehicle_shock_times = vehicle['shock_time'].values[self.start_time:self.end_time]
-                        #not_shock_times = np.logical_not(np.logical_or(leader_shock_times, vehicle_shock_times))
-
-                        # meter
-                        space_headway = vehicle['space_headway'].values[self.start_time:self.end_time] #[not_shock_times]
-                        #print(vehicle_id, space_headway.shape, space_headway)
-                        
-                        # meter per second
-                        velocity = vehicle['speed'].values[self.start_time:self.end_time] #[not_shock_times]
-                        #print(vehicle_id, velocity.shape, velocity)
-                        #print(np.max(velocity), np.min(velocity))
-
-                        # To avoid a divide by zero error and very high time headways at low velocities
-                        # If a velocity is less than 0.01 m/s, set it to 0.01 m/s (One centimeter per second),
-                        velocity = np.where(velocity < 0.01, 0.01, velocity)
-                        #print(np.max(velocity), np.min(velocity))
-
-                        time_headway = space_headway / velocity
-                        #print(vehicle_id, time_headway.shape, time_headway)
-                        #print(np.max(time_headway), np.min(time_headway))
-                        
-                        time_headway_total.append(time_headway.astype(object))
-
-                else: 
-                    # only for controlled vehicles
-                    if "human" not in vehicle_id:
-                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
-
-                        # Shock times omit code in short 
-                        leader_id = vehicle['leader_id'].unique()
-                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
-                        
-                        #leader_shock_times = leader['shock_time'].values[self.start_time:self.end_time]
-                        #vehicle_shock_times = vehicle['shock_time'].values[self.start_time:self.end_time]
-                        #not_shock_times = np.logical_not(np.logical_or(leader_shock_times, vehicle_shock_times))
-
-                        # meter
-                        space_headway = vehicle['space_headway'].values[self.start_time:self.end_time] #[not_shock_times]
-                        #print(vehicle_id, space_headway.shape, space_headway)
-                        
-                        # meter per second
-                        velocity = vehicle['speed'].values[self.start_time:self.end_time] #[not_shock_times]
-                        #print(vehicle_id, velocity.shape, velocity)
-                        #print(np.max(velocity), np.min(velocity))
-
-                        # To avoid a divide by zero error and very high time headways at low velocities
-                        # If a velocity is less than 0.01 m/s, set it to 0.01 m/s (One centimeter per second),
-                        velocity = np.where(velocity < 0.01, 0.01, velocity)
-                        #print(np.max(velocity), np.min(velocity))
-
-                        time_headway = space_headway / velocity
-                        #print(vehicle_id, time_headway.shape, time_headway)
-                        #print(np.max(time_headway), np.min(time_headway))
-                        
-                        time_headway_total.append(time_headway.astype(object))
-
-            time_headway_total = np.asarray(time_headway_total)
-            print(time_headway_total.shape)
-
-            # newly added
-            time_headway_worst = np.asarray([np.min(x) for x in time_headway_total])
-            print(f"Worst case time headway for each vehicle (s): \n{time_headway_worst}\n")
-
-            # Time headway average for each vehicle 
-            time_headway_avg = np.asarray([np.mean(x) for x in time_headway_total]) #np.mean(time_headway_total, axis=1)
-            print(f"\nAverage time headway for each vehicle (s): \n{time_headway_avg}\n")
-
-            # Time headway standard deviation for each vehicle 
-            time_headway_std = np.asarray([np.std(x) for x in time_headway_total]) #np.std(time_headway_total, axis=1)
-            print(f"Standard deviation of time headway for each vehicle (s): \n{time_headway_std}\n")
-
-            # A single value
-            worst_time_headway = np.min(time_headway_worst) # worst among all controlled vehicle
-            avg_time_headway = np.mean(time_headway_avg)
-            std_time_headway = np.mean(time_headway_std) #avg of std of all controlled vehicles
-            print(f"Time headway (s): Worst = {round(worst_time_headway, 2)}, Avg= {round(avg_time_headway,2)}, std= {round(std_time_headway,2)}\n")
-
-            time_headways_worst_mother.append(worst_time_headway)
-            time_headways_avg_mother.append(avg_time_headway)
-            time_headways_std_mother.append(std_time_headway)
             
             #############################
             print("####################")
 
-            # Since its worst case measurement, it can fall into safety
-            # Worst case controller vehicles acceleration variation (standard deviation), no need to omit data during shocks
             
-            cav_total = []
+
+            drac_total = []
+
             for vehicle_id in self.vehicle_ids:
 
                 if args.method == "idm":
-                    if vehicle_id == "idm_0": # This acts as a controller
-                        #print(vehicle_id)
+                    if vehicle_id=="idm_0":
                         vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
-                        # For each controller vehicle
-                        acceleration = vehicle['realized_accel'].values[self.start_time:self.end_time]
 
-                        # Each controller has its own acceleration variation
-                        cav = np.std(acceleration)
-                        #print("CAV: ", cav, "\n")
-                        cav_total.append(cav)
+                        leader_id = vehicle['leader_id'].unique()
+                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
+
+                        leader_velocities = leader['speed'].values
+                        # current vehicle velocity
+                        vehicle_velocities = vehicle['speed'].values
+
+                        assert vehicle_velocities.shape == leader_velocities.shape
+
+                        # only take relative velocity for vehicle_velocities> leader_velocities # Here we take follower - leader 
+                        relative_velocities = vehicle_velocities - leader_velocities
+                        relative_positions = vehicle['space_headway'].values # This is gap
+                        
+                        # First apply start time and end time
+                        relative_positions = relative_positions[self.start_time:self.end_time]
+                        relative_velocities = relative_velocities[self.start_time:self.end_time]
+
+                        relative_velocities[relative_velocities < 0] = 0.0 
+
+                        # find the indices where relative velocity is less than 0
+                        indices = np.where(relative_velocities > 0.0)[0]
+                            
+                        # apply indices 
+                        relative_positions = relative_positions[indices]
+                        relative_velocities = relative_velocities[indices]
+
+                        assert relative_velocities.shape == relative_positions.shape
+                        
+                        # square relative velocities
+                        relative_velocities_squared = np.square(relative_velocities)
+                        
+                        drac = relative_velocities_squared/relative_positions
+                        
+                        #print(drac.shape)
+                        drac_total.append(drac.astype(object)) # contains all drac
                 else: 
-                    # Only for controller vehicles, they dont have a shock time
                     if "human" not in vehicle_id:
-                        #print(vehicle_id)
                         vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
-                        # For each controller vehicle
-                        acceleration = vehicle['realized_accel'].values[self.start_time:self.end_time]
 
-                        # Each controller has its own acceleration variation
-                        cav = np.std(acceleration)
-                        #print("CAV: ", cav, "\n")
-                        cav_total.append(cav)
+                        leader_id = vehicle['leader_id'].unique()
+                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
 
-            # Worst from those standard deviations so that we have a single value
-            cav_mother.append(np.max(cav_total))
+                        leader_velocities = leader['speed'].values
+                        # current vehicle velocity
+                        vehicle_velocities = vehicle['speed'].values
+
+                        assert vehicle_velocities.shape == leader_velocities.shape
+
+                        # only take relative velocity for vehicle_velocities> leader_velocities # Here we take follower - leader 
+                        relative_velocities = vehicle_velocities - leader_velocities
+                        relative_positions = vehicle['space_headway'].values # This is gap
+                        
+                        # First apply start time and end time
+                        relative_positions = relative_positions[self.start_time:self.end_time]
+                        relative_velocities = relative_velocities[self.start_time:self.end_time]
+
+                        relative_velocities[relative_velocities < 0] = 0.0 
+
+                        # find the indices where relative velocity is less than 0
+                        indices = np.where(relative_velocities > 0.0)[0]
+                            
+                        # apply indices 
+                        relative_positions = relative_positions[indices]
+                        relative_velocities = relative_velocities[indices]
+
+                        assert relative_velocities.shape == relative_positions.shape
+                        
+                        # square relative velocities
+                        relative_velocities_squared = np.square(relative_velocities)
+                        
+                        drac = relative_velocities_squared/relative_positions
+                        
+                        #print(drac.shape)
+                        drac_total.append(drac.astype(object)) # contains all drac
                 
-        return ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, time_headways_worst_mother, time_headways_avg_mother, time_headways_std_mother, cav_mother
+            drac_total = np.asarray(drac_total)
+            print(drac_total.shape)
+
+            # Aggregations, worst case is the max 
+            worst_case_drac = np.asarray([np.max(x) for x in drac_total]) # For each controlled vehicle
+            print(f"Worst case drac for each vehicle (m/s^2): \n{worst_case_drac}\n")
+
+            # A singe value
+            worst_drac = np.max(worst_case_drac)
+            print(f"DRAC (m/s^2):\n\tWorst= {round(worst_drac,2)}\n")
+
+            drac_worst_mother.append(worst_drac)
+
+        return ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, drac_worst_mother
 
     def efficiency(self, ):
         """
@@ -517,7 +484,11 @@ class EvalMetrics():
         # Measure time to stabilize (tts) in seconds
         # Should only consider the time before the shocks start
 
+        time_headways_worst_mother = []
+        time_headways_avg_mother = []
+        time_headways_std_mother = []
         tts_mother = []
+        cav_mother = []
 
         for file in self.kwargs['files']:
             print(f"File: {file}")
@@ -526,7 +497,104 @@ class EvalMetrics():
             #filter for each vehicle
             self.vehicle_ids = self.dataframe['id'].unique()
 
-            # Fuel consumption:
+            # Time Headway (Average and standard deviation)
+            time_headway_total = []
+
+            for vehicle_id in self.vehicle_ids:
+                # For IDM check for all vehicles
+                if args.method == "idm":
+                    if vehicle_id == "idm_0":
+                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+
+                        # Shock times omit code in short 
+                        leader_id = vehicle['leader_id'].unique()
+                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
+                        
+                        #leader_shock_times = leader['shock_time'].values[self.start_time:self.end_time]
+                        #vehicle_shock_times = vehicle['shock_time'].values[self.start_time:self.end_time]
+                        #not_shock_times = np.logical_not(np.logical_or(leader_shock_times, vehicle_shock_times))
+
+                        # meter
+                        space_headway = vehicle['space_headway'].values[self.start_time:self.end_time] #[not_shock_times]
+                        #print(vehicle_id, space_headway.shape, space_headway)
+                        
+                        # meter per second
+                        velocity = vehicle['speed'].values[self.start_time:self.end_time] #[not_shock_times]
+                        #print(vehicle_id, velocity.shape, velocity)
+                        #print(np.max(velocity), np.min(velocity))
+
+                        # To avoid a divide by zero error and very high time headways at low velocities
+                        # If a velocity is less than 0.01 m/s, set it to 0.01 m/s (One centimeter per second),
+                        velocity = np.where(velocity < 0.01, 0.01, velocity)
+                        #print(np.max(velocity), np.min(velocity))
+
+                        time_headway = space_headway / velocity
+                        #print(vehicle_id, time_headway.shape, time_headway)
+                        #print(np.max(time_headway), np.min(time_headway))
+                        
+                        time_headway_total.append(time_headway.astype(object))
+
+                else: 
+                    # only for controlled vehicles
+                    if "human" not in vehicle_id:
+                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+
+                        # Shock times omit code in short 
+                        leader_id = vehicle['leader_id'].unique()
+                        leader = self.dataframe.loc[self.dataframe['id'] == leader_id[0]]
+                        
+                        #leader_shock_times = leader['shock_time'].values[self.start_time:self.end_time]
+                        #vehicle_shock_times = vehicle['shock_time'].values[self.start_time:self.end_time]
+                        #not_shock_times = np.logical_not(np.logical_or(leader_shock_times, vehicle_shock_times))
+
+                        # meter
+                        space_headway = vehicle['space_headway'].values[self.start_time:self.end_time] #[not_shock_times]
+                        #print(vehicle_id, space_headway.shape, space_headway)
+                        
+                        # meter per second
+                        velocity = vehicle['speed'].values[self.start_time:self.end_time] #[not_shock_times]
+                        #print(vehicle_id, velocity.shape, velocity)
+                        #print(np.max(velocity), np.min(velocity))
+
+                        # To avoid a divide by zero error and very high time headways at low velocities
+                        # If a velocity is less than 0.01 m/s, set it to 0.01 m/s (One centimeter per second),
+                        velocity = np.where(velocity < 0.01, 0.01, velocity)
+                        #print(np.max(velocity), np.min(velocity))
+
+                        time_headway = space_headway / velocity
+                        #print(vehicle_id, time_headway.shape, time_headway)
+                        #print(np.max(time_headway), np.min(time_headway))
+                        
+                        time_headway_total.append(time_headway.astype(object))
+
+            time_headway_total = np.asarray(time_headway_total)
+            print(time_headway_total.shape)
+
+            # newly added
+            time_headway_worst = np.asarray([np.min(x) for x in time_headway_total])
+            print(f"Worst case time headway of controller(s): \n{time_headway_worst}\n")
+
+            # Time headway average for each vehicle 
+            time_headway_avg = np.asarray([np.mean(x) for x in time_headway_total]) #np.mean(time_headway_total, axis=1)
+            print(f"\nAverage time headway of controller(s): \n{time_headway_avg}\n")
+
+            # Time headway standard deviation for each vehicle 
+            time_headway_std = np.asarray([np.std(x) for x in time_headway_total]) #np.std(time_headway_total, axis=1)
+            print(f"Standard deviation of time headway of controller(s): \n{time_headway_std}\n")
+
+            # A single value
+            worst_time_headway = np.min(time_headway_worst) # worst among all controlled vehicle
+            avg_time_headway = np.mean(time_headway_avg)
+            std_time_headway = np.mean(time_headway_std) #avg of std of all controlled vehicles
+            print(f"Time headway (s): Worst = {round(worst_time_headway, 2)}, Avg= {round(avg_time_headway,2)}, std= {round(std_time_headway,2)}\n")
+
+            time_headways_worst_mother.append(worst_time_headway)
+            time_headways_avg_mother.append(avg_time_headway)
+            time_headways_std_mother.append(std_time_headway)
+
+            # #############################
+            print("####################")
+
             speed_total= []
 
             for vehicle_id in self.vehicle_ids:
@@ -548,7 +616,7 @@ class EvalMetrics():
                     vehicle_speed = speeds_total[j][i]
                     error = (vehicle_speed - timestep_mean)**2
                     sum += error
-                std_error.append(sum/(len(speeds_total)-1)) # This is 0 or 1
+                std_error.append(sum/(len(speeds_total)-1)) # This is 0 or 1 # Manually perform bessel's correction
             std_error = np.asarray(std_error)
             std_error = np.sqrt(std_error)
             #print("One", std_error)
@@ -581,7 +649,58 @@ class EvalMetrics():
             #print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts}\n")
             tts_mother.append(tts)
 
-        return tts_mother
+            #############################
+            print("####################")
+
+            # Since its worst case measurement, it can fall into safety
+            # Worst case controller vehicles acceleration variation (standard deviation), no need to omit data during shocks
+            # TURN OFF BESSEL CORRECTION
+            cav_total = []
+            for vehicle_id in self.vehicle_ids:
+
+                if args.method == "idm":
+                    if vehicle_id == "idm_0": # This acts as a controller
+                        #print(vehicle_id)
+                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+                        # For each controller vehicle
+                        
+                        acceleration = vehicle['realized_accel'].values[self.start_time:self.end_time]
+
+                        # Every now and then this can have empty values, so omit them
+                        acceleration = acceleration[~np.isnan(acceleration)]
+                        
+                        # Each controller has its own acceleration variation
+                        # calculate std of acceleration, turn off bessel correction
+                        cav= np.std(acceleration, ddof=1)
+                        #cav = np.std(acceleration)
+                        
+                        cav_total.append(cav)
+                else: 
+                    # Only for controller vehicles, they dont have a shock time
+                    if "human" not in vehicle_id:
+                        #print(vehicle_id)
+                        vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
+                        # For each controller vehicle
+                        acceleration = vehicle['realized_accel'].values[self.start_time:self.end_time]
+
+                        # Every now and then this can have empty values, so omit them
+                        acceleration = acceleration[~np.isnan(acceleration)] #except nan
+                        
+                        # Each controller has its own acceleration variation
+                        cav = np.std(acceleration, ddof=1)
+                        #print("CAV: ", cav, "\n")
+                        cav_total.append(cav)
+
+            # Worst from those standard deviations so that we have a single value
+            cav_worst = np.max(cav_total)
+            print(f"Acceleration variation (m/s^2): {cav_mother}\n")
+
+            cav_mother.append(np.max(cav_worst))
+            
+
+        # return tts_mother, time_headways_worst_mother, time_headways_avg_mother, time_headways_std_mother
+
+        return tts_mother, time_headways_worst_mother, cav_mother
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluating metrics for the agent')
@@ -616,30 +735,40 @@ if __name__ == '__main__':
     }
     print(f"Calculating metrics for {args.num_rollouts} rollouts on files: \n{files}\n")
     metrics = EvalMetrics(args, **kwargs)
-    ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, time_headways_worst_mother, time_headways_avg_mother, time_headways_std_mother, cav_mother = metrics.safety()
+    ttc_worst_mother, ttc_best_mother, ttc_avg_mother, ttc_std_mother, drac_worst_mother = metrics.safety()
+
     mpgs_avg_mother, mpgs_std_mother, speeds_avg_mother, speeds_std_mother, flows_mother = metrics.efficiency()
-    tts_mother = metrics.stability()
+
+    #tts_mother, time_headways_worst_mother, time_headways_avg_mother, time_headways_std_mother = metrics.stability()
+    tts_mother, time_headways_worst_mother, cav_mother  = metrics.stability()
 
     print("####################")
     print("####################")
     print("\nFinal Aggregated Safety Metrics (across all files):\n")
     a = round(np.mean(ttc_worst_mother),2)
     b = round(np.std(ttc_worst_mother),2)
+
     c = round(np.mean(cav_mother),2)
     d = round(np.std(cav_mother),2)
+
     e = round(np.mean(mpgs_avg_mother),2)
     f = round(np.mean(mpgs_std_mother),2)
+
     g = round(np.mean(flows_mother),2)
     h = round(np.std(flows_mother),2)
-    i = round(np.mean(time_headways_avg_mother),2)
-    j = round(np.mean(time_headways_std_mother),2) # This is not the std of the average values across rollouts.. this is similar to CAV
+
+    x = round(np.mean(drac_worst_mother),2)
+    #i = round(np.mean(time_headways_avg_mother),2)
+    #j = round(np.mean(time_headways_std_mother),2) # This is not the std of the average values across rollouts.. this is similar to CAV
     
 
     print(f"Time to Collision across rollouts (s):\n\tWorst= {ttc_worst_mother} \n\tAvg= {a}, std= {b}\n\n\tBest: Avg= {round(np.mean(ttc_best_mother),2)}, \
         std= {round(np.std(ttc_best_mother),2)}\n\tAverage: Avg= {round(np.mean(ttc_avg_mother),2)}, std= {round(np.std(ttc_avg_mother),2)}\n\tStd: Avg= {round(np.mean(ttc_std_mother),2)}, std= {round(np.std(ttc_std_mother),2)}\n")
     
-    print(f"Time headway across rollouts (s): \n\tWorst={time_headways_worst_mother}\n\tAvg= {round(np.mean(time_headways_worst_mother),2)}, std= {round(np.std(time_headways_worst_mother),2)} \
-          \n\nAverage: {time_headways_avg_mother}\n\t Avg={i}, std= {round(np.std(time_headways_avg_mother),2)}\nstd= {time_headways_std_mother}\n\tAvg={j}, std= {round(np.std(time_headways_std_mother),2)}")
+    print(f"DRAC across rollouts (m/s^2):\n\tWorst= {drac_worst_mother} \n\tAvg= {x}, std= {round(np.std(drac_worst_mother),2)}\n")
+    # print(f"Time headway across rollouts (s): \n\tWorst={time_headways_worst_mother}\n\tAvg= {round(np.mean(time_headways_worst_mother),2)}, std= {round(np.std(time_headways_worst_mother),2)} \
+    #       \n\nAverage: {time_headways_avg_mother}\n\t Avg={i}, std= {round(np.std(time_headways_avg_mother),2)}\nstd= {time_headways_std_mother}\n\tAvg={j}, std= {round(np.std(time_headways_std_mother),2)}")
+    
     print(f"CAV across rollouts (veh/hr): {cav_mother} \n\tAvg= {c}, std= {d}\n")
 
     print("####################")
@@ -655,7 +784,7 @@ if __name__ == '__main__':
     print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts_mother} \n\tAvg= {round(tts_avg,2)}, std= {round(tts_std,2)}\n")
 
     #print(f"textendash${a}\pm{b}$ & ${c}\pm{d}$ & ${e}\pm{f}$ & ${g}\pm{h}$ & ${i}\pm{j}$ ")
-    print(f"textendash${-1*a}$ & ${c}$ & ${e}$ & ${int(g)}$ & ${i}$ ")
+    print(f"${-1*a}$ & ${x}$ & ${e}$ & ${int(g)}$ & ${c}$ ")
     # TODO: Controlled vehicles and human vehicle have separate stats?
     #
     #

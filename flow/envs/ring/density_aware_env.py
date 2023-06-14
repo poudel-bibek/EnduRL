@@ -60,23 +60,16 @@ class DensityAwareRLEnv(Env):
         
         self.MAX_SPEED = self.k.network.max_speed() # Is the speed limit
 
-        self.LOCAL_ZONE = 80 # m
+        self.LOCAL_ZONE = 40 # m
         self.MAX_DENSITY = get_max_density(self.LOCAL_ZONE) # vehicle length is 5m, so max 200 vehicles in 1000m 
         self.MAX_DECEL = self.env_params.additional_params['max_decel']
-        #self.min_approach_gap = 1.5 # m
-
-        # These are used in reward
-        #self.local_density = 1e-3 # prevent division by zero
-        #self.local_density_last = 1e-3 
 
         # This is used in observation
         self.history_length = 20
         self.density_history = [1e-3 for i in range(self.history_length)]
 
-        # Detection flags
+        # Detection flag
         self.approching_congestion = False
-        self.leaving_congestion = False
-        self.near_free_flow = False
 
     @property
     def action_space(self):
@@ -91,24 +84,8 @@ class DensityAwareRLEnv(Env):
 
     @property
     def observation_space(self):
-        """ 
-        Seven observations (All normalized):
-        1. RL speed
-        2. Difference in RL Lead speed
-        3. Difference in RL and Lead position
-        6. Local density ahead
-        """
         
-        # return Tuple(
-        #     (Box(low=-float('inf'), 
-        #     high=float('inf'), 
-        #     shape=(13,), 
-        #     dtype = np.float32),
-        #     Discrete(2),
-        #     Discrete(2), 
-        #     Discrete(2)))
-
-        shp = 3 + self.history_length + 3
+        shp = 3 + self.history_length + 1 
         return Box(low=-float('inf'), high=float('inf'), shape=(shp,), dtype = np.float32)
 
             
@@ -119,30 +96,27 @@ class DensityAwareRLEnv(Env):
         self.k.vehicle.apply_acceleration(
             self.k.vehicle.get_rl_ids(), rl_actions)
     
-    def detect_conditions(self):
+
+    def detect_conditions(self, tag):
         """
         Detect and turn on/ off the falgs 
         """
     
-        # Detect 
         changes = []
         for i in range(self.history_length-1):
             changes.append(self.density_history[i+1]/self.density_history[i]) # present/ past
 
-        #print("Changes: ", changes)
-        # Turn on 
         self.approching_congestion = False
-        self.leaving_congestion = False
-        self.near_free_flow = False
+        critical_density = 100 
 
-        # At a time only one can be on
-        # if any change is greater than 1.5, then it is approaching congestion
-        if any([change > 1.1 for change in changes]):
-            self.approching_congestion = True
-        elif any([change < 0.9 for change in changes]):
-            self.leaving_congestion = True
-        else:
-            self.near_free_flow = True
+        if tag ==1: 
+            # Lower quality (Stage I )
+            if any([change > 1.1 for change in changes]):
+                self.approching_congestion = True
+        else: 
+            # Higher quality (Stage II)
+            if self.density_history[0] >= critical_density and any([change > 1.1 for change in changes]):
+                self.approching_congestion = True
 
 
     def compute_reward(self, rl_actions, **kwargs):
@@ -162,46 +136,25 @@ class DensityAwareRLEnv(Env):
         if any(vel <-100) or kwargs['fail']:
             return 0 
         
-        intensity = np.abs(rl_actions[0]) # absolute value of acceleration
-        direction = np.sign(intensity) # direction 1.0 = acceleration, -1.0 = deceleration
-        #print("Intensity, Direction: ", intensity, direction)
-
-        #rl_id = self.k.vehicle.get_rl_ids()[0]
-        #rl_speed = self.k.vehicle.get_speed(rl_id)
-        
+        ##############
         response_scaler = 4
+        penalty = -100 # Penalty higher in stage II
 
         reward = 0
-        penalty = -2
 
-        # Reward 
+        rl_id = self.k.vehicle.get_rl_ids()[0]
+        current_length = self.k.network.length()
+        current_density_up = self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE, direction='back')
+
         if self.approching_congestion:
-
-            if direction == -1.0:
-                reward += response_scaler * (self.MAX_DECEL - intensity)
-                #print("One")
-            else:
-                reward -= penalty
-                #print("Two")
-            
-        elif self.leaving_congestion:
-            if direction == 1.0:
-                reward += response_scaler * intensity
-                #print("Three")
-            else:
-                reward -= penalty
-                #print("Four")
-        else:
-            reward += np.mean(vel)
-            #print("Five")
-        
-        # Reward a high average speed regardless of the siatuation
+            # If the agent let density wave travel upstream 
+            # We expect the agent to have already learned to slow down
+            if current_density_up == self.density_history[-1]:
+                reward += penalty
+                
         reward += np.mean(vel)
+        reward -= response_scaler*np.mean(np.abs(rl_actions))
 
-        # Penalize too much control actions regardless of the siatuation
-        reward -= 4*np.mean(np.abs(rl_actions))
-
-        #print("Reward: ", reward)
         return float(reward)
 
     def get_state(self):
@@ -212,25 +165,32 @@ class DensityAwareRLEnv(Env):
         rl_id = self.k.vehicle.get_rl_ids()[0]
         lead_id = self.k.vehicle.get_leader(rl_id)
         current_length = self.k.network.length()
-        current_density = self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE)
+        current_density_down = self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE, direction='front')
+        #print("Current density downstream: ", current_density_down)
+        #current_density_up = self.k.vehicle.get_local_density(rl_id, current_length, self.LOCAL_ZONE, direction='back')
+        #print("Current density upstream: ", current_density_up)
+        
 
-        self.detect_conditions()
+        self.detect_conditions(tag=0) 
         self.density_history.pop(0)
-        self.density_history.append(current_density)
-        #print("Max density: ", self.MAX_DENSITY)
-        #print("Density history: ", self.density_history)
-         
+        self.density_history.append(current_density_down)
+        # print("Max density: ", self.MAX_DENSITY)
+        # print("Density history: ", self.density_history)
+        # print("\n")
+
         observation = [] 
         observation.append(self.k.vehicle.get_speed(rl_id)/ self.MAX_SPEED)
         observation.append((self.k.vehicle.get_speed(lead_id) - self.k.vehicle.get_speed(rl_id))/self.MAX_SPEED)
         observation.append((self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(rl_id))/current_length)
 
         for i in self.density_history:
+            obs = i/self.MAX_DENSITY
+            #print("Obs: ", obs)
             observation.append(i/self.MAX_DENSITY)
 
         observation.append(int(self.approching_congestion))
-        observation.append(int(self.leaving_congestion))
-        observation.append(int(self.near_free_flow))
+        #observation.append(int(self.leaving_congestion))
+        #observation.append(int(self.near_free_flow))
         
         #print("Observation = ", observation)
         return np.array(observation)
@@ -313,3 +273,13 @@ class DensityAwareRLEnv(Env):
         
 
 
+ # elif self.leaving_congestion:
+        #     if direction == 1.0:
+        #         reward += response_scaler * intensity
+        #         #print("Three")
+        #     else:
+        #         reward -= penalty
+        #         #print("Four")
+        # else:
+        #     reward += np.mean(vel)
+        #     #print("Five")
