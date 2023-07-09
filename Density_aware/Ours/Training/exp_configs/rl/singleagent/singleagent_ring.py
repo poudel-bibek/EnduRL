@@ -12,7 +12,7 @@ from flow.networks import RingNetwork
 from flow.envs import DensityAwareRLEnv 
 
 # time horizon of a single rollout
-HORIZON = 6000 #Bibek (for our purposes, 6000 is good)
+HORIZON = 3500 #Bibek (for our purposes, 6000 is good)
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
@@ -34,6 +34,9 @@ vehicles.add(
 vehicles.add(
     veh_id="rl",
     acceleration_controller=(RLController, {}),
+    car_following_params=SumoCarFollowingParams(
+        min_gap=0.1 # Collisions are allowed at 0
+    ),
     routing_controller=(ContinuousRouter, {}),
     num_vehicles=1)
 
@@ -65,7 +68,7 @@ flow_params = dict(
         additional_params={
             "max_accel": 1,
             "max_decel": 1,
-            "ring_length": [220, 270],
+            "ring_length": [260, 260],
         },
     ),
 

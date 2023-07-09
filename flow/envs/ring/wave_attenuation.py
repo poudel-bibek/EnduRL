@@ -112,7 +112,7 @@ class WaveAttenuationEnv(Env):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
-        """Changing this according to the paper: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9489303"""
+        """Can be changed according to the paper: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9489303"""
         # in the warmup steps
         if rl_actions is None:
             return 0
@@ -125,19 +125,20 @@ class WaveAttenuationEnv(Env):
         if any(vel < -100) or kwargs['fail']:
             return 0.
 
-        reward = np.mean(vel) - 0.1*np.abs(np.array(rl_actions))
+        # If changing
+        #reward = np.mean(vel) - 0.1*np.abs(np.array(rl_actions))
         
-        # # reward average velocity
-        # eta_2 = 4.
-        # reward = eta_2 * np.mean(vel) / 20
+        # reward average velocity
+        eta_2 = 4.
+        reward = eta_2 * np.mean(vel) / 20
 
-        # # punish accelerations (should lead to reduced stop-and-go waves)
-        # eta = 4  # 0.25
-        # mean_actions = np.mean(np.abs(np.array(rl_actions)))
-        # accel_threshold = 0
+        # punish accelerations (should lead to reduced stop-and-go waves)
+        eta = 4  # 0.25
+        mean_actions = np.mean(np.abs(np.array(rl_actions)))
+        accel_threshold = 0
 
-        # if mean_actions > accel_threshold:
-        #     reward += eta * (accel_threshold - mean_actions)
+        if mean_actions > accel_threshold:
+            reward += eta * (accel_threshold - mean_actions)
 
         return float(reward)
 

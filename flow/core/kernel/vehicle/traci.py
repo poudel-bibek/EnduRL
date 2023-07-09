@@ -1222,15 +1222,30 @@ class TraCIVehicle(KernelVehicle):
         # Do we always want to look 80 m ahead? or make this a function of max speed?
         return local_density
 
-    def apply_tau_action(self, veh_id, tau):
-        """Apply the learned time-headway action to the vehicle."""
+    def apply_tau_action(self, veh_ids, tau, smooth=False):
+        """
+        Apply the learned time-headway action to the vehicle.
+        Change of time headway action may require a smooth transition.
+        """
 
         #print(f"\n\nApplying tau action: {tau}\n\n")
-        #print(self.kernel_api.vehicle.getIDList())
-        self.kernel_api.vehicle.setTau(veh_id, tau)
+        if type(veh_ids) == str:
+            veh_ids = [veh_ids]
+            tau = [tau]
+
+        for i, vid in enumerate(veh_ids):
+            if vid in self.get_ids(): # In apply_acceleration, there is one more check (if acc[i] is not None)
+                # TODO: Make transition smoother, set smooth to True
+                if smooth:
+                    pass
+                else:
+                    #print("Tau:", tau[i])
+                    self.kernel_api.vehicle.setTau(vid, tau[i]) 
+                    # Another method is to use self.__vehicles[vid]
 
     def get_time_headway(self, veh_id, error=-1001):
         """
+        return -1001 if no such key exists
         """
         return self.__sumo_obs.get(veh_id, {}).get(tc.VAR_TAU, error)
         
