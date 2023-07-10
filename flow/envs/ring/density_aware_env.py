@@ -53,6 +53,7 @@ class DensityAwareRLEnv(Env):
         self.data_storage = []
         self.tse_model = self.load_tse_model()
         self.tse_output = None
+        self.tse_output_encoded = None
 
     @property
     def action_space(self):
@@ -85,7 +86,7 @@ class DensityAwareRLEnv(Env):
         #            dtype = np.float32)
 
         # For RL training, flatten all observations and add a single one in the end
-        shp = ((self.LOCAL_ZONE // self.VEHICLE_LENGTH)*2 + 1,)
+        shp = ((self.LOCAL_ZONE // self.VEHICLE_LENGTH)*2 + 5,) # 5 categories of labels one hot encoded
         #print(f"\nObservation shape: {shp}\n")
         return Box(low=-float('inf'), 
                    high=float('inf'), 
@@ -135,15 +136,6 @@ class DensityAwareRLEnv(Env):
 
         # Detect collision, does not seem to work
         #print("Collision: ", self.k.simulation.check_collision())
-
-        # Cathy's reward (in effect)
-        # Reward high average velocity and penalize for high accleration
-        # rl_id = self.k.vehicle.get_rl_ids()[0]
-        # rl_accel = self.k.vehicle.get_realized_accel(rl_id)
-        # first = np.mean(vel)
-        # second = 0.1*np.abs(np.array(rl_accel))
-        # reward = first - second
-        #print(f"\nReward: {reward}, first:{first}, second:{second}")
 
         # TSE based reward 
         rl_id = self.k.vehicle.get_rl_ids()[0]
@@ -195,7 +187,6 @@ class DensityAwareRLEnv(Env):
 
         # Penalize high action changes?
         # action change = rl_actions - rl_actions_prev
-
 
         total = general_reward + reward
         print(f"Reward total: {total}, first term: {reward} , second term: {general_reward} \n")
@@ -361,16 +352,17 @@ class DensityAwareRLEnv(Env):
                 
         observation = np.array(observation, dtype=np.float32)
 
-        #print("Observation\n", observation)
-
         # For using TSE model: add TSE output to appropriate observation
         self.tse_output = self.get_tse_output(observation)
-        print("TSE output: ", self.tse_output, self.label_meaning[self.tse_output[0]])
+        self.tse_output_encoded = np.zeros(5) # 0, 1, 2, 3, 4
+        self.tse_output_encoded[self.tse_output] = 1
 
+        print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
         observation = np.append(observation.flatten(), self.tse_output)
         print(f"Observations new: {observation, observation.shape}")
 
         # For training TSE model: Get data for TSE NN training
+        #print("Observation\n", observation)
         # timestep = self.step_counter
         # label = self.get_monotonicity_label(distances)
         # print(f"Writing data: {timestep}, {label}, {observation}")
