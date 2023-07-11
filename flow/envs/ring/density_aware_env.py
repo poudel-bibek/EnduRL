@@ -64,7 +64,7 @@ class DensityAwareRLEnv(Env):
         return Box(
 
             #set low to zero, high to 100
-            low=0.0,
+            low=0.1, # Tau should not be made smaller than step size
             high=100.0,
             #low=-np.abs(self.env_params.additional_params['max_decel']),
             #high=self.env_params.additional_params['max_accel'],
@@ -86,7 +86,7 @@ class DensityAwareRLEnv(Env):
         #            dtype = np.float32)
 
         # For RL training, flatten all observations and add a single one in the end
-        shp = ((self.LOCAL_ZONE // self.VEHICLE_LENGTH)*2 + 5,) # 5 categories of labels one hot encoded
+        shp = (3 + 5,) # 5 categories of labels one hot encoded
         #print(f"\nObservation shape: {shp}\n")
         return Box(low=-float('inf'), 
                    high=float('inf'), 
@@ -96,26 +96,17 @@ class DensityAwareRLEnv(Env):
         
     def _apply_rl_actions(self, rl_actions):
         """ 
-        tau = desired time gap of vehicle
+        
         """
         print(f"\n\nRL action received: {rl_actions}")
 
-        # Get the observed tau 
-        #tau = self.k.vehicle.get_time_headway(self.k.vehicle.get_rl_ids()[0])
-        #print("Tau: ", tau)
-
-        # Set tau as action
-        #new_rl_actions=[5.0] # Even when testing surround the tau with a list
-        self.k.vehicle.apply_tau_action(self.k.vehicle.get_rl_ids(), rl_actions)
-
         # Original acceleration action
-        # self.k.vehicle.apply_acceleration(
-        #     self.k.vehicle.get_rl_ids(), rl_actions)
+        self.k.vehicle.apply_acceleration(
+            self.k.vehicle.get_rl_ids(), rl_actions)
 
     def compute_reward(self, rl_actions, **kwargs):
         """ 
-        The TSE based reward 
-        The action is to control time-gap, the reward is based on acceleration behavior of agent
+        Cathy's original reward (in code)
         """
         # for warmup 
         if rl_actions is None: 
@@ -130,67 +121,31 @@ class DensityAwareRLEnv(Env):
         if any(vel <-100) or kwargs['fail']:
             return 0 
         
-        # During data collection for TSE, assign a random value. For a brief time horizon has to run. 
-        # Comment for RL
-        #self.tse_output = [0] 
-
-        # Detect collision, does not seem to work
-        #print("Collision: ", self.k.simulation.check_collision())
-
-        # TSE based reward 
         rl_id = self.k.vehicle.get_rl_ids()[0]
-        rl_accel = self.k.vehicle.get_realized_accel(rl_id)
+
+        # Desired acceleration (control action)
+        rl_accel = rl_actions[0]
+        
         magnitude = np.abs(rl_accel)
         sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0
 
         print(f"RL accel: {rl_accel}, magnitude: {magnitude}, sign: {sign}")
 
-        reward = 0
+        # The acceleration penalty is only for the magnitude
+        reward = 0.2*np.mean(vel) - 4*magnitude
+        print(f"First Reward: {reward}")
+        
+        # Forming shaping 
         penalty_scalar = -10
-
-        # Leaving
-        if self.tse_output[0] == 0:
-            if sign < 0:
-                reward += penalty_scalar*magnitude # If congestion is leaving, penalize deceleration
-            print(f"Leaving: {reward}")
-
-        # Forming
-        elif self.tse_output[0] == 1:
+        if self.tse_output[0] == 1:
             if sign > 0:
-                reward += penalty_scalar*magnitude # If congestion is fomring, penalize acceleration
-            print(f"Forming: {reward}")
+                forming_penalty = penalty_scalar*magnitude
+                print(f"Forming: {forming_penalty}")
+                reward += forming_penalty # If congestion is fomring, penalize acceleration
 
-        # Free Flow
-        elif self.tse_output[0] == 2:
-            # Penalize acceleration/deceleration magnitude
-            reward += penalty_scalar*magnitude
-            print(f"Free Flow: {reward}")
-    
-        # Congested
-        elif self.tse_output[0] == 3:
-            # Penalize acceleration/deceleration magnitude
-            reward += penalty_scalar*magnitude
-            print(f"Congested: {reward}")
+        print(f"Last Reward: {reward}")
+        return reward
 
-        # Undefined
-        elif self.tse_output[0] == 4:
-            reward += 0 
-            print(f"Undefined: {reward}")
-
-        # No vehicle in front
-        elif self.tse_output[0] == 5:
-            reward += 0 
-            print(f"No vehicle in front: {reward}")
-
-        # Generally high reward for high average velocity and low acceleration
-        general_reward = 2*np.mean(vel) - 0.5*magnitude 
-
-        # Penalize high action changes?
-        # action change = rl_actions - rl_actions_prev
-
-        total = general_reward + reward
-        print(f"Reward total: {total}, first term: {reward} , second term: {general_reward} \n")
-        return total
     
     # Helper 1
     def sort_vehicle_list(self, vehicles_in_zone):
@@ -277,11 +232,15 @@ class DensityAwareRLEnv(Env):
 
         with torch.no_grad():
             outputs = self.tse_model(current_obs.unsqueeze(0))
-        
+
+        # print("TSE output: ", outputs)
+        # return outputs.numpy() # Logits
+
         _, predicted_label = torch.max(outputs, 1)
         predicted_label = predicted_label.numpy()
         return predicted_label
-    
+        
+
     # Helper 4: Load TSE model 
     def load_tse_model(self, ):
         """
@@ -334,7 +293,7 @@ class DensityAwareRLEnv(Env):
         #observation = np.full(self.observation_space.shape, -1.0)
 
         # For RL training
-        observation = np.full((10, 2), -1.0)
+        observation_tse = np.full((10, 2), -1.0)
 
         num_vehicle_in_zone = len(vehicles_in_zone)
         distances = []
@@ -348,18 +307,38 @@ class DensityAwareRLEnv(Env):
                 vel = self.k.vehicle.get_speed(vehicles_in_zone[i])
                 norm_vel = vel / self.MAX_SPEED
 
-                observation[i] = [norm_pos, norm_vel]
+                observation_tse[i] = [norm_pos, norm_vel]
                 
-        observation = np.array(observation, dtype=np.float32)
+        observation_tse = np.array(observation_tse, dtype=np.float32)
 
         # For using TSE model: add TSE output to appropriate observation
-        self.tse_output = self.get_tse_output(observation)
+        self.tse_output = self.get_tse_output(observation_tse)
         self.tse_output_encoded = np.zeros(5) # 0, 1, 2, 3, 4
         self.tse_output_encoded[self.tse_output] = 1
 
         print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
-        observation = np.append(observation.flatten(), self.tse_output)
-        print(f"Observations new: {observation, observation.shape}")
+
+        # Original observations
+        lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
+
+        # normalizers
+        max_speed = 15.
+        if self.env_params.additional_params['ring_length'] is not None:
+            max_length = self.env_params.additional_params['ring_length'][1]
+        else:
+            max_length = self.k.network.length()
+
+        observation = np.array([
+            self.k.vehicle.get_speed(rl_id) / max_speed,
+            (self.k.vehicle.get_speed(lead_id) -
+             self.k.vehicle.get_speed(rl_id)) / max_speed,
+            (self.k.vehicle.get_x_by_id(lead_id) -
+             self.k.vehicle.get_x_by_id(rl_id)) % self.k.network.length()
+            / max_length
+        ])
+
+        observation = np.append(observation, self.tse_output_encoded)
+        print(f"Observations new: {observation, observation.shape}\n")
 
         # For training TSE model: Get data for TSE NN training
         #print("Observation\n", observation)

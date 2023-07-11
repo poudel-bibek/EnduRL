@@ -162,6 +162,10 @@ def setup_exps_rllib(flow_params,
     config["num_sgd_iter"] = 10
     config["horizon"] = horizon
 
+    # Bibek: Make the  agent a little more exploratory
+    config["entropy_coeff"] = 0.01 # 0.01 from PPO paper# Default 0.0
+    config["entropy_coeff_schedule"] = [[0, 0.1],[500000, 0.02], [1000000, 0.01]] # Default None
+
     # save the flow params for replay
     flow_json = json.dumps(
         flow_params, cls=FlowParamsEncoder, sort_keys=True, indent=4)
