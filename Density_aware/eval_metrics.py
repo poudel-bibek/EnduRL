@@ -708,6 +708,8 @@ if __name__ == '__main__':
     parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
     parser.add_argument('--method', type=str, default=None)
+    parser.add_argument('--metric', type=str, default=None)
+
     parser.add_argument('--horizon', type=int, default=15000)
     parser.add_argument('--warmup', type=int, default=2500)
 
@@ -723,8 +725,12 @@ if __name__ == '__main__':
     parser.add_argument('--idm_noise', type=float, default=0.2)
 
     args = parser.parse_args()
+
     if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours]")
+
+    if args.metric is None:
+        raise ValueError("Please specify the metric to evaluate\n Metric can be [Stability, safety, efficiency]")
 
     files = [f"{args.emissions_file_path}/{args.method}/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}") \
         if item.endswith('.csv')]
@@ -783,9 +789,5 @@ if __name__ == '__main__':
     print("\nFinal Aggregated Stability Metrics (across all files):\n")
     print(f"Time to stabilize (s), (time elapsed after warmup ends): {tts_mother} \n\tAvg= {round(tts_avg,2)}, std= {round(tts_std,2)}\n")
 
-    #print(f"textendash${a}\pm{b}$ & ${c}\pm{d}$ & ${e}\pm{f}$ & ${g}\pm{h}$ & ${i}\pm{j}$ ")
     print(f"${-1*a}$ & ${x}$ & ${e}$ & ${int(g)}$ & ${c}$ ")
     # TODO: Controlled vehicles and human vehicle have separate stats?
-    #
-    #
-    #
