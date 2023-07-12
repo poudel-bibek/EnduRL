@@ -5,6 +5,7 @@ from flow.envs.multiagent.ring.wave_attenuation import \
     MultiWaveAttenuationPOEnv
 from flow.envs.multiagent.ring.wave_attenuation import \
     MultiAgentWaveAttenuationPOEnv
+from flow.envs.multiagent.ring.density_aware_env import MultiAgentDensityAwareRLEnv # Bibek
 from flow.envs.multiagent.ring.accel import AdversarialAccelEnv
 from flow.envs.multiagent.ring.accel import MultiAgentAccelPOEnv
 from flow.envs.multiagent.traffic_light_grid import MultiTrafficLightGridPOEnv
@@ -21,5 +22,6 @@ __all__ = [
     'MultiAgentAccelPOEnv',
     'MultiAgentWaveAttenuationPOEnv',
     'MultiAgentMergePOEnv',
-    'I210MultiEnv'
+    'I210MultiEnv',
+    'MultiAgentDensityAwareRLEnv'
 ]

@@ -10,22 +10,22 @@ from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import RLController, IDMController, ContinuousRouter
 from flow.envs.multiagent import MultiAgentWaveAttenuationPOEnv
+from flow.envs.multiagent import MultiAgentDensityAwareRLEnv
 from flow.networks import RingNetwork
 from flow.utils.registry import make_create_env
 
 # time horizon of a single rollout
-HORIZON = 3000
+HORIZON = 3500
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
 N_CPUS = 1
 # number of automated vehicles. Must be less than or equal to 22.
-NUM_AUTOMATED = 2
+NUM_AUTOMATED = 4 # 4 for BCM, 9 for LACC
 
 
 # We evenly distribute the automated vehicles in the network.
 num_human = 22 - NUM_AUTOMATED
-humans_remaining = num_human
 
 vehicles = VehicleParams()
 for i in range(NUM_AUTOMATED):
@@ -33,30 +33,31 @@ for i in range(NUM_AUTOMATED):
     vehicles.add(
         veh_id="rl_{}".format(i),
         acceleration_controller=(RLController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.1 # Collisions are allowed at 0
+        ),
         routing_controller=(ContinuousRouter, {}),
         num_vehicles=1)
 
-    # Add a fraction of the remaining human vehicles.
-    vehicles_to_add = round(humans_remaining / (NUM_AUTOMATED - i))
-    humans_remaining -= vehicles_to_add
-    vehicles.add(
-        veh_id="human_{}".format(i),
-        acceleration_controller=(IDMController, {
-            "noise": 0.2
-        }),
-        car_following_params=SumoCarFollowingParams(
-            min_gap=0
-        ),
-        routing_controller=(ContinuousRouter, {}),
-        num_vehicles=vehicles_to_add)
+# Bibek: Originally this is added in a way to not make a platoon i.e., distributed configuration
+vehicles.add(
+    veh_id="human_{}".format(i),
+    acceleration_controller=(IDMController, {
+        "noise": 0.2
+    }),
+    car_following_params=SumoCarFollowingParams(
+        min_gap=0
+    ),
+    routing_controller=(ContinuousRouter, {}),
+    num_vehicles=num_human)
 
 
 flow_params = dict(
     # name of the experiment
-    exp_tag="multiagent_ring",
+    exp_tag= "density_aware_multiagent_ring", #"multiagent_ring",
 
     # name of the flow environment the experiment is running on
-    env_name=MultiAgentWaveAttenuationPOEnv,
+    env_name= MultiAgentDensityAwareRLEnv, #MultiAgentWaveAttenuationPOEnv,
 
     # name of the network class the experiment is running on
     network=RingNetwork,
@@ -74,12 +75,12 @@ flow_params = dict(
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
         horizon=HORIZON,
-        warmup_steps=750,
+        warmup_steps=2500,
         clip_actions=False,
         additional_params={
             "max_accel": 1,
             "max_decel": 1,
-            "ring_length": [220, 270],
+            "ring_length": [260, 260],
         },
     ),
 
