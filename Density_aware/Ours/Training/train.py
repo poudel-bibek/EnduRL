@@ -150,10 +150,8 @@ def setup_exps_rllib(flow_params,
 
     #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) in acceleration
     # Tanh activations have a range of -1, 1, sigmoid has a range of 0, 1 # "fcnet_activation": "tanh"}
-    # Make all (hidden and output) layers relu (see fcnet_v2.py for more)
-    #config["model"].update({"fcnet_hiddens": [128, 64, 32], "fcnet_activation": "relu", "no_final_linear": True})
-    # For time gap action, no final linear.
-    config["model"].update({"fcnet_hiddens": [32, 16], "fcnet_activation": "relu", "no_final_linear": True})
+    config["model"].update({"fcnet_hiddens": [32, 16], "fcnet_activation": "tanh"})
+
     config["lr"] = 5e-05 # default 5e-05
 
     config["use_gae"] = True

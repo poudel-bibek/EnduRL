@@ -62,12 +62,8 @@ class DensityAwareRLEnv(Env):
         For (time-headway) gap, we can either set max gap and min gap or NOT
         """
         return Box(
-
-            #set low to zero, high to 100
-            low=0.1, # Tau should not be made smaller than step size
-            high=100.0,
-            #low=-np.abs(self.env_params.additional_params['max_decel']),
-            #high=self.env_params.additional_params['max_accel'],
+            low=-np.abs(self.env_params.additional_params['max_decel']),
+            high=self.env_params.additional_params['max_accel'],
             shape=(self.initial_vehicles.num_rl_vehicles, ),
             dtype=np.float32)
         
@@ -106,7 +102,6 @@ class DensityAwareRLEnv(Env):
 
     def compute_reward(self, rl_actions, **kwargs):
         """ 
-        Cathy's original reward (in code)
         """
         # for warmup 
         if rl_actions is None: 
@@ -137,11 +132,16 @@ class DensityAwareRLEnv(Env):
         
         # Forming shaping 
         penalty_scalar = -10
+        fixed_penalty = -1
         if self.tse_output[0] == 1:
             if sign > 0:
                 forming_penalty = penalty_scalar*magnitude
                 print(f"Forming: {forming_penalty}")
                 reward += forming_penalty # If congestion is fomring, penalize acceleration
+            elif sign == 0:
+                forming_penalty = fixed_penalty
+                print(f"Forming: {forming_penalty}")
+                reward += forming_penalty
 
         print(f"Last Reward: {reward}")
         return reward
