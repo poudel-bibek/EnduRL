@@ -112,8 +112,8 @@ flow.ang
 *.sang
 
 # Bibek
-Density_aware/Ours/Training/tse_data
-Density_aware/Ours/Training/tse_data/*
+# Density_aware/Ours/Training/tse_data
+# Density_aware/Ours/Training/tse_data/*
 
-Density_aware/Ours/ray_results
-Density_aware/Ours/ray_results/*
+# Density_aware/Ours/ray_results
+# Density_aware/Ours/ray_results/*

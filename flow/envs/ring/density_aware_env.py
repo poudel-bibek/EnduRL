@@ -82,7 +82,7 @@ class DensityAwareRLEnv(Env):
         #            dtype = np.float32)
 
         # For RL training, flatten all observations and add a single one in the end
-        shp = (3 + 5,) # 5 categories of labels one hot encoded
+        shp = (3 + 6,) # 5 categories of labels one hot encoded
         #print(f"\nObservation shape: {shp}\n")
         return Box(low=-float('inf'), 
                    high=float('inf'), 
@@ -264,8 +264,8 @@ class DensityAwareRLEnv(Env):
                 return out
 
         input_size = 10*2
-        num_classes = 5
-        url = "https://huggingface.co/matrix-multiply/Traffic_State_Estimator/resolve/main/best_tse_model.pt"
+        num_classes = 6
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/best_csc_model.pt"
         saved_best_net = TSE_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
@@ -310,10 +310,10 @@ class DensityAwareRLEnv(Env):
                 observation_tse[i] = [norm_pos, norm_vel]
                 
         observation_tse = np.array(observation_tse, dtype=np.float32)
-
+        
         # For using TSE model: add TSE output to appropriate observation
         self.tse_output = self.get_tse_output(observation_tse)
-        self.tse_output_encoded = np.zeros(5) # 0, 1, 2, 3, 4
+        self.tse_output_encoded = np.zeros(6) 
         self.tse_output_encoded[self.tse_output] = 1
 
         print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")

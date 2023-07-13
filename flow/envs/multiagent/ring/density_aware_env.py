@@ -55,7 +55,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
     def observation_space(self):
         """See class definition."""
 
-        shp = (3 + 5,) # 5 categories of the one hot encoded TSE output
+        shp = (3 + 6,) # 6 categories of the one hot encoded TSE output
         return Box(low=-5, # WHY THIS?
                    high=5,  # INSTEAD OF -float('inf') and float('inf')?
                    shape=shp, 
@@ -150,8 +150,8 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 return out
 
         input_size = 10*2
-        num_classes = 5
-        url = "https://huggingface.co/matrix-multiply/Traffic_State_Estimator/resolve/main/best_tse_model.pt"
+        num_classes = 6
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/best_csc_model.pt"
         saved_best_net = TSE_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
@@ -193,8 +193,10 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 observation_tse[i] = [norm_pos, norm_vel]
                 
         observation_tse = np.array(observation_tse, dtype=np.float32)
+        print("Observation TSE: ", observation_tse)
+        
         self.tse_output = self.get_tse_output(observation_tse)
-        self.tse_output_encoded = np.zeros(5) # 0, 1, 2, 3, 4
+        self.tse_output_encoded = np.zeros(6) 
         self.tse_output_encoded[self.tse_output] = 1
 
         print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
