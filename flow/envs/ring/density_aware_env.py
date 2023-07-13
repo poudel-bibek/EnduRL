@@ -265,7 +265,7 @@ class DensityAwareRLEnv(Env):
 
         input_size = 10*2
         num_classes = 6
-        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/best_csc_model.pt"
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Estimator/resolve/main/best_cse_model.pt"
         saved_best_net = TSE_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)

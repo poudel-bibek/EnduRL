@@ -151,7 +151,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         input_size = 10*2
         num_classes = 6
-        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/best_csc_model.pt"
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Estimator/resolve/main/best_cse_model.pt"
         saved_best_net = TSE_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
@@ -193,8 +193,8 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 observation_tse[i] = [norm_pos, norm_vel]
                 
         observation_tse = np.array(observation_tse, dtype=np.float32)
-        print("Observation TSE: ", observation_tse)
-        
+        #print("Observation TSE: ", observation_tse)
+
         self.tse_output = self.get_tse_output(observation_tse)
         self.tse_output_encoded = np.zeros(6) 
         self.tse_output_encoded[self.tse_output] = 1
