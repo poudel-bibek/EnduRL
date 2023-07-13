@@ -103,6 +103,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             reward += eta * (accel_threshold - mean_actions)
 
         return {key: reward for key in self.k.vehicle.get_rl_ids()}
+        
 
     # Helper 1
     def sort_vehicle_list(self, vehicles_in_zone):
@@ -220,7 +221,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             obs.update({rl_id: observation})
             print(f"RL_ID: {rl_id}, observation: {observation}")
 
-        print(f"Observations new: {obs} \n")
+        #print(f"Observations new: {obs} \n")
         return obs
 
 

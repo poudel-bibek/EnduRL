@@ -153,8 +153,9 @@ def setup_exps_rllib(flow_params,
     config["model"].update({"fcnet_hiddens": [32, 16], "fcnet_activation": "tanh"})
 
     config["lr"] = 5e-05 # default 5e-05
+    
     # Add seed?
-    config["seed"] = 42
+    #config["seed"] = 42
     
     config["use_gae"] = True
     config["lambda"] = 0.97
