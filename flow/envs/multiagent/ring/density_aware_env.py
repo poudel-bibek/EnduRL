@@ -63,11 +63,26 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
     
     def _apply_rl_actions(self, rl_actions):
-        """Split the accelerations by ring."""
+        """Split the accelerations"""
+
+        print(f"rl_actions: {rl_actions} \n")
         if rl_actions:
-            rl_ids = list(rl_actions.keys())
-            accel = list(rl_actions.values())
-            self.k.vehicle.apply_acceleration(rl_ids, accel)
+            leader_id = self.k.vehicle.get_rl_ids()[-1]
+            follower_ids = self.k.vehicle.get_rl_ids()[:-1]
+
+            print(f"leader_id: {leader_id}, follower_ids: {follower_ids} \n")
+
+            leader_action = rl_actions[leader_id]
+            follower_actions = [rl_actions[id] for id in follower_ids]
+
+            self.k.vehicle.apply_acceleration(leader_id, leader_action)
+            self.k.vehicle.apply_acceleration(follower_ids, follower_actions)
+        
+        # Original
+        # if rl_actions:
+        #     rl_ids = list(rl_actions.keys())
+        #     accel = list(rl_actions.values())
+        #     self.k.vehicle.apply_acceleration(rl_ids, accel)
 
     
     def compute_reward(self, rl_actions, **kwargs):
@@ -86,34 +101,42 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         if any(vel < -100) or kwargs['fail']:
             return 0.
-
-        # which one is lead's actions
-        print("rl_actions: ", rl_actions)
-        mean_actions = np.mean(np.abs(list(rl_actions.values())))
-        reward = 0.2*np.mean(vel) - 4*mean_actions
-
-        rew = {}
-        lead_rl_id = self.k.vehicle.get_rl_ids()[-1]
-        for veh_id in self.k.vehicle.get_rl_ids():
-            # Only lead gets forming shaping
-            if veh_id == lead_rl_id:
         
-                # Forming shaping 
-                penalty_scalar = -10
-                fixed_penalty = -1
-                if self.tse_output[0] == 1:
-                    if sign>=0:
-                        forming_penalty = penalty_scalar*magnitude
-                        # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
-                        # min is correct bacause values are -ve
-                        forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
-                        print(f"Forming: {forming_penalty}")
-                        reward += forming_penalty # If congestion is fomring, penalize acceleration
-                rew.update({veh_id: reward})
+        rew = {}
 
-            else:
-                rew.update({veh_id: reward})
-        print(f"Reward: {rew}\n")
+        # reward for leader
+        lead_rl_id = self.k.vehicle.get_rl_ids()[-1]
+        lead_accel = rl_actions[lead_rl_id].item()
+        magnitude = np.abs(lead_accel)
+        sign = np.sign(lead_accel)
+        print(f"Lead accel: {lead_accel}, magnitude: {magnitude}, sign: {sign}")
+
+        reward_leader = 0.2*np.mean(vel) - 4*magnitude
+
+        # Forming shaping 
+        penalty_scalar = -10
+        fixed_penalty = -1
+        if self.tse_output[0] == 1:
+            if sign>=0:
+                forming_penalty = penalty_scalar*magnitude
+                # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
+                # min is correct bacause values are -ve
+                forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
+                print(f"Forming: {forming_penalty}")
+                reward_leader += forming_penalty # If congestion is fomring, penalize acceleration
+        rew.update({lead_rl_id : reward_leader})
+
+        # reward for all followers
+        follower_ids = self.k.vehicle.get_rl_ids()[:-1]
+        follower_actions = [rl_actions[id] for id in follower_ids]
+        mean_actions_followers = np.mean(np.abs(follower_actions))
+
+        reward_followers = 0.2*np.mean(vel) - 4*mean_actions_followers
+
+        for follower_id in follower_ids:
+            rew.update({follower_id : reward_followers})
+        
+        print(f"Leader reward: {reward_leader}, Follower reward: {reward_followers}")
         return rew
         
 
@@ -211,7 +234,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         self.tse_output_encoded = np.zeros(6) 
         self.tse_output_encoded[self.tse_output] = 1
 
-        print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
+        print(f"\nTSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
 
         # For RL agent
         obs = {}
@@ -235,9 +258,9 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 observation = np.append(observation, self.tse_output_encoded)
             else: 
                 observation = np.append(observation, np.zeros(6)) # Dummy, zeros (because observation space is fixed)
-            
+                
             obs.update({rl_id: observation})
-            print(f"RL_ID: {rl_id}, observation: {observation}")
+            print(f"RL_ID: {rl_id.split('_')[1]}, observation: {observation}, shape: {observation.shape}")
 
         print("\n")
         #print(f"Observations new: {obs} \n")

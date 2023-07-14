@@ -15,11 +15,11 @@ from flow.networks import RingNetwork
 from flow.utils.registry import make_create_env
 
 # time horizon of a single rollout
-HORIZON = 3500
+HORIZON = 4500
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
-N_CPUS = 1
+N_CPUS = 4
 # number of automated vehicles. Must be less than or equal to 22.
 NUM_AUTOMATED = 4 # 4 for BCM, 9 for LACC
 
@@ -68,7 +68,7 @@ flow_params = dict(
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
         sim_step=0.1,
-        render=True,
+        render=False,
         restart_instance=False
     ),
 
@@ -120,12 +120,21 @@ def gen_policy():
 
 
 # Setup PG with an ensemble of `num_policies` different policy graphs
-POLICY_GRAPHS = {'av': gen_policy()}
+# Leader and follower do not share policies
+POLICY_GRAPHS = {'leader': gen_policy(), 
+                'follower': gen_policy()}
 
 
-def policy_mapping_fn(_):
-    """Map a policy in RLlib."""
-    return 'av'
+def policy_mapping_fn(agent_id):
+    """
+    map policy to agent
+    """
+    # Based on the assumption (which is correct for now). The last item is the leader
+    leader_id = f"rl_0_{NUM_AUTOMATED-1}"
+    if agent_id == leader_id:
+        return 'leader'
+    else:
+        return 'follower'
 
 
-POLICIES_TO_TRAIN = ['av']
+POLICIES_TO_TRAIN = ['leader', 'follower']
