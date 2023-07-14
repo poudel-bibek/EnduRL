@@ -82,7 +82,7 @@ class DensityAwareRLEnv(Env):
         #            dtype = np.float32)
 
         # For RL training, flatten all observations and add a single one in the end
-        shp = (3 + 6,) # 5 categories of labels one hot encoded
+        shp = (3 + 6,) # 6 categories of labels one hot encoded
         #print(f"\nObservation shape: {shp}\n")
         return Box(low=-float('inf'), 
                    high=float('inf'), 
@@ -134,14 +134,12 @@ class DensityAwareRLEnv(Env):
         penalty_scalar = -10
         fixed_penalty = -1
         if self.tse_output[0] == 1:
-            if sign > 0:
-                forming_penalty = penalty_scalar*magnitude
+            if sign>=0:
+                # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
+                # min is correct bacause values are -ve
+                forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
                 print(f"Forming: {forming_penalty}")
                 reward += forming_penalty # If congestion is fomring, penalize acceleration
-            elif sign == 0:
-                forming_penalty = fixed_penalty
-                print(f"Forming: {forming_penalty}")
-                reward += forming_penalty
 
         print(f"Last Reward: {reward}")
         return reward

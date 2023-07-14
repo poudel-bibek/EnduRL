@@ -89,20 +89,32 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         # which one is lead's actions
         print("rl_actions: ", rl_actions)
-
-        # reward average velocity
-        eta_2 = 4.
-        reward = eta_2 * np.mean(vel) / 20
-
-        # punish accelerations (should lead to reduced stop-and-go waves)
-        eta = 4  # 0.25
         mean_actions = np.mean(np.abs(list(rl_actions.values())))
-        accel_threshold = 0
+        reward = 0.2*np.mean(vel) - 4*mean_actions
 
-        if mean_actions > accel_threshold:
-            reward += eta * (accel_threshold - mean_actions)
+        rew = {}
+        lead_rl_id = self.k.vehicle.get_rl_ids()[-1]
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Only lead gets forming shaping
+            if veh_id == lead_rl_id:
+        
+                # Forming shaping 
+                penalty_scalar = -10
+                fixed_penalty = -1
+                if self.tse_output[0] == 1:
+                    if sign>=0:
+                        forming_penalty = penalty_scalar*magnitude
+                        # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
+                        # min is correct bacause values are -ve
+                        forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
+                        print(f"Forming: {forming_penalty}")
+                        reward += forming_penalty # If congestion is fomring, penalize acceleration
+                rew.update({veh_id: reward})
 
-        return {key: reward for key in self.k.vehicle.get_rl_ids()}
+            else:
+                rew.update({veh_id: reward})
+        print(f"Reward: {rew}\n")
+        return rew
         
 
     # Helper 1
@@ -218,11 +230,16 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 self.k.vehicle.get_headway(rl_id) / max_length
             ])
 
-            # All agents get the additional output of TSE, can be changed to only the lead getting it
-            observation = np.append(observation, self.tse_output_encoded)
+            # Only lead gets the full observation
+            if rl_id == self.lead_rl_id:
+                observation = np.append(observation, self.tse_output_encoded)
+            else: 
+                observation = np.append(observation, np.zeros(6)) # Dummy, zeros (because observation space is fixed)
+            
             obs.update({rl_id: observation})
             print(f"RL_ID: {rl_id}, observation: {observation}")
 
+        print("\n")
         #print(f"Observations new: {obs} \n")
         return obs
 

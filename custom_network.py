@@ -4,7 +4,7 @@ A different kind of a bottleneck
 
 # import Flow's base network class
 from flow.networks import Network
-
+import numpy as np
 # Additional params are defined here
 # They are accessed as net_params.additional_params["param"]
 # Make sure to copy and pass the same net params when this network is used
@@ -60,14 +60,14 @@ class CustomBottleneckNetwork(Network):
                 "id": "edge0", 
                 "from": "left0", 
                 "to": "middle0", 
-                "length": 200, 
-                "numLanes": 3, # get from params
+                "length": 500, 
+                "numLanes": 4, # get from params
                 "speed": speed_limit,},
             {
                 "id": "edge1",
                 "from": "left1",
                 "to": "middle0",
-                "length": 200,
+                "length": 500,
                 "numLanes": 2, # get from params
                 "speed": speed_limit,},
 
@@ -75,21 +75,21 @@ class CustomBottleneckNetwork(Network):
                 "id": "edge2",
                 "from": "middle0",
                 "to": "middle1",
-                "length": 200,
-                "numLanes": 3, # get from params
+                "length": 500,
+                "numLanes": 4, # get from params
                 "speed": speed_limit,},
             {
                 "id": "edge3",
                 "from": "middle1",
                 "to": "right0",
-                "length": 200,
-                "numLanes": 2, # get from params
+                "length": 500,
+                "numLanes": 3, # get from params
                 "speed": speed_limit,},
             {
                 "id": "edge4",
                 "from": "middle1",
                 "to": "right1",
-                "length": 200,
+                "length": 500,
                 "numLanes": 2, # get from params
                 "speed": speed_limit,},
 
@@ -110,14 +110,137 @@ class CustomBottleneckNetwork(Network):
         routes = {
             # key = edge a vehicle is on, value = list of edges the vehicle can traverse
             "edge0": ["edge0", "edge2", "edge3"],
-            #"edge1": ["edge1", "edge2", "edge4"],
+            "edge1": ["edge1", "edge2", "edge4"],
+            "edge2": ["edge3", "edge4"],
+            "edge3": ["edge3" ],
+            "edge4": ["edge4"],
         }
 
         return routes
 
+    def specify_edge_starts(self):
+        """
+        Starting position of vehicles on the edge
+        """
+        edge_starts = [
+            ("edge0", 0),
+            ("edge1", 0),
+            ("edge2", 500),
+            ("edge3", 1000),
+            ("edge4", 1000),
+        ]
 
+        return edge_starts
 
+    # def specify_connections(self, net_params):
+    #     """
+    #     Connections: Specify how lanes are connected to each other
+    #     """
+    #     conn_dic = {}
+    #     conn = []
+        
+    #     # Connect lanes from edge0 to edge2
+    #     for i in range(4):
+    #         conn += [{
+    #             "from": "edge0",
+    #             "to": "edge2",
+    #             "fromLane": i,
+    #             "toLane": int(np.floor(i / 2))
+    #         }]
+    #     conn_dic["edge2"] = conn
+        
+    #     conn = []
+        
+    #     # Connect lanes from edge1 to edge2
+    #     for i in range(2):
+    #         conn += [{
+    #             "from": "edge1",
+    #             "to": "edge2",
+    #             "fromLane": i,
+    #             "toLane": int(np.floor(i / 2)) + 2  # start from the 3rd lane
+    #         }]
+    #     conn_dic["edge2"] = conn + conn_dic["edge2"]
+        
+    #     conn = []
+        
+    #     # Connect lanes from edge2 to edge3
+    #     for i in range(4):
+    #         conn += [{
+    #             "from": "edge2",
+    #             "to": "edge3",
+    #             "fromLane": i,
+    #             "toLane": int(np.floor(i / 3))
+    #         }]
+    #     conn_dic["edge3"] = conn
+        
+    #     conn = []
+        
+    #     # Connect lanes from edge2 to edge4
+    #     for i in range(2):
+    #         conn += [{
+    #             "from": "edge2",
+    #             "to": "edge4",
+    #             "fromLane": i + 2,  # start from the 3rd lane
+    #             "toLane": i
+    #         }]
+    #     conn_dic["edge4"] = conn
 
+    #     return conn_dic
+
+    def specify_connections(self, net_params):
+        """
+        Connections: Specify how lanes are connected to each other
+        """
+        conn_dic = {}
+        conn = []
+        
+        # Connect lanes from edge0 to edge2
+        for i in range(4):
+            conn += [{
+                "from": "edge0",
+                "to": "edge2",
+                "fromLane": i,
+                "toLane": i  # change here
+            }]
+        conn_dic["edge2"] = conn
+        
+        conn = []
+        
+        # Connect lanes from edge1 to edge2
+        for i in range(2):
+            conn += [{
+                "from": "edge1",
+                "to": "edge2",
+                "fromLane": i,
+                "toLane": i + 2  # change here
+            }]
+        conn_dic["edge2"] = conn + conn_dic["edge2"]
+            
+        conn = []
+            
+        # Connect lanes from edge2 to edge3
+        for i in range(3):
+            conn += [{
+                "from": "edge2",
+                "to": "edge3",
+                "fromLane": i,
+                "toLane": i
+            }]
+        conn_dic["edge3"] = conn
+        
+        conn = []
+            
+        # Connect lanes from edge2 to edge4
+        for i in range(2):
+            conn += [{
+                "from": "edge2",
+                "to": "edge4",
+                "fromLane": i + 2,  # start from the 3rd lane
+                "toLane": i
+            }]
+        conn_dic["edge4"] = conn
+
+        return conn_dic
 
 ### FROM EXAMPLES ###
 from numpy import pi, sin, cos, linspace
