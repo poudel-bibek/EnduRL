@@ -111,11 +111,11 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         sign = np.sign(lead_accel)
         print(f"Lead accel: {lead_accel}, magnitude: {magnitude}, sign: {sign}")
 
-        reward_leader = 0.4*np.mean(vel) - 4*magnitude
+        reward_leader = 0.2*np.mean(vel) - 4*magnitude
 
         # Forming shaping 
-        penalty_scalar = -6 #4
-        fixed_penalty = -0.6 #0.4
+        penalty_scalar = -8 #4
+        fixed_penalty = -0.8 #0.4
         if self.tse_output[0] == 1:
             if sign>=0:
                 forming_penalty = penalty_scalar*magnitude

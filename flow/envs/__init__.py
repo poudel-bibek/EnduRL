@@ -11,8 +11,11 @@ from flow.envs.ring.accel import AccelEnv
 from flow.envs.ring.wave_attenuation import WaveAttenuationEnv, \
     WaveAttenuationPOEnv
 
-from flow.envs.ring.density_aware_env import DensityAwareRLEnv #Bibek
-from flow.envs.ring.density_aware_classic_env import classicEnv #Bibek
+#Bibek
+from flow.envs.ring.density_aware_env import DensityAwareRLEnv 
+from flow.envs.ring.density_aware_classic_env import classicEnv 
+from flow.envs.density_aware_intersection_env import DensityAwareIntersectionEnv
+from flow.envs.density_aware_bottleneck_env import DensityAwareBottleneckEnv 
 
 from flow.envs.merge import MergePOEnv
 from flow.envs.test import TestEnv

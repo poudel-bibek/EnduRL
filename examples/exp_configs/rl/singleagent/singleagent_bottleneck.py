@@ -15,7 +15,7 @@ from flow.networks import BottleneckNetwork
 # time horizon of a single rollout
 HORIZON = 1000
 # number of parallel workers
-N_CPUS = 2
+N_CPUS = 1
 # number of rollouts per training iteration
 N_ROLLOUTS = N_CPUS * 4
 
@@ -112,7 +112,7 @@ flow_params = dict(
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
         sim_step=0.5,
-        render=False,
+        render=True,
         print_warnings=False,
         restart_instance=True,
     ),
