@@ -27,19 +27,29 @@ def get_velocity_upper_bound(num_vehicles, length):
     return fsolve(v_eq_max_function, np.array(v_guess), args=(num_vehicles, length))[0]
 
 def get_desired_velocity(num_vehicles, length, method_name = None):
-    """Desired velocity is gotten as the uniform flow equillibrium velocity"""
+    """
+    Desired velocity is gotten as the uniform flow equillibrium velocity
+    Only some controllers require this
+    """
+
     # some known values are hard coded: 
     if length == 220:
+        # reduce to 2.7 for FS
         if method_name == "fs":
             return 2.7
         else:
-            return 3.0 # reduce to 2.7 for FS
+            return 3.0 
+
     elif length == 230:
         return 3.45
+
     elif length == 260:
-        return 4.82
+        # From hit and trial, for 
+        return 4.82 # Value from LORR paper, other sources
+
     elif length == 270:
         return 5.2
+
     else: 
         scaler = 0.93 # 93% of the upper bound may be desired? 
         print("Scaler: ", scaler)
@@ -117,6 +127,11 @@ def get_shock_model(identifier, length = None):
         elif length == 270:
             vel_set = 3.0
             duration = 2
+
+        elif length == 260:
+            vel_set = 3.0
+            duration = 2
+            
         else: 
             vel_set = 5.0
             duration = 2

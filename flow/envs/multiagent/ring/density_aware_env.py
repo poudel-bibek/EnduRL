@@ -111,11 +111,11 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         sign = np.sign(lead_accel)
         print(f"Lead accel: {lead_accel}, magnitude: {magnitude}, sign: {sign}")
 
-        reward_leader = 0.2*np.mean(vel) - 4*magnitude
+        reward_leader = 0.4*np.mean(vel) - 4*magnitude
 
         # Forming shaping 
-        penalty_scalar = -10
-        fixed_penalty = -1
+        penalty_scalar = -6 #4
+        fixed_penalty = -0.6 #0.4
         if self.tse_output[0] == 1:
             if sign>=0:
                 forming_penalty = penalty_scalar*magnitude
@@ -129,9 +129,36 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         # reward for all followers
         follower_ids = self.k.vehicle.get_rl_ids()[:-1]
         follower_actions = [rl_actions[id] for id in follower_ids]
-        mean_actions_followers = np.mean(np.abs(follower_actions))
+        mean_actions_followers = np.mean(np.abs(follower_actions)) # penalize control action
+        #std_actions_followers = np.std(np.abs(follower_actions))
 
-        reward_followers = 0.2*np.mean(vel) - 4*mean_actions_followers
+        # Penalize the time headway difference to thier respective leader (both mean and std) because the same reward is shared 
+        time_headways = []
+        for vehicle in follower_ids:
+            lead_id = self.k.vehicle.get_leader(vehicle)
+            # prevent division by zero
+            front_speed = max(0.01, self.k.vehicle.get_speed(self.k.vehicle.get_leader(vehicle)))
+            front_distance = (self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(vehicle)) % self.k.network.length()
+            time_headways.append(front_distance/front_speed)  # close approximation, assume zero instantaneous acceleration
+            print(f"ID: {vehicle} Front speed: {front_speed}, front distance: {front_distance}, time headway: {front_distance/front_speed}")
+        
+        mean_time_headway = np.mean(time_headways)
+        std_time_headway = np.std(time_headways)
+        print(f"Mean time headway: {mean_time_headway}, std time headway: {std_time_headway}")
+
+        followers_avg_speed = np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in follower_ids])
+
+        # Option 1 Follow closely
+        # Include average velocity to precent them from stopping (to maximize the rest of the reward)
+        reward_followers = 0.2*followers_avg_speed -0.5*mean_time_headway  -0.5*std_time_headway 
+        
+        # Option 2 Follow closely but maintain a minimum
+        # reward_followers = 0.2*np.mean(vel) - 2*mean_actions_followers  -2*std_time_headway 
+        # headway_threshold = 1.5 # s
+        # if mean_time_headway < headway_threshold:
+        #     reward_followers -= 20*(headway_threshold - mean_time_headway) 
+        # else:
+        #     reward_followers -= mean_time_headway
 
         for follower_id in follower_ids:
             rew.update({follower_id : reward_followers})
@@ -228,7 +255,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 observation_tse[i] = [norm_pos, norm_vel]
                 
         observation_tse = np.array(observation_tse, dtype=np.float32)
-        #print("Observation TSE: ", observation_tse)
+        #print(f"Num vehicles in zone:{num_vehicle_in_zone} Observation TSE: {observation_tse}")
 
         self.tse_output = self.get_tse_output(observation_tse)
         self.tse_output_encoded = np.zeros(6) 
@@ -236,33 +263,47 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         print(f"\nTSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
 
-        # For RL agent
         obs = {}
+        # For RL agents
+        # All the agents observe thier leader only if its within the local zone
         for rl_id in self.k.vehicle.get_rl_ids():
-            lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
+            
+            # If there is no vehicle in the local zone
+            zone_count = len(self.k.vehicle.get_veh_list_local_zone(self.lead_rl_id, current_length, self.LOCAL_ZONE ))
 
-            # normalizers
-            max_speed = 15.
-            max_length = self.env_params.additional_params['ring_length'][1]
+            # Zone count will count the RL agent itself as well
+            # Observe the leader
+            if zone_count > 1:
+                lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
 
-            observation = np.array([
+                # normalizers
+                max_speed = 15.
+                max_length = self.env_params.additional_params['ring_length'][1]
+
+                observation = np.array([
                 self.k.vehicle.get_speed(rl_id) / max_speed,
                 (self.k.vehicle.get_speed(lead_id) -
-                 self.k.vehicle.get_speed(rl_id))
-                / max_speed,
-                self.k.vehicle.get_headway(rl_id) / max_length
-            ])
+                self.k.vehicle.get_speed(rl_id)) / max_speed,
+                (self.k.vehicle.get_x_by_id(lead_id) -
+                self.k.vehicle.get_x_by_id(rl_id)) % self.k.network.length()
+                / max_length
+                ])
+            
+            # Dont observe the leader
+            else:
+                observation = np.array([-1, -1, -1]) # the second -1 could be plausible above but unlikely
 
-            # Only lead gets the full observation
+            # For lead RL append the TSE output (it already considers to be only in zone)
             if rl_id == self.lead_rl_id:
                 observation = np.append(observation, self.tse_output_encoded)
-            else: 
-                observation = np.append(observation, np.zeros(6)) # Dummy, zeros (because observation space is fixed)
-                
+            # For others    
+            else:
+                 observation = np.append(observation, np.zeros(6)) # Dummy, zeros (because observation space is fixed)
+            
             obs.update({rl_id: observation})
             print(f"RL_ID: {rl_id.split('_')[1]}, observation: {observation}, shape: {observation.shape}")
-
         print("\n")
+        
         #print(f"Observations new: {obs} \n")
         return obs
 

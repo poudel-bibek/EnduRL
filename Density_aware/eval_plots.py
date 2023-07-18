@@ -128,10 +128,8 @@ class Plotter:
         """
 
         print("Generating stability plot.. (Make sure the files are correct)")
-        lookout_time = 20 # timesteps ahead and behind the shock 
         i = 0 
         fontsize = 16
-
         dampening_ratio_mother= []
 
         # Generate for each rollout file that was found  
@@ -153,11 +151,11 @@ class Plotter:
             print(f"Controlled vehicle name: {controlled_name}")
 
             if controlled_name == 'idm':
-                shocker = 'idm_0'
+                # idm_0 is shocker (lead)
                 sorted_ids = ['idm_0'] + [f'{controlled_name}_{item}' for item in range(1, n_controlled)]
                 end = n_controlled
             else: 
-                shocker = 'human_0'
+                # human_0 is shocker (lead)
                 sorted_ids = ['human_0'] + [f'{controlled_name}_{item}' for item in range(n_controlled)]
                 sorted_ids = sorted_ids + [f'human_{item}' for item in range(n_human - 1, 0, -1)]
                 end = n_controlled + 1
@@ -225,19 +223,33 @@ class Plotter:
             i+=1 
 
             # # Calculate the metric (Damping/ Wave attenuation ratio) between human_0 and human_9
+            # lowest_speed_lead = np.min(speeds_total[0])
+            # print(f"Lowest speed of lead (index 0): {lowest_speed_lead}")
+            # if controlled_name == 'idm':
+            #     lowest_speed_follow = np.min(speeds_total[2])
+            #     print(f"Lowest speed of follow (index 2): {lowest_speed_follow}")
+            # else:
+            #     lowest_speed_follow = np.min(speeds_total[end])
+            #     print(f"Lowest speed of follow (index {end}): {lowest_speed_follow}")
+            
+            # WAR = 1 - (velocity drop of follower)/(Velocity drop of leader)
             lowest_speed_lead = np.min(speeds_total[0])
-            print(f"Lowest speed of lead (index 0): {lowest_speed_lead}")
+            highest_speed_lead = np.max(speeds_total[0])
+            velocity_drop_lead = highest_speed_lead - lowest_speed_lead 
+            print(f"Lead: Lowest speed: {lowest_speed_lead}\tHighest speed: {highest_speed_lead}\tVelocity drop: {velocity_drop_lead}")
+
             if controlled_name == 'idm':
-                lowest_speed_follow = np.min(speeds_total[2])
-                print(f"Lowest speed of follow (index 2): {lowest_speed_follow}")
-            else:
+                lowest_speed_follow = np.min(speeds_total[-1]) # This is the one that immediately follows the shocker
+                highest_speed_follow = np.max(speeds_total[-1])
+                velocity_drop_follow = highest_speed_follow - lowest_speed_follow
+            else: 
                 lowest_speed_follow = np.min(speeds_total[end])
-                print(f"Lowest speed of follow (index {end}): {lowest_speed_follow}")
-            
-            
+                highest_speed_follow = np.max(speeds_total[end])
+                velocity_drop_follow = highest_speed_follow - lowest_speed_follow
 
-            dampening_ratio = lowest_speed_lead / lowest_speed_follow
-
+            print(f"Follow: Lowest speed: {lowest_speed_follow}\tHighest speed: {highest_speed_follow}\tVelocity drop: {velocity_drop_follow}")
+            
+            dampening_ratio = 1 - (velocity_drop_follow/velocity_drop_lead)
             dampening_ratio_mother.append(dampening_ratio)
             
 

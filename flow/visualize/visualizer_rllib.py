@@ -42,6 +42,18 @@ Here the arguments are:
 2 - the number of the checkpoint
 """
 
+# Bibek: Hack
+NUM_AUTOMATED = 4 # Change this accordingly
+def policy_mapping_fn(agent_id):
+    """
+    map policy to agent
+    """
+    # Based on the assumption (which is correct for now). The last item is the leader
+    leader_id = f"rl_0_{NUM_AUTOMATED-1}"
+    if agent_id == leader_id:
+        return 'leader'
+    else:
+        return 'follower'
 
 def visualizer_rllib(args):
     """Visualizer for RLlib experiments.
@@ -166,7 +178,10 @@ def visualizer_rllib(args):
     if multiagent:
         rets = {}
         # map the agent id to its policy
-        policy_map_fn = config['multiagent']['policy_mapping_fn']
+        policy_map_fn = policy_mapping_fn #config['multiagent']['policy_mapping_fn']
+
+        # Bibek: Debug hack. define the policy mapping function here instead of getting it form file
+
         for key in config['multiagent']['policies'].keys():
             rets[key] = []
     else:
@@ -223,6 +238,11 @@ def visualizer_rllib(args):
                             state[agent_id], state=state_init[agent_id],
                             policy_id=policy_map_fn(agent_id))
                     else:
+                        # Bibek Debug: The policy id is 'av'.. should be leader, follower.
+                        #print(f"State keys: {state.keys()}")
+                        #print(f"Agent id: {agent_id}")
+                        #print(f"Policy ID: {policy_map_fn(agent_id)}")
+
                         action[agent_id] = agent.compute_action(
                             state[agent_id], policy_id=policy_map_fn(agent_id))
             else:

@@ -708,7 +708,7 @@ if __name__ == '__main__':
     parser.add_argument('--emissions_file_path', type=str, default='./test_time_rollout',
                         help='Path to emissions file')
     parser.add_argument('--method', type=str, default=None)
-    parser.add_argument('--metric', type=str, default=None)
+    #parser.add_argument('--metric', type=str, default=None)
 
     parser.add_argument('--horizon', type=int, default=15000)
     parser.add_argument('--warmup', type=int, default=2500)
@@ -729,8 +729,8 @@ if __name__ == '__main__':
     if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours]")
 
-    if args.metric is None:
-        raise ValueError("Please specify the metric to evaluate\n Metric can be [Stability, safety, efficiency]")
+    #if args.metric is None:
+        #raise ValueError("Please specify the metric to evaluate\n Metric can be [Stability, safety, efficiency]")
 
     files = [f"{args.emissions_file_path}/{args.method}/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}") \
         if item.endswith('.csv')]

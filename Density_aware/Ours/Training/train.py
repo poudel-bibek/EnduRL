@@ -165,7 +165,11 @@ def setup_exps_rllib(flow_params,
 
     # Bibek: Make the  agent a little more exploratory
     config["entropy_coeff"] = 0.01 # 0.01 from PPO paper# Default 0.0
-    config["entropy_coeff_schedule"] = [[0, 0.1],[500000, 0.02], [1000000, 0.01]] # Default None
+    # For single agent
+    #config["entropy_coeff_schedule"] = [[0, 0.1],[500000, 0.02], [1000000, 0.01]] # Default None
+
+    # For multi agent
+    config["entropy_coeff_schedule"] = [[0, 0.15],[500000, 0.05], [1000000, 0.02], [2000000, 0.01]] # Default None
 
     # save the flow params for replay
     flow_json = json.dumps(
