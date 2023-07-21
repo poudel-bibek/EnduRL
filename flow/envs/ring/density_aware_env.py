@@ -316,24 +316,27 @@ class DensityAwareRLEnv(Env):
 
         print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
 
-        # Original observations
-        lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
+        # Zone count will count the RL agent itself as well
+        # Observe the leader
+        if num_vehicle_in_zone > 1:
+            lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
 
-        # normalizers
-        max_speed = 15.
-        if self.env_params.additional_params['ring_length'] is not None:
+            # normalizers
+            max_speed = 15.
             max_length = self.env_params.additional_params['ring_length'][1]
-        else:
-            max_length = self.k.network.length()
 
-        observation = np.array([
+            observation = np.array([
             self.k.vehicle.get_speed(rl_id) / max_speed,
             (self.k.vehicle.get_speed(lead_id) -
-             self.k.vehicle.get_speed(rl_id)) / max_speed,
+            self.k.vehicle.get_speed(rl_id)) / max_speed,
             (self.k.vehicle.get_x_by_id(lead_id) -
-             self.k.vehicle.get_x_by_id(rl_id)) % self.k.network.length()
+            self.k.vehicle.get_x_by_id(rl_id)) % self.k.network.length()
             / max_length
-        ])
+            ])
+        
+        # Dont observe the leader
+        else:
+            observation = np.array([-1, -1, -1]) # the second -1 could be plausible above but unlikely
 
         observation = np.append(observation, self.tse_output_encoded)
         print(f"Observations new: {observation, observation.shape}\n")

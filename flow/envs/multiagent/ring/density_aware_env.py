@@ -267,13 +267,10 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         # For RL agents
         # All the agents observe thier leader only if its within the local zone
         for rl_id in self.k.vehicle.get_rl_ids():
-            
-            # If there is no vehicle in the local zone
-            zone_count = len(self.k.vehicle.get_veh_list_local_zone(self.lead_rl_id, current_length, self.LOCAL_ZONE ))
 
             # Zone count will count the RL agent itself as well
             # Observe the leader
-            if zone_count > 1:
+            if num_vehicle_in_zone > 1:
                 lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
 
                 # normalizers
