@@ -42,6 +42,9 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         self.tse_output_encoded = None
         self.lead_rl_id = None
 
+        self.leader_obs = None
+        self.leader_agent = self.setup_trained_leader()
+
     @property
     def action_space(self):
         """See class definition."""
@@ -72,18 +75,17 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
             print(f"leader_id: {leader_id}, follower_ids: {follower_ids} \n")
 
-            leader_action = rl_actions[leader_id]
+            #leader_action = rl_actions[leader_id]
             follower_actions = [rl_actions[id] for id in follower_ids]
+            
+            # Hack this
+            #print(f"\n\nHello:{self.leader_obs}\n\n")
+            #leader_action = np.array([-1.0])
+            leader_action = self.get_trained_leader_action()
+            #print(f"Leader action: {leader_action}")
 
             self.k.vehicle.apply_acceleration(leader_id, leader_action)
             self.k.vehicle.apply_acceleration(follower_ids, follower_actions)
-        
-        # Original
-        # if rl_actions:
-        #     rl_ids = list(rl_actions.keys())
-        #     accel = list(rl_actions.values())
-        #     self.k.vehicle.apply_acceleration(rl_ids, accel)
-
     
     def compute_reward(self, rl_actions, **kwargs):
         """
@@ -106,24 +108,26 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         # reward for leader
         lead_rl_id = self.k.vehicle.get_rl_ids()[-1]
-        lead_accel = rl_actions[lead_rl_id].item()
-        magnitude = np.abs(lead_accel)
-        sign = np.sign(lead_accel)
-        print(f"Lead accel: {lead_accel}, magnitude: {magnitude}, sign: {sign}")
+        # lead_accel = rl_actions[lead_rl_id].item()
+        # magnitude = np.abs(lead_accel)
+        # sign = np.sign(lead_accel)
+        # print(f"Lead accel: {lead_accel}, magnitude: {magnitude}, sign: {sign}")
 
-        reward_leader = 0.2*np.mean(vel) - 4*magnitude
+        # reward_leader = 0.2*np.mean(vel) - 4*magnitude
 
         # Forming shaping 
-        penalty_scalar = -8 #4
-        fixed_penalty = -0.8 #0.4
-        if self.tse_output[0] == 1:
-            if sign>=0:
-                forming_penalty = penalty_scalar*magnitude
-                # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
-                # min is correct bacause values are -ve
-                forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
-                print(f"Forming: {forming_penalty}")
-                reward_leader += forming_penalty # If congestion is fomring, penalize acceleration
+        # penalty_scalar = -8 #4
+        # fixed_penalty = -0.8 #0.4
+        # if self.tse_output[0] == 1:
+        #     if sign>=0:
+        #         forming_penalty = penalty_scalar*magnitude
+        #         # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
+        #         # min is correct bacause values are -ve
+        #         forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
+        #         print(f"Forming: {forming_penalty}")
+        #         reward_leader += forming_penalty # If congestion is fomring, penalize acceleration
+
+        reward_leader = 0.0
         rew.update({lead_rl_id : reward_leader})
 
         # reward for all followers
@@ -222,6 +226,57 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         return saved_best_net
 
+    # Helper 5: Setup tained leader agent
+    def setup_trained_leader(self, ):
+        """
+        Setup the trained leader agent
+        """
+        import ray
+        try:
+            from ray.rllib.agents.agent import get_agent_class
+        except ImportError:
+            from ray.rllib.agents.registry import get_agent_class
+        from flow.utils.registry import make_create_env
+        from flow.utils.rllib import get_flow_params, get_rllib_config
+        from ray.tune.registry import register_env
+
+        # Make the num cpu here one more than the one in training config file
+        ray.init(num_cpus=5, ignore_reinit_error=True)
+
+        result_dir_name = "/home/dh127-pc3/Desktop/flow/poudel_ring/Ours/Trained_policies/Single_agent/PPO_DensityAwareRLEnv-v0_2355c52c_2023-07-21_18-27-20qktx7e8o"
+        checkpoint_num = "70"
+
+        result_dir = result_dir_name if result_dir_name[-1] != '/' else result_dir_name[:-1]
+        checkpoint = result_dir + '/checkpoint_' + checkpoint_num
+        checkpoint = checkpoint + '/checkpoint-' + checkpoint_num
+        
+        config = get_rllib_config(result_dir)
+        config['num_workers'] = 0
+
+        flow_params = get_flow_params(config)
+        sim_params = flow_params['sim']
+        setattr(sim_params, 'num_clients', 1)
+
+        config_run = config['env_config']['run'] if 'run' in config['env_config'] else None
+        agent_cls = get_agent_class(config_run)
+
+        create_env, env_name = make_create_env(params=flow_params, version=0)
+        register_env(env_name, create_env)
+
+        agent = agent_cls(env=env_name, config=config)
+        agent.restore(checkpoint)
+
+        print(f"\n\nLeader agent restored\n{agent.get_policy()}")
+        #ray.shutdown()
+        return agent 
+
+    # Helper 6: Get action from trained leader agent
+    def get_trained_leader_action(self,):
+        """
+        Get the action from trained leader agent
+        """
+        action = self.leader_agent.compute_action(self.leader_obs)
+        return action
 
     def get_state(self):
         """See class definition."""
@@ -293,6 +348,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             # For lead RL append the TSE output (it already considers to be only in zone)
             if rl_id == self.lead_rl_id:
                 observation = np.append(observation, self.tse_output_encoded)
+                self.leader_obs = observation
             # For others    
             else:
                  observation = np.append(observation, np.zeros(6)) # Dummy, zeros (because observation space is fixed)

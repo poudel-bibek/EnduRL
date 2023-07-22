@@ -1,8 +1,3 @@
-"""Ring road example.
-
-Trains a number of autonomous vehicles to stabilize the flow of 22 vehicles in
-a variable length ring road.
-"""
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 from ray.tune.registry import register_env
 
@@ -115,20 +110,21 @@ act_space = test_env.action_space
 
 
 def gen_policy():
-    """Generate a policy in RLlib."""
+    # Generate a policy in RLlib
     return PPOTFPolicy, obs_space, act_space, {}
 
+def load_policy():
+    # To load a policy later
+    return None, obs_space, act_space, {}
 
 # Setup PG with an ensemble of `num_policies` different policy graphs
 # Leader and follower do not share policies
-POLICY_GRAPHS = {'leader': gen_policy(), 
+POLICY_GRAPHS = {'leader': load_policy(), 
                 'follower': gen_policy()}
 
 
 def policy_mapping_fn(agent_id):
-    """
-    map policy to agent
-    """
+    #map policy to agent
     # Based on the assumption (which is correct for now). The last item is the leader
     leader_id = f"rl_0_{NUM_AUTOMATED-1}"
     if agent_id == leader_id:
@@ -137,4 +133,5 @@ def policy_mapping_fn(agent_id):
         return 'follower'
 
 
-POLICIES_TO_TRAIN = ['leader', 'follower']
+#POLICIES_TO_TRAIN = ['leader', 'follower']
+POLICIES_TO_TRAIN = ['follower']
