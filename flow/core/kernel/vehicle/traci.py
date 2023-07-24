@@ -544,7 +544,11 @@ class TraCIVehicle(KernelVehicle):
 
     # Bibek: Good god
     def get_fuel_consumption(self, veh_id, error=-1001):
-        """Return fuel consumption in gallons/s."""
+        """Return fuel consumption in gallons/s.
+        # Bibek:
+        Before version 1.4.0 sumo used to return fuel consumption in ml/s.
+        If sumo version is higher than that (in this case it is 1.15 it returns mg/s)
+        """
         ml_to_gallons = 0.000264172
         if isinstance(veh_id, (list, np.ndarray)):
             return [self.get_fuel_consumption(vehID, error) for vehID in veh_id]

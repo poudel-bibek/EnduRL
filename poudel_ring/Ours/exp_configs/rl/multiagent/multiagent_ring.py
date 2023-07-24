@@ -14,9 +14,9 @@ HORIZON = 4500
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
-N_CPUS = 4
+N_CPUS = 1
 # number of automated vehicles. Must be less than or equal to 22.
-NUM_AUTOMATED = 4 # 4 for BCM, 9 for LACC
+NUM_AUTOMATED = 4 # 4 for Ours4x, 9 for Ours9x
 
 
 # We evenly distribute the automated vehicles in the network.

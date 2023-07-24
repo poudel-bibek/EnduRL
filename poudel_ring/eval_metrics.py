@@ -355,9 +355,23 @@ class EvalMetrics():
                 
                 fuel_vehicle = vehicle['fuel_consumption'].values
                 
-                # Filter for the start and end time, convert to ml/step
+                # Filter for the start and end time, this is already in gallons per second
                 # TODO: Get conversion factor 0.1 from env params
-                fuel_vehicle = fuel_vehicle[self.start_time:self.end_time][not_shock_times] *0.1 
+                # The times in which shocks were applied can be excluded
+                # Sumo version 1.15 will return mg/s instead of ml /s
+                # Flow does ml to gallons conversion
+                # First reverse that
+                reverse_ml_to_gallons = (1/0.000264172)
+                fuel_vehicle = fuel_vehicle*reverse_ml_to_gallons
+                # Now this is mg/s 
+                # Convert to ml/s per second
+                # 1 ml of petrol is 0.737 gram, that is in milligrams 737 mg
+                # so 1 mg/s of petrol is 1/737 ml/s
+                fuel_vehicle = fuel_vehicle*(1/737)
+                # Now this is ml/s
+                # Convert to gallons per second
+                fuel_vehicle = fuel_vehicle*0.000264172
+                fuel_vehicle = fuel_vehicle[self.start_time:self.end_time][not_shock_times]*0.1 # This is env step (0.1)
                 #print(vehicle_id, fuel_vehicle.shape, fuel_vehicle)
 
                 # Append the fuel consumed by each vehicle
@@ -536,7 +550,7 @@ class EvalMetrics():
 
                 else: 
                     # only for controlled vehicles
-                    if "human" not in vehicle_id:
+                    if "human" not in vehicle_id: # nice
                         vehicle = self.dataframe.loc[self.dataframe['id'] == vehicle_id]
 
                         # Shock times omit code in short 
@@ -726,7 +740,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x','ours9x']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours]")
 
     #if args.metric is None:

@@ -49,6 +49,8 @@ Here the arguments are:
 2 - the number of the checkpoint
 """
 
+
+
 def visualizer_rllib(args):
     
     result_dir = args.result_dir if args.result_dir[-1] != '/' \
@@ -57,19 +59,73 @@ def visualizer_rllib(args):
     #print("\n1.:",result_dir)
     config = get_rllib_config(result_dir)
     #print(config)
+
+    #First figure out if the environment is multiagent or not
+    if config.get('multiagent', {}).get('policies', None):
+        multiagent = True
+        pkl = get_rllib_pkl(result_dir)
+        config['multiagent'] = pkl['multiagent']
+        # print(f"\n\nmultiagent{config['multiagent']}\n\n")
+    else:
+        multiagent = False
+
     # Modify the config here, its in the dict form. below they are instantiated
     flow_params_modify = json.loads(config["env_config"]["flow_params"])
 
     # 1. Be able to specify ring length
     if args.length is not None:
         flow_params_modify["env"]["additional_params"]["ring_length"] = [args.length,args.length]
-    
-    # 2. Be able to set shock vehicles (set the IDM vehicles to ModifiedIDM)
-    # "veh" is a list with the first element as humans. Right now all humans are shock vehicles, modify for stability tests
-    flow_params_modify["veh"][0]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
-                                                                                        "shock_vehicle": True}] 
-    # 2.1 modify the mingap for human vehicles (only at test time)
-    flow_params_modify["veh"][0]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+
+    #print(f"\n\nflow_params_modify= {flow_params_modify}\n\n")
+
+    if multiagent:
+        # For some reason, in multiagent, RL vehicles are veh[0]..onwards
+        human_index = NUM_AUTOMATED # This is the index within "veh"
+
+        flow_params_modify["veh"][human_index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
+                                                                                            "shock_vehicle": True}]
+        
+        flow_params_modify["veh"][human_index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+
+        # The leader RL has to be made RL controller, its the last RL
+        leader_index = NUM_AUTOMATED - 1
+        flow_params_modify["veh"][leader_index]["acceleration_controller"] = ["RLController", {}]
+        flow_params_modify["veh"][leader_index]["car_following_params"]["controller_params"] = {
+            "accel": 2.6, 
+            "carFollowModel": "IDM", 
+            "decel": 4.5, 
+            "impatience": 0.5, 
+            "maxSpeed": 30, 
+            "minGap": 0.1, 
+            "sigma": 0.5, 
+            "speedDev": 0.1, 
+            "speedFactor": 1.0, 
+            "tau": 1.0
+        }
+        flow_params_modify["veh"][leader_index]["car_following_params"]["speed_mode"] = 25
+        flow_params_modify["veh"][leader_index]["initial_speed"] = 0
+        flow_params_modify["veh"][leader_index]["lane_change_controller"] = ["SimLaneChangeController", {}]
+        flow_params_modify["veh"][leader_index]["lane_change_params"] = {
+            "controller_params": {
+                "laneChangeModel": "LC2013", 
+                "lcCooperative": "1.0", 
+                "lcKeepRight": "1.0", 
+                "lcSpeedGain": "1.0", 
+                "lcStrategic": "1.0"
+            }, 
+            "lane_change_mode": 512
+        }
+        flow_params_modify["veh"][leader_index]["num_vehicles"] = 1
+        flow_params_modify["veh"][leader_index]["routing_controller"] = ["ContinuousRouter", {}]
+        #flow_params_modify["veh"][leader_index]["veh_id"] = "rl_3" # This is already set
+
+    else: 
+        # 2. Be able to set shock vehicles (set the IDM vehicles to ModifiedIDM)
+        # "veh" is a list with the first element as humans. Right now all humans are shock vehicles, modify for stability tests
+        flow_params_modify["veh"][0]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
+                                                                                            "shock_vehicle": True}] 
+        # 2.1 modify the mingap for human vehicles (only at test time)
+        flow_params_modify["veh"][0]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
 
     # 3. Be able to specify warmup, horizon, shock time
     flow_params_modify["env"]["horizon"] = args.horizon
@@ -79,16 +135,7 @@ def visualizer_rllib(args):
     #flow_params_modify["env"]["additional_params"]["shock_params"] = {"shock_time": args.shock_time, "shock_duration": args.shock_duration}
 
     config["env_config"]["flow_params"] = json.dumps(flow_params_modify)
-
-    # check if we have a multiagent environment but in a
-    # backwards compatible way
-    if config.get('multiagent', {}).get('policies', None):
-        multiagent = True
-        pkl = get_rllib_pkl(result_dir)
-        config['multiagent'] = pkl['multiagent']
-    else:
-        multiagent = False
-
+    #print(f"\n\nconfig['env_config']['flow_params'] = {config['env_config']['flow_params']}\n\n")
     # Run on only one cpu for rendering purposes
     config['num_workers'] = 0
 
@@ -153,7 +200,7 @@ def visualizer_rllib(args):
     agent = agent_cls(env=env_name, config=config)
     checkpoint = result_dir + '/checkpoint_' + args.checkpoint_num
     checkpoint = checkpoint + '/checkpoint-' + args.checkpoint_num
-    print("\n\n2.:",checkpoint,"\n\n")
+    #print("\n\n2.:",checkpoint,"\n\n")
     agent.restore(checkpoint)
 
     if hasattr(agent, "local_evaluator") and \
@@ -172,7 +219,10 @@ def visualizer_rllib(args):
     if multiagent:
         rets = {}
         # map the agent id to its policy
-        policy_map_fn = config['multiagent']['policy_mapping_fn']
+        policy_map_fn = policy_mapping_fn #config['multiagent']['policy_mapping_fn']
+
+        # Bibek: Debug hack. define the policy mapping function here instead of getting it form file
+
         for key in config['multiagent']['policies'].keys():
             rets[key] = []
     else:
@@ -364,7 +414,7 @@ def perform_shock_stability(env, shock_times, shock_counter, current_duration_co
 def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency):
 
     controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
-
+    print(f"\n\nController: {controller}\n\n")
     # Default: at times when shock is not applied, get acceleration from IDM
     controller.set_shock_time(False)
 
@@ -432,7 +482,30 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.method is None:
-        raise ValueError("Method name must be specified, can be [wu, ours]")
+        raise ValueError("Method name must be specified, can be [wu, ours, ours4x, ours9x]")
+    
+    if args.method == "ours4x":
+        # Bibek: Hack
+        NUM_AUTOMATED = 4 # Change this accordingly for 4x and 9x
 
+    elif args.method == "ours9x":
+        NUM_AUTOMATED = 9
+
+    else: 
+        NUM_AUTOMATED = 1
+
+    def policy_mapping_fn(agent_id):
+        """
+        map policy to agent, only required for multi-agents
+        The naming convention has been changed slightly here
+        Now its rl_3_0.. and such instead of rl_0_3.. and such
+        """
+        # Based on the assumption (which is correct for now). The last item is the leader
+        leader_id = f"rl_{NUM_AUTOMATED-1}_0"
+        if agent_id == leader_id:
+            return 'leader'
+        else:
+            return 'follower'
+            
     ray.init(num_cpus=1)
     visualizer_rllib(args)

@@ -148,13 +148,13 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         
         mean_time_headway = np.mean(time_headways)
         std_time_headway = np.std(time_headways)
-        print(f"Mean time headway: {mean_time_headway}, std time headway: {std_time_headway}")
+        print(f"Mean time headway: {mean_time_headway}, std time headway: {std_time_headway}, mean actions: {mean_actions_followers}")
 
         followers_avg_speed = np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in follower_ids])
 
         # Option 1 Follow closely
         # Include average velocity to precent them from stopping (to maximize the rest of the reward)
-        reward_followers = 0.2*followers_avg_speed -0.5*mean_time_headway  -0.5*std_time_headway 
+        reward_followers = 0.2*followers_avg_speed -0.5*mean_time_headway  -4*mean_actions_followers # This is 9* in Ours9x
         
         # Option 2 Follow closely but maintain a minimum
         # reward_followers = 0.2*np.mean(vel) - 2*mean_actions_followers  -2*std_time_headway 
@@ -244,7 +244,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         ray.init(num_cpus=5, ignore_reinit_error=True)
 
         result_dir_name = "/home/dh127-pc3/Desktop/flow/poudel_ring/Ours/Trained_policies/Single_agent/PPO_DensityAwareRLEnv-v0_2355c52c_2023-07-21_18-27-20qktx7e8o"
-        checkpoint_num = "70"
+        checkpoint_num = "290" 
 
         result_dir = result_dir_name if result_dir_name[-1] != '/' else result_dir_name[:-1]
         checkpoint = result_dir + '/checkpoint_' + checkpoint_num
