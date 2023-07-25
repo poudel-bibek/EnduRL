@@ -132,8 +132,8 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
         # reward for all followers
         follower_ids = self.k.vehicle.get_rl_ids()[:-1]
-        follower_actions = [rl_actions[id] for id in follower_ids]
-        mean_actions_followers = np.mean(np.abs(follower_actions)) # penalize control action
+        #follower_actions = [rl_actions[id] for id in follower_ids]
+        #mean_actions_followers = np.mean(np.abs(follower_actions)) # penalize control action
         #std_actions_followers = np.std(np.abs(follower_actions))
 
         # Penalize the time headway difference to thier respective leader (both mean and std) because the same reward is shared 
@@ -148,13 +148,13 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         
         mean_time_headway = np.mean(time_headways)
         std_time_headway = np.std(time_headways)
-        print(f"Mean time headway: {mean_time_headway}, std time headway: {std_time_headway}, mean actions: {mean_actions_followers}")
+        print(f"Mean time headway: {mean_time_headway}, std time headway: {std_time_headway}")
 
         followers_avg_speed = np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in follower_ids])
 
         # Option 1 Follow closely
         # Include average velocity to precent them from stopping (to maximize the rest of the reward)
-        reward_followers = 0.2*followers_avg_speed -0.5*mean_time_headway  -4*mean_actions_followers # This is 9* in Ours9x
+        reward_followers = 0.2*followers_avg_speed -0.5*mean_time_headway  #-4*mean_actions_followers # This is 9* in Ours9x
         
         # Option 2 Follow closely but maintain a minimum
         # reward_followers = 0.2*np.mean(vel) - 2*mean_actions_followers  -2*std_time_headway 
@@ -165,6 +165,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         #     reward_followers -= mean_time_headway
 
         for follower_id in follower_ids:
+            reward_follow = reward_followers - 4*np.abs(rl_actions[follower_id])
             rew.update({follower_id : reward_followers})
         
         print(f"Leader reward: {reward_leader}, Follower reward: {reward_followers}")
