@@ -12,7 +12,7 @@ from flow.networks import RingNetwork
 from flow.envs import DensityAwareRLEnv 
 
 # time horizon of a single rollout
-HORIZON = 3500 #Bibek (for our purposes, 6000 is good)
+HORIZON = 4500 #Bibek (for our purposes, 6000 is good)
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers

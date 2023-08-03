@@ -44,7 +44,7 @@ class DensityAwareRLEnv(Env):
         super().__init__(env_params, sim_params, network, simulator)
 
         
-        self.LOCAL_ZONE = 50 # m, arbitrarily set
+        self.LOCAL_ZONE = 50 # 50 #m, arbitrarily set
         self.VEHICLE_LENGTH = 5 #m can use self.k.vehicle.get_length(veh_id)
         self.MAX_SPEED = 10 # m/s
         self.velocity_track = []
@@ -127,19 +127,33 @@ class DensityAwareRLEnv(Env):
         print(f"RL accel: {rl_accel}, magnitude: {magnitude}, sign: {sign}")
 
         # The acceleration penalty is only for the magnitude
-        reward = 0.2*np.mean(vel) - 4*magnitude
+        reward = 0.7*np.mean(vel) - 4*magnitude # The general acceleration penalty
         print(f"First Reward: {reward}")
         
-        # Forming shaping 
+        # Congested, fomring and undefined shaping 
         penalty_scalar = -10
         fixed_penalty = -1
-        if self.tse_output[0] == 1:
-            if sign>=0:
+        if self.tse_output[0] == 3 or self.tse_output[0] == 4 or self.tse_output[0] == 1:
+            if sign>0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
                 # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
                 # min is correct bacause values are -ve
                 forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
                 print(f"Forming: {forming_penalty}")
                 reward += forming_penalty # If congestion is fomring, penalize acceleration
+
+        elif self.tse_output[0] == 2: # Free flow
+            # Penalize acceleration/deceleration magnitude
+            free_flow_penalty = -5*magnitude
+            print(f"Free flow: {free_flow_penalty}")
+            reward += free_flow_penalty
+
+        # Leaving shaping 
+        elif self.tse_output[0] == 0:
+            # We want the acceleration to be positive
+            if sign<0:
+                leaving_penalty = -2*magnitude
+                print(f"Leaving: {leaving_penalty}")
+                reward += leaving_penalty
 
         print(f"Last Reward: {reward}")
         return reward

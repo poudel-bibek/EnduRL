@@ -391,9 +391,10 @@ def visualizer_rllib(args):
     env.unwrapped.terminate()
 
 def perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency):
-    single_shock_id = 'human_0'
     
-    reference_speed_limit_id = 'human_1'
+    # 3_0 for ours4x
+    single_shock_id = 'human_3_0' #'human_0'
+    reference_speed_limit_id = 'human_3_1' #'human_1'
     speed_limit = env.unwrapped.k.vehicle.get_max_speed(reference_speed_limit_id)
 
     # Be default, shock is not applied

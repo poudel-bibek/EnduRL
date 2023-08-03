@@ -149,16 +149,23 @@ class Plotter:
 
             controlled_name = controlled[0].split('_')[0]
             print(f"Controlled vehicle name: {controlled_name}")
-
-            if controlled_name == 'idm':
-                # idm_0 is shocker (lead)
-                sorted_ids = ['idm_0'] + [f'{controlled_name}_{item}' for item in range(1, n_controlled)]
-                end = n_controlled
-            else: 
-                # human_0 is shocker (lead)
-                sorted_ids = ['human_0'] + [f'{controlled_name}_{item}' for item in range(n_controlled)]
-                sorted_ids = sorted_ids + [f'human_{item}' for item in range(n_human - 1, 0, -1)]
+            
+            if self.args.method == 'ours4x': 
+                # human_3_0 is shocker (lead)
+                sorted_ids = ['human_3_0'] + ['rl_0_0','rl_1_0','rl_2_0','rl_3_0']
+                sorted_ids = sorted_ids + [f'human_3_{item}' for item in range(n_human-1, 0, -1)]
                 end = n_controlled + 1
+
+            else:
+                if controlled_name == 'idm':
+                    # idm_0 is shocker (lead)
+                    sorted_ids = ['idm_0'] + [f'{controlled_name}_{item}' for item in range(1, n_controlled)]
+                    end = n_controlled
+                else: 
+                    # human_0 is shocker (lead)
+                    sorted_ids = ['human_0'] + [f'{controlled_name}_{item}' for item in range(n_controlled)]
+                    sorted_ids = sorted_ids + [f'human_{item}' for item in range(n_human - 1, 0, -1)]
+                    end = n_controlled + 1
 
             print(f"Sorted ids: {sorted_ids}")
             
@@ -274,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument('--propogate_time', type=int, default=100)
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours']:
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours]")
 
     files = [f"{args.emissions_file_path}/{args.method}_stability/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}_stability") if item.endswith('.csv')]

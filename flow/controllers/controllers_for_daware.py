@@ -96,3 +96,33 @@ class ModifiedIDMController(BaseController):
 
         #print("IDM")
         return self.a * (1 - (v / self.v0)**self.delta - (s_star / h)**2)
+
+
+class BehaviorCloningController(BaseController):
+    """
+    Load the weights and configuration of a trained behavior cloning agent.
+    Behavior clone a Follower Stopper but without the specification of the desired velocity
+    And also unlike PIwS, which may not stabilize all the time, stabilize all the time
+    Also sometimes, FS can become completely de-stabilized when small shockwaves are injected
+
+    """
+    def __init__(self,
+                 veh_id,
+                 time_delay=0.0,
+                 noise=0,
+                 fail_safe=None,
+                 display_warnings=True,
+                 car_following_params=None,
+
+                 shock_vehicle = False,):
+        
+        BaseController.__init__(
+            self,
+            veh_id,
+            car_following_params,
+            delay=time_delay,
+            fail_safe=fail_safe,
+            noise=noise,
+            display_warnings=display_warnings,
+        )
+        
