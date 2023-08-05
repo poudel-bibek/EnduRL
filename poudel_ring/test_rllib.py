@@ -290,7 +290,7 @@ def visualizer_rllib(args):
             # perform_shock function RL version
             if args.shock and step >= shock_start_time and step <= shock_end_time:
                 if args.stability:
-                    single_shock_id, shock_counter, current_duration_counter = perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency) # For stability the values are single values
+                    single_shock_id, shock_counter, current_duration_counter = perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency, num_automated = NUM_AUTOMATED) # For stability the values are single values
                 else:
                     single_shock_id, shock_counter, current_duration_counter = perform_shock(env, vehicles, single_shock_id, \
                         shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency)
@@ -390,11 +390,20 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-def perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency):
-    
-    # 3_0 for ours4x
-    single_shock_id = 'human_3_0' #'human_0'
-    reference_speed_limit_id = 'human_3_1' #'human_1'
+def perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency, num_automated):
+
+    if num_automated == 4:
+        # 3_0 for ours4x
+        single_shock_id = 'human_3_0'
+        reference_speed_limit_id = 'human_3_1'
+    elif num_automated == 9:
+        # 8_0 for ours9x
+        single_shock_id = 'human_8_0'
+        reference_speed_limit_id = 'human_8_1'
+    else: 
+        single_shock_id = 'human_0'
+        reference_speed_limit_id = 'human_1'
+
     speed_limit = env.unwrapped.k.vehicle.get_max_speed(reference_speed_limit_id)
 
     # Be default, shock is not applied

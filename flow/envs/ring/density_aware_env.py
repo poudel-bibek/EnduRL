@@ -94,6 +94,17 @@ class DensityAwareRLEnv(Env):
         """ 
         
         """
+        # For Efficiency (Fuel and Throughput)
+        # if speed is greater than desired speed, then just maintain the speed
+        # get rl speed
+
+        rl_speed = self.k.vehicle.get_speed(self.k.vehicle.get_rl_ids()[0])
+
+        desired_speed = 4.82 # For 260m
+        if rl_speed >= desired_speed:
+            rl_actions = [0.0]
+        
+        
         print(f"\n\nRL action received: {rl_actions}")
 
         # Original acceleration action
@@ -127,12 +138,16 @@ class DensityAwareRLEnv(Env):
         print(f"RL accel: {rl_accel}, magnitude: {magnitude}, sign: {sign}")
 
         # The acceleration penalty is only for the magnitude
-        reward = 0.7*np.mean(vel) - 4*magnitude # The general acceleration penalty
+        reward = np.mean(vel) - 2*magnitude # The general acceleration penalty
         print(f"First Reward: {reward}")
         
-        # Congested, fomring and undefined shaping 
+        # Congested, forming and undefined shaping 
         penalty_scalar = -10
+        #penalty_scalar_2 = -5
+        penalty_scalar_3 = -10
         fixed_penalty = -1
+
+        # Maintaining velocity is fine
         if self.tse_output[0] == 3 or self.tse_output[0] == 4 or self.tse_output[0] == 1:
             if sign>0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
                 # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
@@ -141,17 +156,18 @@ class DensityAwareRLEnv(Env):
                 print(f"Forming: {forming_penalty}")
                 reward += forming_penalty # If congestion is fomring, penalize acceleration
 
-        elif self.tse_output[0] == 2: # Free flow
-            # Penalize acceleration/deceleration magnitude
-            free_flow_penalty = -5*magnitude
-            print(f"Free flow: {free_flow_penalty}")
-            reward += free_flow_penalty
+        # Acheivement of free flow itself should not induce any penalty. Or it will keep oscillating
+        # elif self.tse_output[0] == 2: # Free flow
+        #     # Penalize acceleration/deceleration magnitude
+        #     free_flow_penalty = -penalty_scalar_2*magnitude
+        #     print(f"Free flow: {free_flow_penalty}")
+        #     reward += free_flow_penalty
 
         # Leaving shaping 
         elif self.tse_output[0] == 0:
             # We want the acceleration to be positive
             if sign<0:
-                leaving_penalty = -2*magnitude
+                leaving_penalty = -penalty_scalar_3*magnitude
                 print(f"Leaving: {leaving_penalty}")
                 reward += leaving_penalty
 

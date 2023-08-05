@@ -122,16 +122,16 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
                 follower_speed = self.k.vehicle.get_speed(follower_id)
 
                 # Time headway of the follower
-                # lead_id = self.k.vehicle.get_leader(follower_id)
-                # # prevent division by zero
-                # front_speed = max(0.01, self.k.vehicle.get_speed(lead_id))
-                # front_distance = (self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(follower_id)) % self.k.network.length()
-                # time_headway = front_distance/front_speed  # close approximation, assume zero instantaneous acceleration
+                lead_id = self.k.vehicle.get_leader(follower_id)
+                # prevent division by zero
+                front_speed = max(0.01, self.k.vehicle.get_speed(lead_id))
+                front_distance = (self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(follower_id)) % self.k.network.length()
+                time_headway = front_distance/front_speed  # close approximation, assume zero instantaneous acceleration
 
                 # Acceleration of the follower
                 follower_accel_magnitude = np.abs(rl_actions[follower_id].item())
 
-                reward_follow =  0.2 * follower_speed - 4 * follower_accel_magnitude
+                reward_follow =  0.2 * follower_speed - 4 * follower_accel_magnitude #- 0.2*time_headway
                 print(f"follower_id: {follower_id}, reward_follow: {reward_follow} \n")
                 rew.update({follower_id : reward_follow})
             

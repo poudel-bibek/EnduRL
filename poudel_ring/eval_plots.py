@@ -152,9 +152,14 @@ class Plotter:
             
             if self.args.method == 'ours4x': 
                 # human_3_0 is shocker (lead)
-                sorted_ids = ['human_3_0'] + ['rl_0_0','rl_1_0','rl_2_0','rl_3_0']
+                sorted_ids = ['human_3_0'] + ['rl_3_0','rl_2_0','rl_1_0','rl_0_0']
                 sorted_ids = sorted_ids + [f'human_3_{item}' for item in range(n_human-1, 0, -1)]
-                end = n_controlled + 1
+                end = n_controlled
+
+            elif self.args.method == 'ours9x':
+                sorted_ids = ['human_8_0'] + ['rl_8_0', 'rl_7_0', 'rl_6_0', 'rl_5_0', 'rl_4_0','rl_3_0', 'rl_2_0','rl_1_0','rl_0_0']
+                sorted_ids = sorted_ids + [f'human_8_{item}' for item in range(n_human-1, 0, -1)]
+                end = n_controlled
 
             else:
                 if controlled_name == 'idm':
@@ -281,8 +286,8 @@ if __name__ == "__main__":
     parser.add_argument('--propogate_time', type=int, default=100)
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x']:
-        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours]")
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x', 'ours9x']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, piws, lacc, wu, ours, ours4x, ours9x]")
 
     files = [f"{args.emissions_file_path}/{args.method}_stability/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}_stability") if item.endswith('.csv')]
     
