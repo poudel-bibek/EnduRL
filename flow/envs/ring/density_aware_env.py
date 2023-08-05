@@ -98,11 +98,11 @@ class DensityAwareRLEnv(Env):
         # if speed is greater than desired speed, then just maintain the speed
         # get rl speed
 
-        rl_speed = self.k.vehicle.get_speed(self.k.vehicle.get_rl_ids()[0])
+        # rl_speed = self.k.vehicle.get_speed(self.k.vehicle.get_rl_ids()[0])
 
-        desired_speed = 4.82 # For 260m
-        if rl_speed >= desired_speed:
-            rl_actions = [0.0]
+        # desired_speed = 4.82 # For 260m
+        # if rl_speed >= desired_speed:
+        #     rl_actions = [0.0]
         
         
         print(f"\n\nRL action received: {rl_actions}")
@@ -167,7 +167,7 @@ class DensityAwareRLEnv(Env):
         elif self.tse_output[0] == 0:
             # We want the acceleration to be positive
             if sign<0:
-                leaving_penalty = -penalty_scalar_3*magnitude
+                leaving_penalty = penalty_scalar_3*magnitude
                 print(f"Leaving: {leaving_penalty}")
                 reward += leaving_penalty
 
