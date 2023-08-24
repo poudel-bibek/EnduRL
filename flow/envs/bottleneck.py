@@ -436,6 +436,7 @@ class BottleneckEnv(Env):
             self.k.traffic_light.set_state(
                 node_id=TB_TL_ID, state=new_tl_state)
 
+    # This looks at edges 3 and 4, meaning just the bottleneck
     def get_bottleneck_density(self, lanes=None):
         """Return the density of specified lanes.
 
@@ -940,8 +941,10 @@ class BottleneckDesiredVelocityEnv(BottleneckEnv):
             rl_speeds_list[i] / unnorm_rl_list[i]
             if int(unnorm_rl_list[i]) else 0 for i in range(num_rl)
         ]) / 50
+        #outflow = np.asarray([0.99]) # Bibek: For test
         outflow = np.asarray(
-            self.k.vehicle.get_outflow_rate(20 * self.sim_step) / 2000.0)
+            # Bibek: This used to be normalized by 2000.0 and cause errors. Normalized by 6000 (>4600 the inflow rate)
+            self.k.vehicle.get_outflow_rate(20 * self.sim_step) / 6000.0)
         return np.concatenate((num_vehicles_list, num_rl_vehicles_list,
                                mean_speed_norm, mean_rl_speed, [outflow]))
 
