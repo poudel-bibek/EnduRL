@@ -1378,6 +1378,125 @@ class TraCIVehicle(KernelVehicle):
         return num_vehicles
 
 
+    # Stuff for Bottleneck
+    def get_veh_list_local_zone_bottleneck(self, veh_id, distance):
+        """
+        get leader and distance, until distance exceeds the distance
+        already sorted in increasing order to the leader
+        
+        if edge id begins with `:` then the vehicle is in a zipper assume that vehicle is in the middle of the zipper because precise position cant be obtained
+        edge_lane format is used, edge id 4_0 is the left most zipper and id 5_0 is the right one
+        
+        position increments from left to right
+        When a RL vehicle crosses a zipper, it wont have vehicles in front of it that have the same lane and edge
+
+        If the RL vehicle is itself in Zipper lane 
+        """
+
+        veh_position = self.get_x_by_id(veh_id)
+        veh_lane = self.get_lane(veh_id)
+        veh_edge = self.get_edge(veh_id)
+        #print(f"ID: {veh_id} Vehicle Position: {veh_position}, Lane: {veh_lane}, Edge: {veh_edge}")
+
+        all_ids = self.kernel_api.vehicle.getIDList()
+
+        if veh_edge.startswith(":"):
+            veh_list = [] 
+        else: 
+            # Among all ids, get vehicles with the same lane and edge, if the position is higher and is not in zipper (exclude this here)
+            veh_list = [item for item in all_ids if self.get_lane(item) == veh_lane and self.get_edge(item) == veh_edge and self.get_x_by_id(item) > veh_position and not self.get_edge(item).startswith(":")]
+        #print(f"RL id: {veh_id}, Vehicle List: {veh_list}")
+
+        # For now just exclude the zipper
+        # If the vehicle is close to the zipper 4_0 (which apparently has 6 lanes)
+        # For a vehicle in edge 3 check the 2 closest lanes in the zipper. 
+
+        return_veh_list = [veh_id]
+        # Now sort these vehicles based on thier positions
+        if len(veh_list) == 0:
+            #print(f"RL ID: {veh_id}, No vehicles in front")
+            return return_veh_list
+        else:
+            distances = []
+            for item in veh_list:
+                # Because veh_position is always smaller
+                veh_distance = self.get_x_by_id(item) - veh_position
+                distances.append(veh_distance)
+                #print(f"Item: {item}, Distance: {veh_distance}")
+
+                if veh_distance <= distance:
+                    return_veh_list.append(item)
+                else:
+                    continue
+            # sort according to distance 
+            return_veh_list = sorted(return_veh_list, key=lambda x: self.get_x_by_id(x))
+            #print(f"RL ID: {veh_id}, After Sorting: {return_veh_list}")
+
+            return return_veh_list
+
+
+    def get_leader_bottleneck(self, veh_id):
+        """
+        No leader when vehicle itself or actual leader is in the zipper lane
+        """
+        veh_position = self.get_x_by_id(veh_id)
+        veh_lane = self.get_lane(veh_id)
+        veh_edge = self.get_edge(veh_id)
+
+        all_ids = self.kernel_api.vehicle.getIDList()
+
+        if veh_edge.startswith(":"):
+            veh_list = [] 
+        else: 
+            # Among all ids, get vehicles with the same lane and edge, if the position is higher and is not in zipper (exclude this here)
+            veh_list = [item for item in all_ids if self.get_lane(item) == veh_lane and self.get_edge(item) == veh_edge and self.get_x_by_id(item) > veh_position and not self.get_edge(item).startswith(":")]
+      
+        if len(veh_list) == 0:
+            # Then no leader
+            return None
+        else:
+            # sort according to x-value, they are already towards the higher distances
+            veh_list = sorted(veh_list, key=lambda x: self.get_x_by_id(x))
+            #print(f"RL ID: {veh_id}, After Sorting: {veh_list}")
+            return veh_list[0]
+    
+        
+
+
+        #print(f"RL ID: {veh_id}, Return Vehicle List: {return_veh_list}")
+        #return return_veh_list
+        
+
+        # show vehicle position
+        #print(f"Vehicle Position: {self.get_x_by_id(veh_id)}")
+        #vehicle_length = 5 # m fixed for cars
+        # leader_id = self.get_leader(veh_id)
+        # # get leader does not work, it only looks at RL vehicles and also does not look if they are in the same lane
+        # # get a vehicle that may or may not be RL, but in the same lane ahead of this vehicle
+        # #leader_id = 
+
+        # veh_list = [veh_id]
+        # #print(f"Leader: {leader_id}")
+        # if leader_id is not None: # Assuming that None is returned when there is no leader
+        #     veh_list.append(leader_id)
+
+        #     # In the zipper edge, vehicle position can be -1001. Assume that its at the center of zipper
+        #     vehicle_position = self.get_x_by_id(veh_id)
+        #     leader_pos = self.get_x_by_id(leader_id)
+        #     distance_to_leader = leader_pos - vehicle_position
+            
+        #     while distance_to_leader <= distance:
+        #         leader_id = self.get_leader(leader_id)
+        #         if leader_id is not None:
+        #             veh_list.append(leader_id)
+        #             leader_pos = self.get_x_by_id(leader_id)
+        #             distance_to_leader = leader_pos - vehicle_position
+        #         else:
+        #             break
+        #         return veh_list
+        # else: 
+        #     return veh_list
+    
         
 
 # Test stuff: 

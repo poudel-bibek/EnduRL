@@ -9,6 +9,8 @@ Major differences:
 - humans have a speed mode of 9 instead of all_checks
 - inflow range (in env_params) is dependent on the scaling factor
 
+
+
 """
 
 """
@@ -32,14 +34,16 @@ from flow.core.params import VehicleParams
 from flow.controllers import RLController, ContinuousRouter
 
 # time horizon of a single rollout
-HORIZON = 1500
+HORIZON = 3600 # 1500 # 8000 is still too long for training. At eval can be done at 8000
 
 # number of parallel workers
-N_CPUS = 4
-# number of rollouts per training iteration
-N_ROLLOUTS = N_CPUS * 4
+N_CPUS = 8 # Instead of 8 at 1500. It will do a +1 later so actually its 9
+# The Terminal log will count the total timesteps so it will show something like 180000 = (3600 + 4000)/2 * 50 
+# It is specidied in Table 3 of the benchmarks paper that 50 rollouts per iteration 
+# Also a batch size of 80000: 3600 timesteps per rollout, total = (3600/2) * 45 = 81000 # Close enough 
+N_ROLLOUTS = N_CPUS * 5 # 45 rollouts per iteration
 
-SCALING = 2
+SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N is 2
 NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
@@ -82,11 +86,11 @@ additional_env_params = {
     "lane_change_duration": 5,
     "max_accel": 3,
     "max_decel": 3,
-    "inflow_range": [1200 * SCALING, 2500 * SCALING]
+    "inflow_range": [1200 * SCALING, 2500 * SCALING] # So that there is some randomness in the whole thing. Generalizes better
 }
 
 # flow rate
-flow_rate = 2500 * SCALING
+flow_rate = 1800 * SCALING
 
 # percentage of flow coming out of each lane
 inflow = InFlows()
@@ -129,7 +133,7 @@ flow_params = dict(
 
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
-        sim_step=0.5,
+        sim_step=0.5, 
         render=False,
         print_warnings=False,
         restart_instance=True,
@@ -137,8 +141,8 @@ flow_params = dict(
 
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
-        warmup_steps=100, # Bibek: Changed to 100 from 40
-        sims_per_step=1,
+        warmup_steps= 4000, # Bibek: Change from 40 # 40 was not nearly enough to let a congestion form. 
+        sims_per_step=1, # Sims per step huh
         horizon=HORIZON,
         additional_params=additional_env_params,
     ),

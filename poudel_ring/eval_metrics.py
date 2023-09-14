@@ -740,8 +740,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x','ours9x']:
-        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours]")
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'vinitsky', 'ours']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, vinitsky, ours]")
 
     #if args.metric is None:
         #raise ValueError("Please specify the metric to evaluate\n Metric can be [Stability, safety, efficiency]")

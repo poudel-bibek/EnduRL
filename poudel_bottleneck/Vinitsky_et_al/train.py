@@ -144,16 +144,24 @@ def setup_exps_rllib(flow_params,
     agent_cls = get_agent_class(alg_run)
     config = deepcopy(agent_cls._default_config)
 
-    config["num_workers"] = n_cpus
-    config["train_batch_size"] = horizon * n_rollouts
-    config["gamma"] = 0.999  # discount rate
-    config["model"].update({"fcnet_hiddens": [256, 256], "fcnet_activation": "tanh"})
-    config["use_gae"] = True
-    config["lambda"] = 0.97
-    config["kl_target"] = 0.02
-    config["num_sgd_iter"] = 10
-    config["horizon"] = horizon
+    #Further, update the bottleneck parameters from flow>benchmarks>rllib>ppo_runner.py
+    config["num_workers"] = n_cpus # Fine
+    config["train_batch_size"] = horizon * n_rollouts # Fine paper mentions 80,000
+    config["use_gae"] = True # Fine
+    config["horizon"] = horizon # Fine
+    config["lambda"] = 0.97 # Fine
 
+    # Not initially present here, but given in paper/code
+    config["lr"] = 5e-4 # As adam step size
+    config["model"].update({"fcnet_hiddens": [256, 256], "fcnet_activation": "tanh"})
+    config["num_sgd_iter"] = 10
+    config["vf_clip_param"] = 1e6
+    config['clip_actions'] = False
+
+    # Default
+    config["gamma"] = 0.999  # discount rate
+    config["kl_target"] = 0.02
+    
     # save the flow params for replay
     flow_json = json.dumps(
         flow_params, cls=FlowParamsEncoder, sort_keys=True, indent=4)
@@ -193,7 +201,8 @@ def train_rllib(submodule, flags):
         flow_params, n_cpus, n_rollouts,
         policy_graphs, policy_mapping_fn, policies_to_train)
 
-    ray.init(num_cpus=n_cpus + 1, object_store_memory=200 * 1024 * 1024)
+    # ray.init(num_cpus=n_cpus + 1, object_store_memory=200 * 1024 * 1024)
+    ray.init(num_cpus=n_cpus + 1, object_store_memory= 1000 * 1024 * 1024) # Bibek: Increase the object store for Bottleneck
     exp_config = {
         "run": alg_run,
         "env": gym_name,

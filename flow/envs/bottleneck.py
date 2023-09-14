@@ -943,7 +943,7 @@ class BottleneckDesiredVelocityEnv(BottleneckEnv):
         ]) / 50
         #outflow = np.asarray([0.99]) # Bibek: For test
         outflow = np.asarray(
-            # Bibek: This used to be normalized by 2000.0 and cause errors. Normalized by 6000 (>4600 the inflow rate)
+            # Bibek: This used to be normalized by 2000.0 and cause errors. Normalized by 6000 
             self.k.vehicle.get_outflow_rate(20 * self.sim_step) / 6000.0)
         return np.concatenate((num_vehicles_list, num_rl_vehicles_list,
                                mean_speed_norm, mean_rl_speed, [outflow]))

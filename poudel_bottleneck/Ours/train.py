@@ -150,7 +150,7 @@ def setup_exps_rllib(flow_params,
 
     #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) in acceleration
     # Tanh activations have a range of -1, 1, sigmoid has a range of 0, 1 # "fcnet_activation": "tanh"}
-    config["model"].update({"fcnet_hiddens": [32, 16], "fcnet_activation": "tanh"})
+    config["model"].update({"fcnet_hiddens": [256, 256, 128], "fcnet_activation": "tanh"})
 
     config["lr"] = 5e-05 # default 5e-05
     
@@ -210,7 +210,7 @@ def train_rllib(submodule, flags):
         flow_params, n_cpus, n_rollouts,
         policy_graphs, policy_mapping_fn, policies_to_train)
 
-    ray.init(num_cpus=n_cpus + 1, object_store_memory=200 * 1024 * 1024)
+    ray.init(num_cpus=n_cpus + 1, object_store_memory=2000 * 1024 * 1024)
     exp_config = {
         "run": alg_run,
         "env": gym_name,

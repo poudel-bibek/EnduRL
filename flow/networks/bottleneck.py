@@ -97,16 +97,16 @@ class BottleneckNetwork(Network):
                 "y": 0
             },
             # fake nodes used for visualization
-            {
-                "id": "fake1",
-                "x": 0,
-                "y": 1
-            },
-            {
-                "id": "fake2",
-                "x": 0,
-                "y": 2
-            }
+            # {
+            #     "id": "fake1",
+            #     "x": 0,
+            #     "y": 1
+            # },
+            # {
+            #     "id": "fake2",
+            #     "x": 0,
+            #     "y": 2
+            # }
         ]  # post-merge2
         return nodes
 
@@ -163,15 +163,15 @@ class BottleneckNetwork(Network):
                 "speed": speed
             },
             # fake edge used for visualization
-            {
-                "id": "fake_edge",
-                "from": "fake1",
-                "to": "fake2",
-                "length": 1,
-                "spreadType": "center",
-                "numLanes": scaling,
-                "speed": speed
-            }
+            # {
+            #     "id": "fake_edge",
+            #     "from": "fake1",
+            #     "to": "fake2",
+            #     "length": 1,
+            #     "spreadType": "center",
+            #     "numLanes": scaling,
+            #     "speed": speed
+            # }
         ]
 
         return edges
@@ -233,8 +233,9 @@ class BottleneckNetwork(Network):
 
     def specify_edge_starts(self):
         """See parent class."""
-        return [("1", 0), ("2", 100), ("3", 405), ("4", 425), ("5", 580)]
-
+        #return [("1", 0), ("2", 100), ("3", 405), ("4", 425), ("5", 580)]
+        return [("1", 0), ("2", 100), ("3", 410), ("4", 550), ("5", 830)]
+    
     def get_bottleneck_lanes(self, lane):
         """Return the reduced number of lanes."""
         return [int(lane / 2), int(lane / 4)]

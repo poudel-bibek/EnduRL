@@ -59,7 +59,8 @@ def get_desired_velocity(num_vehicles, length, method_name = None):
 # Shock
 # Define shock models 
 
-def get_shock_model(identifier, length = None):
+def get_shock_model(identifier, length = None, network_scaler=1, bidirectional=False, high_speed = False):
+    # Network scaler 6 used in the bottleneck
     # Accel/ Decel value, duration, frequency (in the interval between shock start and shock end)
     # Duration: In seconds, for which each shock is applied
     # Frequency: In the interval, how many shocks are applied
@@ -69,23 +70,28 @@ def get_shock_model(identifier, length = None):
     if identifier == 2:
         # Thiese ranges are obtained form data
         # sample frequency 
-        frequency = np.random.randint(5, 20) # value of 10 means once shock every 3000/10 = 300 steps, 5 = 600 steps, 15 = 200 steps
+        frequency = network_scaler*np.random.randint(5, 20) # value of 10 means once shock every 3000/10 = 300 steps, 5 = 600 steps, 15 = 200 steps
         
         intensity_collect = [] 
         duration_collect = []
-        
-        intensity_abs_min = 1
-        intensity_abs_max = 3.0
+        if high_speed:
+            intensity_abs_min = 1.5
+            intensity_abs_max = 4.0
+        else:
+            intensity_abs_min = 1
+            intensity_abs_max = 3.0
         print("Frequency:", frequency)
 
         for i in range(frequency):
-            # intensity = random.uniform(-intensity_abs_max, intensity_abs_max)
-            # if intensity < -1:
-            #     intensity = random.uniform(-intensity_abs_max, -intensity_abs_min)
-            # else:
-            #     intensity = random.uniform(intensity_abs_min, intensity_abs_max)
+            if bidirectional:
+                # between (-abs_max to -abs_min) and (abs_min to abs_max) but not between (-abs_min to abs_min)
+                intensity = random.uniform(-intensity_abs_max, intensity_abs_max)
+                while intensity > -intensity_abs_min and intensity < intensity_abs_min:
+                    intensity = random.uniform(-intensity_abs_max, intensity_abs_max)
+                
+            else:
+                intensity = random.uniform(-intensity_abs_max, -intensity_abs_min)
 
-            intensity = random.uniform(-intensity_abs_max, -intensity_abs_min)
             print("Intensity:", intensity)
 
             durations = np.linspace(0.1, 2.5, 20) # In seconds

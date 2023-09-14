@@ -2,11 +2,13 @@
 echo "Running all benchmarks"
 
 declare -a benchmarks=(
-                        "bottleneck0" "bottleneck1" "bottleneck2"
-                        "figureeight0" "figureeight1" "figureeight2"
-                        "grid0" "grid1"
-                        "merge0" "merge1"
+                        "bottleneck2"
                         )
+                        #"bottleneck0" "bottleneck1" "bottleneck2"
+                        #"figureeight0" "figureeight1" "figureeight2"
+                        #"grid0" "grid1"
+                        #"merge0" "merge1"
+                        #)
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 cd "$parent_path"
