@@ -342,8 +342,11 @@ class DensityAwareBottleneckEnv(BottleneckEnv):
         for i, rl_id in enumerate(sorted_rl_ids):
             #action =  actions[i] #-1 #-1*np.ones(len(sorted_rl_ids))
             action = self.rl_storedict[rl_id]['action']
-            self.k.vehicle.apply_acceleration(rl_id, acc=action)
+
+            bypass_action = self.get_idm_accel(rl_id)
+            self.k.vehicle.apply_acceleration(rl_id, acc=bypass_action) #action
             #print(f"From apply_rl_actions: RL id: {rl_id} Action: {action}")
+        
 
     def additional_command(self):
         """
@@ -377,6 +380,38 @@ class DensityAwareBottleneckEnv(BottleneckEnv):
             for veh_id in vehicles_in_zone:
                 self.k.vehicle.set_observed(veh_id)
 
+    def get_idm_accel(self, rl_id):
+        """
+        """
+
+        # default params
+        self.v0=30
+        self.T=1
+        self.a=1
+        self.b=1.5
+        self.delta=4
+        self.s0=2
+        self.time_delay=0.0
+
+        v = self.k.vehicle.get_speed(rl_id)
+        lead_id = self.k.vehicle.get_leader(rl_id)
+        h = self.k.vehicle.get_headway(rl_id)
+
+        # in order to deal with ZeroDivisionError
+        if abs(h) < 1e-3:
+            h = 1e-3
+
+        if lead_id is None or lead_id == '':  # no car ahead
+            s_star = 0
+        else:
+            lead_vel = self.k.vehicle.get_speed(lead_id)
+            s_star = self.s0 + max(
+                0, v * self.T + v * (v - lead_vel) /
+                (2 * np.sqrt(self.a * self.b)))
+
+        #print("IDM")
+        return self.a * (1 - (v / self.v0)**self.delta - (s_star / h)**2)
+    
     def reset(self):
         """
         

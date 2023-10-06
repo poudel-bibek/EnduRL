@@ -15,7 +15,7 @@ def config_piws(args, **kwargs):
 
     DISABLE_TB = True
     DISABLE_RAMP_METER = True
-    AV_FRAC = 0.05 # its 5%
+    AV_FRAC = 0.10 # args.av_frac
     SCALING = 2
 
     vehicles.add(

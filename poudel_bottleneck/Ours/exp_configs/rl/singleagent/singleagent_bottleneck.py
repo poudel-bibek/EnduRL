@@ -1,7 +1,7 @@
 """
 """
 from flow.core.params import SumoParams, EnvParams, InitialConfig, VehicleParams, InFlows, NetParams, TrafficLightParams
-from flow.controllers import ContinuousRouter, SimLaneChangeController, RLController
+from flow.controllers import ContinuousRouter, SimLaneChangeController, RLController, IDMController
 from flow.core.params import SumoCarFollowingParams, SumoLaneChangeParams
 
 from flow.envs import DensityAwareBottleneckEnv
@@ -27,10 +27,10 @@ AV_FRAC = .10
 vehicles = VehicleParams()
 vehicles.add(
     veh_id="rl",
-    acceleration_controller=(RLController, {}),
+    acceleration_controller=(RLController, {}), #IDMController
     routing_controller=(ContinuousRouter, {}),
     car_following_params=SumoCarFollowingParams(
-        speed_mode=9,
+        minGap=9.0,
     ),
     lane_change_params=SumoLaneChangeParams(
         lane_change_mode=0,
@@ -40,7 +40,7 @@ vehicles.add(
     veh_id="human",
     routing_controller=(ContinuousRouter, {}),
     car_following_params=SumoCarFollowingParams(
-        speed_mode=9,
+
     ),
     lane_change_params=SumoLaneChangeParams(
         lane_change_mode=0,

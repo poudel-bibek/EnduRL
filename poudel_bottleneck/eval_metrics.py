@@ -33,7 +33,7 @@ class EvalMetrics():
 
         if args.method == 'idm':
             self.reference_id = 'flow_00'
-        elif args.method == 'vinitsky':
+        elif args.method == 'vinitsky' or 'ours':
             self.reference_id = 'flow_10'
         else:
             self.reference_id = 'classic_00'
@@ -286,6 +286,7 @@ class EvalMetrics():
                         
                         # Use precomputed leader velocities
                         leader_velocity = leader_velocities.get((leader_id, time), 0.0) # defaulting to 0.0 if not found
+                        #print(f"Time: {time}, Vehicle velocity: {vehicle_velocity}, Leader velocity: {leader_velocity}")
                         relative_positions = row['space_headway']
                         relative_velocities = leader_velocity - vehicle_velocity
                         if np.abs(relative_velocities) < 0.001:
