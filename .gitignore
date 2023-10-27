@@ -117,3 +117,7 @@ flow.ang
 
 # Density_aware/Ours/ray_results
 # Density_aware/Ours/ray_results/*
+
+poudel_car_following/Data
+./poudel_car_following/Data/*
+poudel_car_following/Data/*
