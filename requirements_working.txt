@@ -96,3 +96,4 @@ urllib3==1.25.11
 Werkzeug==2.2.2
 wrapt==1.14.1
 zipp
+ijson==3.2.3
