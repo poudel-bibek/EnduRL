@@ -5,7 +5,7 @@ Created on top of snapshot of FLOW code obtained on Jan 3, 2023
 Developed and tested on Ubuntu 18.04.5 LTS, Python 3.7.3
 
 - Install Anaconda
-- Setup (SUMO versio 1.1.0)[https://github.com/eclipse/sumo/releases/tag/v1_1_0] in your system
+- Setup (SUMO versio 1.15.0)[https://github.com/eclipse-sumo/sumo/releases/tag/v1_15_0] in your system
 - Clone this repository
 - Use the following commands
 
@@ -14,6 +14,7 @@ conda env create -f environment.yml
 conda activate flow
 python setup.py develop
 pip install -U pip setuptools
+pip install -r requirements_working.txt
 ```
 Note: the requirements in this repo have redis version removed.
 ### Part 1: Training
