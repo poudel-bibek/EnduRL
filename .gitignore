@@ -112,12 +112,8 @@ flow.ang
 *.sang
 
 # Bibek
-# Density_aware/Ours/Training/tse_data
-# Density_aware/Ours/Training/tse_data/*
-
-# Density_aware/Ours/ray_results
-# Density_aware/Ours/ray_results/*
-
-poudel_car_following/Data
+# change this later
+poudel_car_following/Data 
 ./poudel_car_following/Data/*
 poudel_car_following/Data/*
+.ipynb_checkpoints/
