@@ -13,6 +13,7 @@ from gym.spaces import Tuple
 
 from flow.core import rewards
 from flow.envs.base import Env
+import collections
 
 ADDITIONAL_ENV_PARAMS = {
     # minimum switch time for each traffic light (in seconds)
@@ -579,38 +580,9 @@ class TrafficLightGridEnv(Env):
         return veh_ids_ordered[:num_closest] + (pad_lst if padding else [])
 
 
-class TrafficLightGridPOEnv(TrafficLightGridEnv):
-    """Environment used to train traffic lights.
-
-    Required from env_params:
-
-    * switch_time: minimum switch time for each traffic light (in seconds).
-      Earlier RL commands are ignored.
-    * num_observed: number of vehicles nearest each intersection that is
-      observed in the state space; defaults to 2
-
-    States
-        An observation is the number of observed vehicles in each intersection
-        closest to the traffic lights, a number uniquely identifying which
-        edge the vehicle is on, and the speed of the vehicle.
-
-    Actions
-        The action space consist of a list of float variables ranging from 0-1
-        specifying whether a traffic light is supposed to switch or not. The
-        actions are sent to the traffic light in the grid from left to right
-        and then top to bottom.
-
-    Rewards
-        The reward is the delay of each vehicle minus a penalty for switching
-        traffic lights
-
-    Termination
-        A rollout is terminated once the time horizon is reached.
-
-    Additional
-        Vehicles are rerouted to the start of their original routes once they
-        reach the end of the network in order to ensure a constant number of
-        vehicles.
+class IntersectionRLPOEnv(TrafficLightGridEnv):
+    """
+    Used to train RL agents in an unsignalized intersection.
 
     """
 
@@ -629,29 +601,43 @@ class TrafficLightGridPOEnv(TrafficLightGridEnv):
         # used during visualization
         self.observed_ids = []
 
+        self.num_rl = env_params.additional_params['num_rl']
+
+        # queue of rl vehicles waiting to be controlled
+        self.rl_queue = collections.deque()
+
+        # names of the rl vehicles controlled at any step
+        self.rl_veh = []
+
+    @property
+    def action_space(self):
+        """
+        
+        """
+
+        return Box(
+                low=-5,
+                high=5,
+                shape=(self.num_rl,),
+                dtype=np.float32)
+
     @property
     def observation_space(self):
-        """State space that is partially observed.
-
-        Velocities, distance to intersections, edge number (for nearby
-        vehicles) from each direction, edge information, and traffic light
-        state.
         """
-        tl_box = Box(
+
+        """
+        obs_shape = (40, )
+        obs_space = Box(
             low=0.,
             high=3,
-            shape=(3 * 4 * self.num_observed * self.num_traffic_lights +
-                   2 * len(self.k.network.get_edge_list()) +
-                   3 * self.num_traffic_lights,),
+            shape=obs_shape,
             dtype=np.float32)
-        return tl_box
+
+        return obs_space
 
     def get_state(self):
-        """See parent class.
+        """
 
-        Returns self.num_observed number of vehicles closest to each traffic
-        light and for each vehicle its velocity, distance to intersection,
-        edge_number traffic light state. This is partially observed
         """
         speeds = []
         dist_to_intersec = []
@@ -661,7 +647,7 @@ class TrafficLightGridPOEnv(TrafficLightGridEnv):
             for edge in self.k.network.get_edge_list())
         grid_array = self.net_params.additional_params["grid_array"]
         max_dist = max(grid_array["short_length"], grid_array["long_length"],
-                       grid_array["inner_length"])
+                        grid_array["inner_length"])
         all_observed_ids = []
 
         for _, edges in self.network.node_mapping:
@@ -684,8 +670,8 @@ class TrafficLightGridPOEnv(TrafficLightGridEnv):
                 ]
                 edge_number += \
                     [self._convert_edge(self.k.vehicle.get_edge(veh_id)) /
-                     (self.k.network.network.num_edges - 1)
-                     for veh_id in observed_ids]
+                        (self.k.network.network.num_edges - 1)
+                        for veh_id in observed_ids]
 
                 if len(observed_ids) < self.num_observed:
                     diff = self.num_observed - len(observed_ids)
@@ -704,34 +690,75 @@ class TrafficLightGridPOEnv(TrafficLightGridEnv):
                             self.k.network.edge_length(edge)]
                 velocity_avg += [np.mean(
                     [self.k.vehicle.get_speed(veh_id) for veh_id in
-                     ids]) / max_speed]
+                        ids]) / max_speed]
             else:
                 density += [0]
                 velocity_avg += [0]
         self.observed_ids = all_observed_ids
-        return np.array(
+        observation = np.array(
             np.concatenate([
                 speeds, dist_to_intersec, edge_number, density, velocity_avg,
-                self.last_change.flatten().tolist(),
-                self.direction.flatten().tolist(),
-                self.currently_yellow.flatten().tolist()
             ]))
 
+        return observation
+
+    def _apply_rl_actions(self, rl_actions):
+        """ 
+        This is gotten from merge (the closest network to grid) for
+        applying rl actions to the rl vehicles within the network.
+        This method was also used given the fact that the rl vehicles
+        come and go from the network so an additional list is needed
+        to keep track of which vehicles are still in the network, which
+        is something that merge does.
+            
+        """
+
+        for i, rl_id in enumerate(self.rl_veh):
+
+            # ignore rl vehicles outside the network
+            if rl_id not in self.k.vehicle.get_rl_ids():
+                continue
+            self.k.vehicle.apply_acceleration(rl_id, rl_actions[i])
+
     def compute_reward(self, rl_actions, **kwargs):
-        """See class definition."""
-        if self.env_params.evaluate:
+        """
+
+        """
+        f self.env_params.evaluate:
             return - rewards.min_delay_unscaled(self)
         else:
             return (- rewards.min_delay_unscaled(self) +
                     rewards.penalize_standstill(self, gain=0.2))
 
+
     def additional_command(self):
-        """See class definition."""
-        # specify observed vehicles
+        """
+
+        """
+
         [self.k.vehicle.set_observed(veh_id) for veh_id in self.observed_ids]
 
+        # add rl vehicles that just entered the network into the rl queue
+        for veh_id in self.k.vehicle.get_rl_ids():
+            if veh_id not in list(self.rl_queue) + self.rl_veh:
+                self.rl_queue.append(veh_id)
 
-class TrafficLightGridBenchmarkEnv(TrafficLightGridPOEnv):
+        # remove rl vehicles that exited the network
+        for veh_id in list(self.rl_queue):
+            if veh_id not in self.k.vehicle.get_rl_ids():
+                self.rl_queue.remove(veh_id)
+        for veh_id in self.rl_veh:
+            if veh_id not in self.k.vehicle.get_rl_ids():
+                self.rl_veh.remove(veh_id)
+
+        # fil up rl_veh until they are enough controlled vehicles
+        while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
+            rl_id = self.rl_queue.popleft()
+            self.rl_veh.append(rl_id)
+
+
+# Since the one above it modified, this may not work as expected
+class TrafficLightGridBenchmarkEnv():
     """Class used for the benchmarks in `Benchmarks for reinforcement learning inmixed-autonomy traffic`."""
 
     def compute_reward(self, rl_actions, **kwargs):
