@@ -1,6 +1,6 @@
 
 import os 
-from flow.envs.classic_bottleneck import classicBottleneckEnv
+from flow.envs.classic_intersection import classicIntersectionEnv
 from flow.networks import BottleneckNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
     InFlows, SumoLaneChangeParams, SumoCarFollowingParams
@@ -121,7 +121,7 @@ def config_bcm(args, **kwargs):
     exp_tag= f"bottleneck_2_{kwargs['method_name']}",
 
     # name of the flow environment the experiment is running on
-    env_name=classicBottleneckEnv,
+    env_name=classicIntersectionEnv,
 
     # name of the network class the experiment is running on
     network=BottleneckNetwork,

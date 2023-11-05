@@ -12,11 +12,14 @@ from flow.envs.ring.wave_attenuation import WaveAttenuationEnv, \
     WaveAttenuationPOEnv
 
 #Bibek
-from flow.envs.ring.density_aware_env import DensityAwareRLEnv 
 from flow.envs.ring.density_aware_classic_env import classicEnv 
+from flow.envs.ring.density_aware_env import DensityAwareRLEnv 
+
 from flow.envs.classic_bottleneck import classicBottleneckEnv
-from flow.envs.density_aware_intersection_env import DensityAwareIntersectionEnv
 from flow.envs.density_aware_bottleneck_env import DensityAwareBottleneckEnv 
+
+from flow.envs.density_aware_intersection_env import DensityAwareIntersectionEnv
+from flow.envs.classic_intersection import classicIntersectionEnv
 
 from flow.envs.merge import MergePOEnv
 from flow.envs.test import TestEnv
@@ -42,6 +45,7 @@ __all__ = [
     'DensityAwareRLEnv', #Bibek
     'classicEnv', #Bibek
     'classicBottleneckEnv', #Bibek
+    'classicIntersectionEnv', #Bibek
     'TrafficLightGridEnv',
     'IntersectionRLPOEnv', #Bibek
     'TrafficLightGridBenchmarkEnv',

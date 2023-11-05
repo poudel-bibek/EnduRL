@@ -724,7 +724,7 @@ class IntersectionRLPOEnv(TrafficLightGridEnv):
         """
 
         """
-        f self.env_params.evaluate:
+        if self.env_params.evaluate:
             return - rewards.min_delay_unscaled(self)
         else:
             return (- rewards.min_delay_unscaled(self) +
