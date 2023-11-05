@@ -1,7 +1,14 @@
-
+"""
+Speed limit = 23 + 5 = 28
+"""
 import os 
 from flow.envs.classic_intersection import classicIntersectionEnv
-from flow.networks import BottleneckNetwork
+from flow.envs import IntersectionRLPOEnv
+from flow.controllers import GridRouter
+
+#from flow.networks import TrafficLightGridNetwork
+
+#from flow.networks import BottleneckNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
     InFlows, SumoLaneChangeParams, SumoCarFollowingParams
 from flow.core.params import TrafficLightParams
@@ -9,47 +16,67 @@ from flow.core.params import VehicleParams
 from flow.controllers import ContinuousRouter
 from flow.controllers.controllers_for_daware import ModifiedIDMController
 
+# inflow rate of vehicles at every edge
+EDGE_INFLOW = 1000 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+
+# enter speed for departing vehicles
+V_ENTER = 30
+
+# number of row of bidirectional lanes
+N_ROWS = 1 # Default is 3
+# number of columns of bidirectional lanes
+N_COLUMNS = 1 # Default is 3
+
+# number of vehicles originating in the left, right, top, and bottom edges
+N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
+
+# length of inner edges in the grid network
+INNER_LENGTH = 300
+
+# length of final edge in route
+LONG_LENGTH = 100 # Default is 100, too short for depart velocity of 30
+
+# length of edges that vehicles start on
+SHORT_LENGTH = 100 # Default is 300, Make 200 for uniformity
+
+rv_penetration = 0.1 
+
 def config_bcm(args, **kwargs):
 
     vehicles = VehicleParams()
-    #num_controlled = 4 if args.num_controlled is None else args.num_controlled # Minimum
 
-    DISABLE_TB = True
-    DISABLE_RAMP_METER = True
-    AV_FRAC = 0.10 #args.av_frac # For BCM its 20%
-    SCALING = 2
-
-    # When BCM vehicles are added, how to add 4 of them at one in platoon configuration?
-    # Even this is ModifiedIDMController that changes after warmup
     vehicles.add(
         veh_id=kwargs['method_name'],
         acceleration_controller=(ModifiedIDMController, {
             "noise": args.noise, 
         }),
-        routing_controller=(ContinuousRouter, {}),
+        routing_controller=(GridRouter, {}),
         car_following_params=SumoCarFollowingParams(
-            speed_mode=9,
+            min_gap=2.5,
+            max_speed=V_ENTER,
+            decel=7.5,  # avoid collisions at emergency stops
+            speed_mode="right_of_way",
         ),
-        lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,
-        ),
-        num_vehicles=1 * SCALING,
-        color = 'yellow') 
-
+        num_vehicles=2,
+        color = 'yellow'
+        )
+    
+    # Even this is ModifiedIDMController that changes after warmup
     vehicles.add(
         veh_id="human",
         acceleration_controller=(ModifiedIDMController, {
             "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
             "noise": args.noise ,
         }),
-        routing_controller=(ContinuousRouter, {}),
+        routing_controller=(GridRouter, {}),
         car_following_params=SumoCarFollowingParams(
-            speed_mode=9, # min_gap is not specified here
+            min_gap=2.5,
+            max_speed=V_ENTER,
+            decel=7.5,  # avoid collisions at emergency stops
+            speed_mode="right_of_way",
         ),
-        lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,
-        ),
-        num_vehicles=1 * SCALING)
+        num_vehicles=(N_LEFT + N_RIGHT) * N_COLUMNS + (N_BOTTOM + N_TOP) * N_ROWS
+        )
 
     kwargs['classic_parms'] = {  # Add more if necessary
                                     }
@@ -71,60 +98,51 @@ def config_bcm(args, **kwargs):
             restart_instance=True,
             emission_path=None)
 
-    additional_env_params = {
-        "target_velocity": 40, # Change that to match the ring? Or match the noise levels accordingly
-        "disable_tb": True,
-        "disable_ramp_metering": True,
-        "symmetric": False,
-        "reset_inflow": False,
-        "lane_change_duration": 5,
-        "max_accel": 3,
-        "max_decel": 3, # These are used by RL?
-        "add_classic_if_exit": True, # 
-        "classic_params": kwargs['classic_parms'], # Hacky way to pass
-        "shock_params": kwargs['shock_params'], # Hacky way to pass
-    }
+    # inflows of vehicles are place on all outer edges (listed here)
+    outer_edges = []
+    outer_edges += ["left{}_{}".format(N_ROWS, i) for i in range(N_COLUMNS)]
+    outer_edges += ["right0_{}".format(i) for i in range(N_ROWS)]
+    outer_edges += ["bot{}_0".format(i) for i in range(N_ROWS)]
+    outer_edges += ["top{}_{}".format(i, N_COLUMNS) for i in range(N_ROWS)]
 
-    # flow rate
-    flow_rate = 1800 * SCALING # What density profile would this flow rate lead to? # Changed from 2500
-
-    # percentage of flow coming out of each lane
+    # equal inflows for each edge (as dictate by the EDGE_INFLOW constant)
     inflow = InFlows()
+    for edge in outer_edges:
+        # 50% here
+        if edge == "left1_0" or edge == "right0_0":
+            inflow.add(
+                veh_type="human",
+                edge=edge,
+                vehs_per_hour= (1- rv_penetration)*EDGE_INFLOW/2,
+                departLane="free",
+                departSpeed=V_ENTER)
 
-    inflow.add(
-        name = "classic",
-        veh_type= kwargs['method_name'],
-        edge="1",
-        #/ num_controlled, # Uncomment if want to operatate at min. no . of vehicles required to stabilize in ring, Because later we scale them up
-        vehs_per_hour=flow_rate * AV_FRAC, 
-        departLane="random",
-        departSpeed=10)
-    
-    inflow.add(
-        veh_type="human",
-        edge="1",
-        vehs_per_hour=flow_rate * (1 - AV_FRAC),
-        departLane="random",
-        departSpeed=10)
-
-
-    traffic_lights = TrafficLightParams()
-    if not DISABLE_TB:
-        traffic_lights.add(node_id="2")
-    if not DISABLE_RAMP_METER:
-        traffic_lights.add(node_id="3")
-
-    additional_net_params = {"scaling": SCALING, "speed_limit": 23}
+            inflow.add(
+                    veh_type=kwargs['method_name'],
+                    edge=edge,
+                    vehs_per_hour= (rv_penetration)*EDGE_INFLOW/2,
+                    depart_lane="free",
+                    depart_speed=V_ENTER
+                )
+        # 50% here
+        else:
+            inflow.add(
+                veh_type="human",
+                edge=edge,
+                vehs_per_hour=EDGE_INFLOW / 2,
+                departLane="free",
+                departSpeed=V_ENTER
+            )
 
     flow_params = dict(
     # name of the experiment
-    exp_tag= f"bottleneck_2_{kwargs['method_name']}",
+    exp_tag= f"intersection_{kwargs['method_name']}",
 
     # name of the flow environment the experiment is running on
     env_name=classicIntersectionEnv,
 
     # name of the network class the experiment is running on
-    network=BottleneckNetwork,
+    network=IntersectionRLPOEnv,
 
     # simulator that is used by the experiment
     simulator='traci',
@@ -137,14 +155,41 @@ def config_bcm(args, **kwargs):
         warmup_steps=args.warmup, # Bibek: Changed to 100 from 40
         sims_per_step=1,
         horizon=args.horizon,
-        additional_params=additional_env_params,
+        additional_params={
+            "target_velocity": 50,
+            # These are TL specific parameters?
+            "switch_time": 3,
+            "num_observed": 2,
+            "discrete": False,
+            "tl_type": "actuated",
+            "num_rl": 5,
+            
+
+            # More params needed here seems like
+        },
     ),
 
     # network-related parameters (see flow.core.params.NetParams and the
     # network's documentation or ADDITIONAL_NET_PARAMS component)
     net=NetParams(
         inflows=inflow,
-        additional_params=additional_net_params,
+        additional_params={
+            "speed_limit": V_ENTER + 5,
+            "grid_array": {
+                "short_length": SHORT_LENGTH,
+                "inner_length": INNER_LENGTH,
+                "long_length": LONG_LENGTH,
+                "row_num": N_ROWS,
+                "col_num": N_COLUMNS,
+                "cars_left": N_LEFT,
+                "cars_right": N_RIGHT,
+                "cars_top": N_TOP,
+                "cars_bot": N_BOTTOM,
+            },
+            "horizontal_lanes": 1,
+            "vertical_lanes": 1,
+            "traffic_lights": False, #False, # Bibek
+        },
     ),
 
     # vehicles to be placed in the network at the start of a rollout (see
@@ -154,15 +199,9 @@ def config_bcm(args, **kwargs):
     # parameters specifying the positioning of vehicles upon initialization/
     # reset (see flow.core.params.InitialConfig)
     initial=InitialConfig(
-        spacing="uniform",
-        min_gap=5,
-        lanes_distribution=float("inf"),
-        edges_distribution=["2", "3", "4", "5"],
-    ),
-
-    # traffic lights to be introduced to specific nodes (see
-    # flow.core.params.TrafficLightParams)
-    tls=traffic_lights,
+        spacing='custom',
+        shuffle=True,
+        ),
     )
-    
+
     return flow_params 

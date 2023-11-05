@@ -13,8 +13,7 @@ from flow.envs.base import Env
 from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
 from copy import deepcopy
 
-from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
-
+# Check if this is even used anywhere?
 ADDITIONAL_ENV_PARAMS = {
     # maximum acceleration for autonomous vehicles, in m/s^2
     "max_accel": 3,
@@ -105,6 +104,7 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
                             'fs': FollowerStopper,
                             'piws': PISaturation}
 
+        # Probably dont need this
         self.num_controlled_dict = {'bcm': 4,
                                     'lacc': 9,
                                     'idm': 1,
