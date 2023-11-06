@@ -1,0 +1,168 @@
+# desired velocity change for FS is automaically handeled for 220, NOT YET FOR 270
+# PI can have failures, so have to turn ON render and manually check
+# LACC needs a different shock time (for no shock change time at eval)
+
+conda activate flow
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --length 220 --num_rollouts 20 --gen_emission
+
+conda activate flow
+python classic.py --method bcm --length 220 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method piws --length 220 --gen_emission --num_rollouts 20 --render
+
+conda activate flow
+python classic.py --method lacc --length 220 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method idm --length 220 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method fs --length 220 --gen_emission --num_rollouts 20 
+
+----------------------------------------------
+conda activate flow
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --length 220 --num_rollouts 20 --gen_emission --shock
+
+conda activate flow
+python classic.py --method bcm --length 220 --gen_emission --num_rollouts 20 --shock
+
+conda activate flow
+python classic.py --method piws --length 220 --gen_emission --num_rollouts 20 --shock --render
+
+conda activate flow
+python classic.py --method lacc --length 220 --gen_emission --num_rollouts 20 --shock --shock_start_time 11400 --shock_end_time 15000
+
+conda activate flow
+python classic.py --method idm --length 220 --gen_emission --num_rollouts 20 --shock
+
+conda activate flow
+python classic.py --method fs --length 220 --gen_emission --num_rollouts 20 --shock
+
+----------------------------------------------
+----------------------------------------------
+
+conda activate flow
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --length 270 --num_rollouts 20 --gen_emission
+
+conda activate flow
+python classic.py --method bcm --length 270 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method piws --length 270 --gen_emission --num_rollouts 20 --render
+
+conda activate flow
+python classic.py --method lacc --length 270 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method idm --length 270 --gen_emission --num_rollouts 20 
+
+conda activate flow
+python classic.py --method fs --length 270 --gen_emission --num_rollouts 20 
+
+----------------------------------------------
+
+conda activate flow
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --length 270 --num_rollouts 20 --gen_emission --shock
+
+conda activate flow
+python classic.py --method bcm --length 270 --gen_emission --num_rollouts 20 --shock
+
+conda activate flow
+python classic.py --method piws --length 270 --gen_emission --num_rollouts 20 --shock --render
+
+conda activate flow
+python classic.py --method lacc --length 270 --gen_emission --num_rollouts 20 --shock --shock_start_time 11400 --shock_end_time 15000
+
+conda activate flow
+python classic.py --method idm --length 270 --gen_emission --num_rollouts 20 --shock
+
+conda activate flow
+python classic.py --method fs --length 270 --gen_emission --num_rollouts 20 --shock
+
+
+----------------------------------------------
+----------------------------------------------
+
+
+python eval_metrics.py --method bcm --save_plots
+
+python eval_metrics.py --method pi --save_plots
+
+python eval_metrics.py --method fs --save_plots
+
+python eval_metrics.py --method lacc --start_time 11400 --end_time 15000 --save_plots
+
+python eval_metrics.py --method idm --save_plots
+
+python eval_metrics.py --method wu --save_plots
+
+
+----------------------------------------------
+----------------------------------------------
+
+Stability: 
+
+New stability for IDM: 
+python classic.py --method idm --length 220 --gen_emission --stability --shock_start_time 150 --shock_end_time 3710
+
+python classic.py --method fs --stability --length 220 --gen_emission --num_rollouts 20
+
+python classic.py --method piws --stability --length 220 --gen_emission --num_rollouts 20 --render
+
+python classic.py --method bcm --stability --length 220 --gen_emission --num_rollouts 20
+
+python classic.py --method lacc --stability --length 220 --gen_emission --shock_start_time 11400 --shock_end_time 15000 --num_rollouts 20
+
+Green Policy (default):
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --shock --stability --length 220 --gen_emission --num_rollouts 20
+
+----------------------------------------------
+
+New stability for IDM: 
+python classic.py --method idm --length 270 --gen_emission --stability --shock_start_time 150 --shock_end_time 3710
+
+python classic.py --method fs --stability --length 270 --gen_emission --num_rollouts 20
+
+python classic.py --method piws --stability --length 270 --gen_emission --num_rollouts 20
+
+python classic.py --method bcm --stability --length 270 --gen_emission --num_rollouts 20
+
+python classic.py --method lacc --stability --length 270 --gen_emission --shock_start_time 11400 --shock_end_time 15000 --num_rollouts 20
+
+Green Policy (default):
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 --method wu --shock --stability --length 270 --gen_emission --num_rollouts 20 
+
+----------------------------------------------
+----------------------------------------------
+python eval_plots.py --method fs
+
+python eval_plots.py --method bcm
+
+python eval_plots.py --method piws
+
+python eval_plots.py --method wu 
+
+python eval_plots.py --method lacc --start_time 11400 --end_time 15000 --propogate_time 200
+
+
+
+
+----------------------------------------------
+ROUND 3_1
+----------------------------------------------
+
+19K:
+python test_rllib.py ~/Desktop/Ours_Trained_policies/Round_3_1/PPO_DensityAwareRLEnv-v0_0c69044e_2023-02-16_20-09-02_hr77yxn 24 --method ours --length 220 --num_rollouts 2 --gen_emission --shock --render
+
+14K:
+python test_rllib.py ~/Desktop/Ours_Trained_policies/Round_3_1/PPO_DensityAwareRLEnv-v0_1dc8fba4_2023-02-16_20-09-31yhcvxy4c 38 --method ours --length 220 --num_rollouts 2 --gen_emission --shock --render
+
+
+
+conda activate flow 
+python eval_metrics.py --method bcm 
+
+
+Gray Policy (another)
+python test_rllib.py ./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_d499e802_2022-01-26_11-17-25wuhq7vqa 40 --method wu --stability --shock --length 270 --gen_emission --render
