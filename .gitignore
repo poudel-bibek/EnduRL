@@ -93,7 +93,7 @@ ENV/
 
 # Don't add xml/csv/png
 *.xml
-*.csv
+#*.csv
 *.png
 .DS_Store
 
@@ -117,3 +117,19 @@ poudel_car_following/Data
 ./poudel_car_following/Data/*
 poudel_car_following/Data/*
 .ipynb_checkpoints/
+
+ring/test_time_rollout
+bottleneck/test_time_rollout
+intersection/test_time_rollout
+
+./ring/test_time_rollout/*
+./bottleneck/test_time_rollout/*
+./intersection/test_time_rollout/*
+
+ring/rollouts_for_stability_plot
+bottleneck/rollouts_for_stability_plot
+intersection/rollouts_for_stability_plot
+
+./ring/rollouts_for_stability_plot/*
+./bottleneck/rollouts_for_stability_plot/*
+./intersection/rollouts_for_stability_plot/*
