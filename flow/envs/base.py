@@ -190,7 +190,6 @@ class Env(gym.Env, metaclass=ABCMeta):
         self.initial_vehicles = deepcopy(self.k.vehicle)
         self.k.vehicle.kernel_api = self.k.kernel_api
         self.k.vehicle.master_kernel = self.k
-
         self.setup_initial_state()
 
         # use pyglet to render the simulation

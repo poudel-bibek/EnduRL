@@ -3,24 +3,18 @@ Speed limit = 23 + 5 = 28
 """
 import os 
 from flow.envs.classic_intersection import classicIntersectionEnv
-from flow.envs import IntersectionRLPOEnv
 from flow.controllers import GridRouter
-
-#from flow.networks import TrafficLightGridNetwork
-
-#from flow.networks import BottleneckNetwork
+from flow.networks import TrafficLightGridNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
-    InFlows, SumoLaneChangeParams, SumoCarFollowingParams
-from flow.core.params import TrafficLightParams
+    InFlows, SumoCarFollowingParams
 from flow.core.params import VehicleParams
-from flow.controllers import ContinuousRouter
 from flow.controllers.controllers_for_daware import ModifiedIDMController
 
 # inflow rate of vehicles at every edge
-EDGE_INFLOW = 1000 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+EDGE_INFLOW = 1600 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
 
 # enter speed for departing vehicles
-V_ENTER = 30
+V_ENTER = 20 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
 
 # number of row of bidirectional lanes
 N_ROWS = 1 # Default is 3
@@ -31,15 +25,15 @@ N_COLUMNS = 1 # Default is 3
 N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 
 # length of inner edges in the grid network
-INNER_LENGTH = 300
+INNER_LENGTH = 180 # Not relevant here
 
 # length of final edge in route
-LONG_LENGTH = 100 # Default is 100, too short for depart velocity of 30
+LONG_LENGTH = 200 # Default is 100, too short for depart velocity of 30
 
 # length of edges that vehicles start on
-SHORT_LENGTH = 100 # Default is 300, Make 200 for uniformity
+SHORT_LENGTH = 200 # Default is 300, Make 200 for uniformity
 
-rv_penetration = 0.1 
+rv_penetration = 0.2
 
 def config_bcm(args, **kwargs):
 
@@ -57,7 +51,7 @@ def config_bcm(args, **kwargs):
             decel=7.5,  # avoid collisions at emergency stops
             speed_mode="right_of_way",
         ),
-        num_vehicles=2,
+        num_vehicles=0, # Make them zero initially
         color = 'yellow'
         )
     
@@ -84,7 +78,7 @@ def config_bcm(args, **kwargs):
     if args.gen_emission:
         save_path = 'test_time_rollout/bcm_stability' if args.stability else 'test_time_rollout/bcm'
         sim_params = SumoParams(
-            sim_step=0.1, # 0.5 may be a problem for us
+            sim_step=0.1,
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
@@ -92,7 +86,7 @@ def config_bcm(args, **kwargs):
 
     else:
         sim_params = SumoParams(
-            sim_step=0.1, # 0.5 may be a problem for us
+            sim_step=0.1, 
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
@@ -105,31 +99,34 @@ def config_bcm(args, **kwargs):
     outer_edges += ["bot{}_0".format(i) for i in range(N_ROWS)]
     outer_edges += ["top{}_{}".format(i, N_COLUMNS) for i in range(N_ROWS)]
 
+    # We want a decent sized queue to form in East-Westbound direction
     # equal inflows for each edge (as dictate by the EDGE_INFLOW constant)
     inflow = InFlows()
     for edge in outer_edges:
-        # 50% here
+
+        # 75% of the EDGE_INFLOW here (North-South)
         if edge == "left1_0" or edge == "right0_0":
             inflow.add(
                 veh_type="human",
                 edge=edge,
-                vehs_per_hour= (1- rv_penetration)*EDGE_INFLOW/2,
+                vehs_per_hour= (1- rv_penetration)*0.75*EDGE_INFLOW, #RVs are only deployed North-South
                 departLane="free",
                 departSpeed=V_ENTER)
 
             inflow.add(
                     veh_type=kwargs['method_name'],
                     edge=edge,
-                    vehs_per_hour= (rv_penetration)*EDGE_INFLOW/2,
+                    vehs_per_hour= (rv_penetration)*0.75*EDGE_INFLOW, #RVs are only deployed North-South
                     depart_lane="free",
                     depart_speed=V_ENTER
                 )
-        # 50% here
+            
+        # 25% of the EDGE_INFLOW here
         else:
             inflow.add(
                 veh_type="human",
                 edge=edge,
-                vehs_per_hour=EDGE_INFLOW / 2,
+                vehs_per_hour= 0.25*EDGE_INFLOW,
                 departLane="free",
                 departSpeed=V_ENTER
             )
@@ -142,7 +139,7 @@ def config_bcm(args, **kwargs):
     env_name=classicIntersectionEnv,
 
     # name of the network class the experiment is running on
-    network=IntersectionRLPOEnv,
+    network=TrafficLightGridNetwork,
 
     # simulator that is used by the experiment
     simulator='traci',
@@ -156,15 +153,16 @@ def config_bcm(args, **kwargs):
         sims_per_step=1,
         horizon=args.horizon,
         additional_params={
-            "target_velocity": 50,
+            "target_velocity": V_ENTER + 5,
             # These are TL specific parameters?
             "switch_time": 3,
             "num_observed": 2,
             "discrete": False,
             "tl_type": "actuated",
             "num_rl": 5,
-            
-
+            "add_classic_if_exit": True,
+            "shock_params": kwargs['shock_params'],
+            "classic_params": kwargs['classic_parms'] # Hacky way to pass
             # More params needed here seems like
         },
     ),
@@ -196,8 +194,7 @@ def config_bcm(args, **kwargs):
     # flow.core.params.VehicleParams)
     veh=vehicles,
 
-    # parameters specifying the positioning of vehicles upon initialization/
-    # reset (see flow.core.params.InitialConfig)
+    # parameters specifying the positioning of vehicles upon initialization
     initial=InitialConfig(
         spacing='custom',
         shuffle=True,

@@ -5,7 +5,6 @@ BCM, LACC, FS, PI.
 
 import os 
 import numpy as np
-import matplotlib.pyplot as plt
 from gym.spaces.box import Box
 from flow.controllers import BCMController, LACController, IDMController
 from flow.controllers.controllers_for_daware import ModifiedIDMController
@@ -151,6 +150,30 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         """
         This is one central authority for all shocks, since each time step this is called once
         """ 
+        if self.step_counter >= self.warmup_steps:
+            veh_type = self.method_name
+            all_vehicles = self.k.vehicle.get_ids()
+
+            for veh_id in all_vehicles:
+                # If vehicle IDs have _10 in them, they are classic going north, 
+                # If they have _30 in them they are going south
+                if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
+                    #print(f"Found classic vehicle: {veh_id}") 
+                    if isinstance(self.k.vehicle.get_acc_controller(veh_id), ModifiedIDMController):
+                        if 'classic_params' in self.env_params.additional_params:
+                            controller = (self.classic_controller, \
+                                self.env_params.additional_params['classic_params'])
+                        
+                        else:
+                            controller = (self.classic_controller,{})
+                        self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
+
+        # Shock 
+        if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time:
+            if self.stability:
+                self.perform_shock_stability(self.shock_times)
+            else: 
+                self.perform_shock(self.shock_times)
 
         return super().step(rl_actions)
 
