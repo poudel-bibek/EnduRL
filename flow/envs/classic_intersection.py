@@ -135,7 +135,8 @@ class classicIntersectionEnv(IntersectionAccelEnv):
             self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
 
         self.density_collector = []
-
+        self.sample_vehicles = 2 # How many vehicles to shock at a time
+        self.shock_ids = [] 
 
     @property
     def action_space(self):
@@ -155,8 +156,8 @@ class classicIntersectionEnv(IntersectionAccelEnv):
             all_vehicles = self.k.vehicle.get_ids()
 
             for veh_id in all_vehicles:
-                # If vehicle IDs have _10 in them, they are classic going north, 
-                # If they have _30 in them they are going south
+                # If vehicle IDs have _10 in them, they are classic AVs going north, 
+                # If they have _30 in them they are classic AVs going south
                 if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
                     #print(f"Found classic vehicle: {veh_id}") 
                     if isinstance(self.k.vehicle.get_acc_controller(veh_id), ModifiedIDMController):
@@ -168,19 +169,91 @@ class classicIntersectionEnv(IntersectionAccelEnv):
                             controller = (self.classic_controller,{})
                         self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
 
-        # Shock 
-        if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time:
-            if self.stability:
-                self.perform_shock_stability(self.shock_times)
-            else: 
-                self.perform_shock(self.shock_times)
+            # Shock is also only after warmup
+            if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time:
+                if self.stability:
+                    self.perform_shock_stability(self.shock_times)
+                else: 
+                    self.perform_shock(self.shock_times)
 
         return super().step(rl_actions)
 
+    def get_fresh_shock_ids(self, ):
+        north_south_hv_ids = [veh_id for veh_id in self.k.vehicle.get_ids() if 'flow_20.' in  veh_id or 'flow_00.' in  veh_id]
+        current_shockable_vehicles  = []
+
+        for veh_id in north_south_hv_ids: 
+            #print(f"Our id: {veh_id}, Egde: {self.k.vehicle.get_edge(veh_id)}")
+            # These vehicles are already not of the AV controller type. And are already in correct edges. # Due to the 'flow_20.' and 'flow_00.' filter
+            # We want vehicles before they cross the intersection and cause errors. 
+            # If a vehicle is in an outgoing edge `right1_0` or `left0_0` only allowed to shock if position is less than 65
+            if self.k.vehicle.get_edge(veh_id) == 'left0_0' or self.k.vehicle.get_edge(veh_id) == 'right1_0':
+                #print(f"Veh id: {veh_id}, Edge: {self.k.vehicle.get_edge(veh_id)}, Position: {self.k.vehicle.get_position(veh_id)}")
+
+                if self.k.vehicle.get_position(veh_id) < 65:
+                    current_shockable_vehicles.append(veh_id)
+
+            # Else if the vehicle is in an incoming egde `left1_0` or `right0_0` only allowed to shock if position is greater than 135
+            elif self.k.vehicle.get_edge(veh_id) == 'left1_0' or self.k.vehicle.get_edge(veh_id) == 'right0_0':
+                #print(f"Veh id: {veh_id}, Edge: {self.k.vehicle.get_edge(veh_id)}, Position: {self.k.vehicle.get_position(veh_id)}")
+                if self.k.vehicle.get_position(veh_id) > 135:
+                    current_shockable_vehicles.append(veh_id)
+
+            else: 
+                # If a vehicle is in the center, just add it
+                current_shockable_vehicles.append(veh_id)
+
+        # Now randomly select 4 vehicles
+        shock_ids = np.random.choice(current_shockable_vehicles, self.sample_vehicles, replace=False)
+        #print(f"Shockable ids: {current_shockable_vehicles}")
+        #print(f"Shock ids: {shock_ids}")
+        return shock_ids
+    
     def perform_shock(self, shock_times):
         """
+        Human driven vehicles north, southbound perform shock.
+        Can differentiate human driven vehicles from id. flow_20. and flow_00. are human driven vehicles north/ southbound
+        
+        Shock modality: shock XX vehicles at a time
+
         """
-        pass
+
+        # if vehicle IDs have a 'classic_00' in it, then its a classic vehicle
+        if self.step_counter == shock_times[0][0]: # This occurs only once
+            self.shock_ids = self.get_fresh_shock_ids()
+
+        # Get controllers and set shock time to False for selected vehicles (default behavior)
+        controllers = [self.k.vehicle.get_acc_controller(i) for i in self.shock_ids]
+        for controller in controllers:
+            controller.set_shock_time(False)
+
+        # Increment shock counter only after shock for the duration was complete
+        if self.shock_counter < len(self.sm[1]) and self.current_duration_counter >= self.sm[1][self.shock_counter]:
+            self.shock_counter += 1
+
+            # reset 
+            self.current_duration_counter = 0
+            self.shock_ids = self.get_fresh_shock_ids()
+
+        # sm[1] is a list of intensities, sm[2] is a list of durations and sm[3] is frequency
+        # if the shock counter is less than the frequency 
+        if self.shock_counter < self.sm[2]: # '<' because shock counter starts from zero
+            # if the we are in the precomputed shock times 
+            if self.step_counter >= shock_times[self.shock_counter][0] and \
+                self.step_counter <= shock_times[self.shock_counter][1]:
+                print(f"Step = {self.step_counter}, Shock params: {self.sm[0][self.shock_counter], self.sm[1][self.shock_counter], self.sm[2]} applied to vehicle {self.shock_ids}\n")
+                
+                # Set shock time to True for selected vehicles
+                for controller in controllers:
+                    controller.set_shock_accel(self.sm[0][self.shock_counter])
+                    controller.set_shock_time(True)
+
+                # Change color to magenta
+                for i in self.shock_ids:
+                    self.k.vehicle.set_color(i, (255,0,255))
+                
+                self.current_duration_counter += 0.1 # increment current duration counter by one timestep seconds
+
 
     def perform_shock_stability(self, shock_times):
         pass

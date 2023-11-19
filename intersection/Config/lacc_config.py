@@ -1,5 +1,5 @@
 """
-Speed limit = 23 + 5 = 28
+
 """
 import os 
 from flow.envs.classic_intersection import classicIntersectionEnv
@@ -10,11 +10,8 @@ from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
 from flow.core.params import VehicleParams
 from flow.controllers.controllers_for_daware import ModifiedIDMController
 
-# inflow rate of vehicles at every edge
-EDGE_INFLOW = 1600 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
-
 # enter speed for departing vehicles
-V_ENTER = 20 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
+V_ENTER = 12 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
 
 # number of row of bidirectional lanes
 N_ROWS = 1 # Default is 3
@@ -37,6 +34,9 @@ rv_penetration = 0.2
 
 def config_lacc(args, **kwargs):
 
+    # inflow rate of vehicles at every edge
+    EDGE_INFLOW = args.inflow # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+
     vehicles = VehicleParams()
 
     vehicles.add(
@@ -49,7 +49,7 @@ def config_lacc(args, **kwargs):
             min_gap=2.5,
             max_speed=V_ENTER,
             decel=7.5,  # avoid collisions at emergency stops
-            speed_mode="right_of_way",
+            speed_mode="right_of_way", # respect intersection rules
         ),
         num_vehicles=0, # Make them zero initially
         color = 'orange'
