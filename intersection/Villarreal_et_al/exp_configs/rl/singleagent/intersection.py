@@ -38,11 +38,11 @@ SHORT_LENGTH = 200 # Default is 300, Make 200 for uniformity
 N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 
 # number of rollouts per training iteration
-N_ROLLOUTS = 1 # CHANGE
+N_ROLLOUTS = 10 # CHANGE, Default is 10
 # number of parallel workers
-N_CPUS = 1 # CHANGE
+N_CPUS = 8 # CHANGE, Default is is 10
 
-# Our own selection, may not match with previous
+# Same as Villarreal et al.
 rv_penetration = 0.2
 
 # we place a sufficient number of vehicles to ensure they confirm with the
@@ -130,7 +130,7 @@ flow_params = dict(
     sim=SumoParams(
         restart_instance=True,
         sim_step=1,
-        render=True,
+        render=False,
     ),
 
     # environment related parameters (see flow.core.params.EnvParams)
