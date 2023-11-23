@@ -700,6 +700,7 @@ class IntersectionRLPOEnv(TrafficLightGridEnv):
                 speeds, dist_to_intersec, edge_number, density, velocity_avg,
             ]))
 
+        print(f"Shape: {observation.shape}\nObservation: {observation}")
         return observation
 
     def _apply_rl_actions(self, rl_actions):
