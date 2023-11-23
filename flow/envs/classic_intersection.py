@@ -95,7 +95,7 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         
         self.control_dict = {'bcm': BCMController, 
                             'lacc': LACController, 
-                            'idm': IDMController,
+                            'idm': ModifiedIDMController, # For IDM keep it as modified IDM
                             'fs': FollowerStopper,
                             'piws': PISaturation}
         
@@ -137,6 +137,13 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         self.density_collector = []
         self.sample_vehicles = 2 # How many vehicles to shock at a time
         self.shock_ids = [] 
+        
+        # The inflows are set differently for IDM and other types
+        # The HV flow in which controller has to be changed. For IDM all flows are humans so its essentially the same as shockable flow
+        self.controller_type_flow = ['flow_10.', 'flow_00.'] if self.method_name == 'idm' else ['flow_30.', 'flow_10.']
+
+        # The HV flow in which to shock
+        self.shockable_flow = ['flow_10.', 'flow_00.'] if self.method_name == 'idm' else ['flow_20.', 'flow_00.']
 
     @property
     def action_space(self):
@@ -152,13 +159,14 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         This is one central authority for all shocks, since each time step this is called once
         """ 
         if self.step_counter >= self.warmup_steps:
-            veh_type = self.method_name
+            veh_type = "human" if self.method_name =="idm" else self.method_name # Slightly different than others
             all_vehicles = self.k.vehicle.get_ids()
 
             for veh_id in all_vehicles:
                 # If vehicle IDs have _10 in them, they are classic AVs going north, 
                 # If they have _30 in them they are classic AVs going south
-                if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
+                #if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
+                if any(x in veh_id for x in self.controller_type_flow):
                     #print(f"Found classic vehicle: {veh_id}") 
                     if isinstance(self.k.vehicle.get_acc_controller(veh_id), ModifiedIDMController):
                         if 'classic_params' in self.env_params.additional_params:
@@ -179,7 +187,8 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         return super().step(rl_actions)
 
     def get_fresh_shock_ids(self, ):
-        north_south_hv_ids = [veh_id for veh_id in self.k.vehicle.get_ids() if 'flow_20.' in  veh_id or 'flow_00.' in  veh_id]
+        #north_south_hv_ids = [veh_id for veh_id in self.k.vehicle.get_ids() if 'flow_20.' in  veh_id or 'flow_00.' in  veh_id]
+        north_south_hv_ids = [veh_id for veh_id in self.k.vehicle.get_ids() if any(x in veh_id for x in self.shockable_flow)]
         current_shockable_vehicles  = []
 
         for veh_id in north_south_hv_ids: 

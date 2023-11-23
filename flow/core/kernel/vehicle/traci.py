@@ -1270,7 +1270,7 @@ class TraCIVehicle(KernelVehicle):
         """
         #from flow.controllers import BCMController
         print(f"Changing vehicle type for {veh_id} to {veh_type}")
-
+        
         car_following_params = self.type_parameters[veh_type]["car_following_params"]
         #current_controller = self.type_parameters[veh_type]["acceleration_controller"]
 

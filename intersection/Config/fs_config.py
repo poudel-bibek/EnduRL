@@ -52,7 +52,7 @@ def config_fs(args, **kwargs):
             speed_mode="right_of_way", # respect intersection rules
         ),
         num_vehicles=0, # Make them zero initially
-        color = 'orange'
+        color = 'yellow'
         )
     
     # Even this is ModifiedIDMController that changes after warmup
