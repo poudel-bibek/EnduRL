@@ -30,9 +30,11 @@ LONG_LENGTH = 200 # Default is 100, too short for depart velocity of 30
 # length of edges that vehicles start on
 SHORT_LENGTH = 200 # Default is 300, Make 200 for uniformity
 
-rv_penetration = 0.2
+#rv_penetration = 0.2
 
 def config_fs(args, **kwargs):
+
+    rv_penetration = args.av_frac
 
     # inflow rate of vehicles at every edge
     EDGE_INFLOW = args.inflow # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000

@@ -3,6 +3,10 @@ Be able to load a trained policy
 Generate rollout data
 Works for both Villarreal and Ours
 Specific to Intersection scenario
+
+Notes: 
+1. Values 1000 occur on space headway
+2. For RL types, there is training involved, so the inflow vehicles are IDM at training and during test have to be ModifiedIDM
 """
 
 import argparse
@@ -25,6 +29,8 @@ from flow.utils.rllib import get_flow_params
 from flow.utils.rllib import get_rllib_config
 from flow.utils.rllib import get_rllib_pkl
 
+import json 
+from common_args import update_arguments
 
 EXAMPLE_USAGE = """
 example usage:
@@ -60,9 +66,57 @@ def visualizer_rllib(args):
     # Run on only one cpu for rendering purposes
     config['num_workers'] = 0
 
+    # Grab the config and make modifications
+    flow_params_modify = json.loads(config["env_config"]["flow_params"])
+
+    # Veh [0] are humans. Change acceleration controller type
+    flow_params_modify["veh"][0]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
+                                                                                            "shock_vehicle": True}] 
+    
+    flow_params_modify["sim"]["sim_step"] = args.sim_step
+
+    flow_params_modify["env"]["horizon"] = args.horizon
+    flow_params_modify["env"]["warmup_steps"] = args.warmup
+
+    # Set the inflow value 
+    # This is essentially the same scheme as the RL + classic config files
+    # Total inflow should be equal to the args_inflow 
+    # The only way to change inflow is to change the vehicle per hour values
+    # There are a total of 6 inflows, 4 directions for humans + 2 directions for rl
+
+    args_inflow = args.inflow
+    av_frac = args.av_frac
+
+    inflows = flow_params_modify['net']['inflows']['_InFlows__flows']
+    # 0 is left HV, 1 is left RV, 2 is right HV, 3 is right RV, 4 and 5 are east and west HV
+    #print("Inflows", inflows)
+
+    # inflows is a list copy it 
+    new_inflows = inflows.copy()
+
+    # first split the inflow into 2, 25 % on the two sides
+    east_west_inflow = int(0.25*args_inflow)
+    
+    # Now split the remaining inflow
+    rv_per_side = int(av_frac*int(0.75*args_inflow))
+    hv_per_side = int((1-av_frac)*int(0.75*args_inflow))
+    
+    new_inflows[0]['vehsPerHour'] = hv_per_side
+    new_inflows[1]['vehsPerHour'] = rv_per_side
+    new_inflows[2]['vehsPerHour'] = hv_per_side
+    new_inflows[3]['vehsPerHour'] = rv_per_side
+    new_inflows[4]['vehsPerHour'] = east_west_inflow
+    new_inflows[5]['vehsPerHour'] = east_west_inflow
+
+    #print("New inflows", new_inflows)
+    flow_params_modify['net']['inflows']['_InFlows__flows'] = new_inflows
+
+    # Dump the modifications to config
+    config["env_config"]["flow_params"] = json.dumps(flow_params_modify)
+
     flow_params = get_flow_params(config)
 
-    # hack for old pkl files
+    # Hack for old pkl files
     # TODO(ev) remove eventually
     sim_params = flow_params['sim']
     setattr(sim_params, 'num_clients', 1)
@@ -94,26 +148,12 @@ def visualizer_rllib(args):
         sys.exit(1)
 
     sim_params.restart_instance = True
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    emission_path = '{0}/test_time_rollout/'.format(dir_path)
-    sim_params.emission_path = emission_path if args.gen_emission else None
 
-    # pick your rendering mode
-    if args.render_mode == 'sumo_web3d':
-        sim_params.num_clients = 2
-        sim_params.render = False
-    elif args.render_mode == 'drgb':
-        sim_params.render = 'drgb'
-        sim_params.pxpm = 4
-    elif args.render_mode == 'sumo_gui':
-        sim_params.render = False  # will be set to True below
-    elif args.render_mode == 'no_render':
-        sim_params.render = False
-    if args.save_render:
-        if args.render_mode != 'sumo_gui':
-            sim_params.render = 'drgb'
-            sim_params.pxpm = 4
-        sim_params.save_render = True
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    rl_folder_name = f"{args.method}_stability" if args.stability else args.method
+    emission_path = f"{dir_path}/test_time_rollout/{rl_folder_name}" #'{0}/test_time_rollout/'.format(dir_path)
+
+    sim_params.emission_path = emission_path if args.gen_emission else None
 
     # Create and register a gym+rllib env
     create_env, env_name = make_create_env(params=flow_params, version=0)
@@ -153,8 +193,13 @@ def visualizer_rllib(args):
     else:
         env = gym.make(env_name)
 
-    if args.render_mode == 'sumo_gui':
-        env.sim_params.render = True  # set to True after initializing agent and env
+    # if args.render_mode == 'sumo_gui':
+    #     env.sim_params.render = True  # set to True after initializing agent and env
+
+    if args.render: 
+        env.sim_params.render = True
+    else: 
+        env.sim_params.render = False
 
     if multiagent:
         rets = {}
@@ -192,6 +237,11 @@ def visualizer_rllib(args):
     final_inflows = []
     mean_speed = []
     std_speed = []
+
+    # no need warmup offset, its already set to 4400
+    shock_start_time = args.shock_start_time #- args.warmup
+    shock_end_time = args.shock_end_time #- args.warmup
+
     for i in range(args.num_rollouts):
         vel = []
         state = env.reset()
@@ -296,26 +346,8 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-    # if prompted, convert the emission file into a csv file
-    if args.gen_emission:
-        time.sleep(0.1)
-
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        emission_filename = '{0}-emission.xml'.format(env.network.name)
-
-        emission_path = \
-            '{0}/test_time_rollout/{1}'.format(dir_path, emission_filename)
-
-        # convert the emission file into a csv file
-        emission_to_csv(emission_path)
-
-        # print the location of the emission csv file
-        emission_path_csv = emission_path[:-4] + ".csv"
-        print("\nGenerated emission file at " + emission_path_csv)
-
-        # delete the .xml version of the emission file
-        os.remove(emission_path)
-
+def perform_shock(env, ):
+    pass 
 
 def create_parser():
     """Create the parser to capture CLI arguments."""
@@ -339,41 +371,25 @@ def create_parser():
              'or PPO), or a user-defined trainable function or '
              'class registered in the tune registry. '
              'Required for results trained with flow-0.2.0 and before.')
-    parser.add_argument(
-        '--num_rollouts',
-        type=int,
-        default=1,
-        help='The number of rollouts to visualize.')
-    parser.add_argument(
-        '--gen_emission',
-        action='store_true',
-        help='Specifies whether to generate an emission file from the '
-             'simulation')
+
     parser.add_argument(
         '--evaluate',
         action='store_true',
         help='Specifies whether to use the \'evaluate\' reward '
              'for the environment.')
-    parser.add_argument(
-        '--render_mode',
-        type=str,
-        default='sumo_gui',
-        help='Pick the render mode. Options include sumo_web3d, '
-             'rgbd and sumo_gui')
-    parser.add_argument(
-        '--save_render',
-        action='store_true',
-        help='Saves a rendered video to a file. NOTE: Overrides render_mode '
-             'with pyglet rendering.')
-    parser.add_argument(
-        '--horizon',
-        type=int,
-        help='Specifies the horizon.')
+    
+    parser.add_argument('--method',type=str,default=None, help='Method name, can be [villarreal, ours]')
+
     return parser
 
 
 if __name__ == '__main__':
     parser = create_parser()
+    parser = update_arguments(parser)
     args = parser.parse_args()
+
+    if args.method is None:
+        raise ValueError("Method name must be specified")
+
     ray.init(num_cpus=1)
     visualizer_rllib(args)

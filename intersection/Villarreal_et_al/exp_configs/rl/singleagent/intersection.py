@@ -11,11 +11,11 @@ from flow.core.params import VehicleParams
 from flow.controllers import SimCarFollowingController, GridRouter
 
 # time horizon of a single rollout
-HORIZON = 2500 # Default 400 in the paper. The horizon for trainig and test can be separate. At test set it to 3800
+HORIZON = 3600 # Default 400 in the paper. The horizon for trainig and test can be separate. At test set it to 3800
 WARMUP = 400 
 
 # inflow rate of vehicles at every edge
-EDGE_INFLOW = 1000 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+EDGE_INFLOW = 1300 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
 
 # enter speed for departing vehicles
 V_ENTER = 12

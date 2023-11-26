@@ -22,8 +22,8 @@ def update_arguments(parser):
     parser.add_argument('--shock_model', type=int, default= 2)
 
     parser.add_argument('--sim_step', type=float, default=0.1)
-    parser.add_argument('--inflow', type=int, default= 1300) 
-    #parser.add_argument('--av_frac ', type=float, default= 0.2) # Not set here, set in the config files
+    parser.add_argument('--inflow', type=int, default= 1300) # For RL, at training time, the inflow value is not taken from here. See training config file
+    parser.add_argument('--av_frac', type=float, default= 0.2) # Controls AV frac for all except RL at training time
     parser.add_argument('--render', action='store_true', default=False)
     return parser
 
