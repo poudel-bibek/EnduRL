@@ -313,7 +313,8 @@ class EvalMetrics():
 
     def stability(self, ):
         """
-        Only Controller acceleration variation
+        Only Controller acceleration variation here
+        WAR has its own process to measure
         """
         
         cav_mother = [] # across rollouts 

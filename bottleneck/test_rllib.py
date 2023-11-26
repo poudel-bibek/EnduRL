@@ -1,15 +1,8 @@
-"""Visualizer for rllib experiments.
-
-Attributes
-----------
-EXAMPLE_USAGE : str
-    Example call to the function, which is
-    ::
-
-        python ./visualizer_rllib.py /tmp/ray/result_dir 1
-
-parser : ArgumentParser
-    Command-line argument parser
+"""
+Be able to load a trained policy
+Generate rollout data
+Works for both Vinitsky and Ours
+Specific to Bottleneck scenario
 """
 
 import argparse
