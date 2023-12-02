@@ -23,7 +23,7 @@ from copy import deepcopy
 
 # Keys for RL experiments
 ADDITIONAL_RL_ENV_PARAMS = {
-    # velocity to use in reward functions
+    # not used
     "target_velocity": 30,
 
     # if an RL vehicle exits, place it back at the front
@@ -135,7 +135,7 @@ class classicIntersectionEnv(IntersectionAccelEnv):
             self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
 
         self.density_collector = []
-        self.sample_vehicles = 2 # How many vehicles to shock at a time
+        self.sample_vehicles = 4 # How many vehicles to shock at a time
         self.shock_ids = [] 
         
         # The inflows are set differently for IDM and other types
@@ -199,7 +199,7 @@ class classicIntersectionEnv(IntersectionAccelEnv):
             if self.k.vehicle.get_edge(veh_id) == 'left0_0' or self.k.vehicle.get_edge(veh_id) == 'right1_0':
                 #print(f"Veh id: {veh_id}, Edge: {self.k.vehicle.get_edge(veh_id)}, Position: {self.k.vehicle.get_position(veh_id)}")
 
-                if self.k.vehicle.get_position(veh_id) < 65:
+                if self.k.vehicle.get_position(veh_id) < 165:
                     current_shockable_vehicles.append(veh_id)
 
             # Else if the vehicle is in an incoming egde `left1_0` or `right0_0` only allowed to shock if position is greater than 135
@@ -212,7 +212,7 @@ class classicIntersectionEnv(IntersectionAccelEnv):
                 # If a vehicle is in the center, just add it
                 current_shockable_vehicles.append(veh_id)
 
-        # Now randomly select 4 vehicles
+        # Now randomly select sample_vehicle number vehicles
         shock_ids = np.random.choice(current_shockable_vehicles, self.sample_vehicles, replace=False)
         #print(f"Shockable ids: {current_shockable_vehicles}")
         #print(f"Shock ids: {shock_ids}")

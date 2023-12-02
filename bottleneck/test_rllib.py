@@ -28,7 +28,6 @@ from flow.utils.rllib import get_rllib_pkl
 import json 
 from common_args import update_arguments
 from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
-import random 
 
 EXAMPLE_USAGE = """
 example usage:
@@ -213,6 +212,7 @@ def visualizer_rllib(args):
         else:
             ret = 0
 
+        # shock related
         shock_counter = 0
         current_duration_counter = 0
 
@@ -348,7 +348,8 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-def perform_shock(env, shock_times, 
+def perform_shock(env, 
+                  shock_times, 
                   step, 
                   warmup, 
                   shock_counter, 

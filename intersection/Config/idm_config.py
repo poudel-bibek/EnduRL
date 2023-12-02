@@ -11,7 +11,7 @@ from flow.core.params import VehicleParams
 from flow.controllers.controllers_for_daware import ModifiedIDMController
 
 # enter speed for departing vehicles
-V_ENTER = 12 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
+V_ENTER = 6 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
 
 # number of row of bidirectional lanes
 N_ROWS = 1 # Default is 3
@@ -25,10 +25,10 @@ N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 INNER_LENGTH = 180 # Not relevant here
 
 # length of final edge in route
-LONG_LENGTH = 200 # Default is 100, too short for depart velocity of 30
+LONG_LENGTH = 350 # Default is 100, too short for depart velocity of 30
 
 # length of edges that vehicles start on
-SHORT_LENGTH = 200 # Default is 300, Make 200 for uniformity
+SHORT_LENGTH = 350 # Default is 300, Make 200 for uniformity
 
 # rv_penetration = 0.2 # Does not apply here 
 

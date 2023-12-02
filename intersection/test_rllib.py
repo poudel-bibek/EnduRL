@@ -31,6 +31,7 @@ from flow.utils.rllib import get_rllib_pkl
 
 import json 
 from common_args import update_arguments
+from flow.density_aware_util import get_shock_model, get_time_steps
 
 EXAMPLE_USAGE = """
 example usage:
@@ -40,7 +41,39 @@ Here the arguments are:
 1 - the path to the simulation results
 2 - the number of the checkpoint
 """
+def get_fresh_shock_ids(env, ):
 
+    # only certain vehicle flows contain shockable (human) vehicles
+    shockable_flow = ['flow_20.', 'flow_00.']
+    sample_vehicles = 4 # How many vehicles to shock at a time
+    current_shockable_vehicles  = []
+
+    # human vehicles to shock have to be identified by which edge they are on and their position.
+    all_ids = env.k.vehicle.get_ids()
+    north_south_hv_ids = [veh_id for veh_id in all_ids if any(x in veh_id for x in shockable_flow)]
+    
+    for vid in north_south_hv_ids:
+        edge = env.k.vehicle.get_edge(vid)
+        pos = env.k.vehicle.get_position(vid)
+
+        # If a vehicle is in an outgoing edge `right1_0` or `left0_0` only allowed to shock if position is less than 65
+        if edge == "left0_0" or edge == "right1_0":
+            if pos < 165:
+                current_shockable_vehicles.append(vid)
+
+        # Else if the vehicle is in an incoming egde `left1_0` or `right0_0` only allowed to shock if position is greater than 135
+        elif edge == "left1_0" or edge == "right0_0":
+            if pos > 135:
+                current_shockable_vehicles.append(vid)
+        else: 
+            # If a vehicle is in the center, just add it
+            current_shockable_vehicles.append(vid)
+    
+    # Now randomly select sample_vehicles number of  vehicles
+    shock_ids = np.random.choice(current_shockable_vehicles, sample_vehicles, replace=False)
+    #print("Shocking vehicles", shock_ids)
+
+    return shock_ids
 
 def visualizer_rllib(args):
     """Visualizer for RLlib experiments.
@@ -249,10 +282,37 @@ def visualizer_rllib(args):
             ret = {key: [0] for key in rets.keys()}
         else:
             ret = 0
-        for _ in range(env_params.horizon):
+
+        # shock related. Reset to zero for each rollout.
+        shock_counter = 0
+        current_duration_counter = 0
+
+        shock_model_id = -1 if args.stability else args.shock_model
+        if args.stability:
+            pass 
+        else:
+            intensities, durations, frequency =  get_shock_model(shock_model_id, network_scaler=3, bidirectional=False, high_speed=False)
+        # Uniquely sampled for each rollout 
+        shock_times = get_time_steps(durations, frequency, shock_start_time, shock_end_time)
+
+        for step in range(env_params.horizon):
             vehicles = env.unwrapped.k.vehicle
             speeds = vehicles.get_speed(vehicles.get_ids())
-
+            
+            # shock related
+            if args.shock and step >= shock_start_time and step <= shock_end_time:
+                if step == shock_times[0][0]: # This occurs only once
+                    shock_ids = get_fresh_shock_ids(env)
+ 
+                shock_counter, current_duration_counter, shock_ids = perform_shock(env, 
+                                                                                   shock_times, 
+                                                                                   step, 
+                                                                                   shock_counter, 
+                                                                                   current_duration_counter, 
+                                                                                   intensities, durations, 
+                                                                                   frequency, 
+                                                                                   shock_ids)
+                              
             # only include non-empty speeds
             if speeds:
                 vel.append(np.mean(speeds))
@@ -346,8 +406,46 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-def perform_shock(env, ):
-    pass 
+def perform_shock(env, 
+                shock_times, 
+                step, 
+                shock_counter, 
+                current_duration_counter, 
+                intensities, durations, 
+                frequency, 
+                shock_ids):
+    """
+    
+    """
+
+    controllers = [env.unwrapped.k.vehicle.get_acc_controller(i) for i in shock_ids]
+    for controller in controllers:
+        controller.set_shock_time(False)
+
+    # len(durations) is the number of shocks.
+    if shock_counter < len(durations) and current_duration_counter >= durations[shock_counter]:
+        # reset the setup
+        shock_counter += 1
+        current_duration_counter = 0
+        shock_ids = get_fresh_shock_ids(env)
+
+    # Only apply shocks for a set number of times
+    if shock_counter < frequency: # '<' because shock counter starts from zero
+        if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
+            print(f"Step = {step}, Shock params: {intensities[shock_counter], durations[shock_counter], frequency} applied to vehicle {shock_ids}\n")
+
+            for controller in controllers:
+                controller.set_shock_accel(intensities[shock_counter])
+                controller.set_shock_time(True)
+
+            # Change color to magenta
+            for i in shock_ids:
+                env.unwrapped.k.vehicle.set_color(i, (255,0,255))
+
+            current_duration_counter += 0.1 # increment current duration counter by one timestep seconds
+
+    return shock_counter, current_duration_counter, shock_ids
+ 
 
 def create_parser():
     """Create the parser to capture CLI arguments."""

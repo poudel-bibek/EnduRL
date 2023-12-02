@@ -15,10 +15,10 @@ HORIZON = 3600 # Default 400 in the paper. The horizon for trainig and test can 
 WARMUP = 400 
 
 # inflow rate of vehicles at every edge
-EDGE_INFLOW = 1300 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+EDGE_INFLOW = 1400 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
 
 # enter speed for departing vehicles
-V_ENTER = 12
+V_ENTER = 6
 
 # number of row of bidirectional lanes
 N_ROWS = 1 # Default is 3
@@ -29,10 +29,10 @@ N_COLUMNS = 1 # Default is 3
 INNER_LENGTH = 180
 
 # length of final edge in route
-LONG_LENGTH = 200 # Default is 100, too short for depart velocity of 30
+LONG_LENGTH = 350 # Default is 100, too short for depart velocity of 30
 
 # length of edges that vehicles start on
-SHORT_LENGTH = 200 # Default is 300, Make 200 for uniformity
+SHORT_LENGTH = 350 # Default is 300, Make 200 for uniformity
 
 # number of vehicles originating in the left, right, top, and bottom edges
 N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
