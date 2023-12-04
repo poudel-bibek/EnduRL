@@ -16,6 +16,10 @@ def update_arguments(parser):
 
     parser.add_argument('--gen_emission', action='store_true', default=False)
 
+    # args.long_length
+    parser.add_argument('--long_length', type=int, default=350) # How long the road segments are # Specific to intersection
+    parser.add_argument('--short_length', type=int, default=350)
+
     parser.add_argument('--shock', action='store_true', default=False)
     parser.add_argument('--shock_start_time', type=int, default= 800) 
     parser.add_argument('--shock_end_time', type=int, default= 4400) 

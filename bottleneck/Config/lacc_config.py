@@ -31,7 +31,7 @@ def config_lacc(args, **kwargs):
             lane_change_mode=0,
         ),
         num_vehicles=1 * SCALING,
-        color = 'orange') 
+        color = 'orange') # 
 
     vehicles.add(
         veh_id="human",

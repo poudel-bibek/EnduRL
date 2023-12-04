@@ -14,9 +14,9 @@ conda env create -f environment.yml
 conda activate flow
 python setup.py develop
 pip install -U pip setuptools
-pip install -r requirements_working.txt
+pip install -r requirements.txt
 ```
-Note: the requirements in this repo have redis version removed.
+
 ### Part 1: Training
 ```
 python train.py --exp_config singleagent_ring

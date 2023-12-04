@@ -54,7 +54,7 @@ def config_lacc(args, **kwargs):
             speed_mode="right_of_way", # respect intersection rules
         ),
         num_vehicles=0, # Make them zero initially
-        color = 'orange'
+        color = 'orange' # orange
         )
     
     # Even this is ModifiedIDMController that changes after warmup

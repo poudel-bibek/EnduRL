@@ -120,7 +120,7 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         if self.stability:
             self.sm = get_shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"]) # This length is irrelevant here
         else: 
-            self.sm = get_shock_model(self.shock_params['shock_model'], network_scaler=3, bidirectional=False, high_speed=False) 
+            self.sm = get_shock_model(self.shock_params['shock_model'], network_scaler=3, bidirectional=False, high_speed=False) # high_speed = True for intersection
         
          # count how many times, shock has been applies
         self.shock_counter = 0
@@ -159,23 +159,28 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         This is one central authority for all shocks, since each time step this is called once
         """ 
         if self.step_counter >= self.warmup_steps:
-            veh_type = "human" if self.method_name =="idm" else self.method_name # Slightly different than others
-            all_vehicles = self.k.vehicle.get_ids()
+            
+            if self.method_name!= "idm": # Dont need to do this for IDM. All IDM types are already ModifiedIDMController types
+                #veh_type = "human" if self.method_name =="idm" else self.method_name # Slightly different than others
+                veh_type = self.method_name
+                all_vehicles = self.k.vehicle.get_ids()
 
-            for veh_id in all_vehicles:
-                # If vehicle IDs have _10 in them, they are classic AVs going north, 
-                # If they have _30 in them they are classic AVs going south
-                #if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
-                if any(x in veh_id for x in self.controller_type_flow):
-                    #print(f"Found classic vehicle: {veh_id}") 
-                    if isinstance(self.k.vehicle.get_acc_controller(veh_id), ModifiedIDMController):
-                        if 'classic_params' in self.env_params.additional_params:
-                            controller = (self.classic_controller, \
-                                self.env_params.additional_params['classic_params'])
-                        
-                        else:
-                            controller = (self.classic_controller,{})
-                        self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
+                for veh_id in all_vehicles:
+                    # If vehicle IDs have _10 in them, they are classic AVs going north, 
+                    # If they have _30 in them they are classic AVs going south
+                    #if 'flow_30.' in  veh_id or 'flow_10.' in  veh_id:
+                    if any(x in veh_id for x in self.controller_type_flow):
+                        #print(f"Found classic vehicle: {veh_id}") 
+
+                        # This basically converts ModifiedIDMController types from shockable_flow to another type 
+                        if isinstance(self.k.vehicle.get_acc_controller(veh_id), ModifiedIDMController):
+                            if 'classic_params' in self.env_params.additional_params:
+                                controller = (self.classic_controller, \
+                                    self.env_params.additional_params['classic_params'])
+                            
+                            else:
+                                controller = (self.classic_controller,{})
+                            self.k.vehicle.set_vehicle_type(veh_id, veh_type, controller)
 
             # Shock is also only after warmup
             if self.shock and self.step_counter >= self.shock_start_time and self.step_counter <= self.shock_end_time:

@@ -118,7 +118,7 @@ class TraCISimulation(KernelSimulation):
                 # Add the speed, position, and lane data.
                 self.stored_data[veh_id][t].update({
                     "speed": kv.get_speed(veh_id),
-                    #"lane_number": kv.get_lane(veh_id),
+                    "edge": kv.get_edge(veh_id),
                     #"edge_id": kv.get_edge(veh_id),
                     #"relative_position": kv.get_position(veh_id),
                     "x": kv.get_x_by_id(veh_id), # position[0], # For a single lane, we want position in 1D not 2D
@@ -303,7 +303,7 @@ class TraCISimulation(KernelSimulation):
         # Bibek: Need to change here as well
         stored_ids = [
             "x",
-            #"y",
+            "edge",
             "speed",
             "space_headway",
             "leader_id",

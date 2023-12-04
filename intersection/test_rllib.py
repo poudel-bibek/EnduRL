@@ -71,7 +71,7 @@ def get_fresh_shock_ids(env, ):
     
     # Now randomly select sample_vehicles number of  vehicles
     shock_ids = np.random.choice(current_shockable_vehicles, sample_vehicles, replace=False)
-    #print("Shocking vehicles", shock_ids)
+    print("Shocking vehicles", shock_ids)
 
     return shock_ids
 
@@ -111,6 +111,8 @@ def visualizer_rllib(args):
     flow_params_modify["env"]["horizon"] = args.horizon
     flow_params_modify["env"]["warmup_steps"] = args.warmup
 
+    flow_params_modify["net"]["long_length"] = args.long_length
+    flow_params_modify["net"]["short_length"] = args.short_length
     # Set the inflow value 
     # This is essentially the same scheme as the RL + classic config files
     # Total inflow should be equal to the args_inflow 

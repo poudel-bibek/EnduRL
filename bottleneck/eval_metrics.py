@@ -179,8 +179,7 @@ class EvalMetrics():
     def safety(self, ):
         """
         Time to Collision and Deceleration rate to avoid a crash
-        For both, worst case taken
-        Also for both, only control vehicles considered
+        For both, worst case taken. Also for both, only control vehicles considered
         """
 
         ttc_mother = []
