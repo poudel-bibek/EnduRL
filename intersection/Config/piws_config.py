@@ -10,9 +10,6 @@ from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
 from flow.core.params import VehicleParams
 from flow.controllers.controllers_for_daware import ModifiedIDMController
 
-# enter speed for departing vehicles
-V_ENTER = 6 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
-
 # number of row of bidirectional lanes
 N_ROWS = 1 # Default is 3
 # number of columns of bidirectional lanes
@@ -34,6 +31,9 @@ SHORT_LENGTH = 350 # Default is 300, Make 200 for uniformity
 
 def config_piws(args, **kwargs):
 
+    # enter speed for departing vehicles
+    V_ENTER = 5 if args.stability else 8 # Previously 30. This is m/s. 20 m/s = 44 mph, 72 km/hr
+    
     rv_penetration = args.av_frac
     
     # inflow rate of vehicles at every edge

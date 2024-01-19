@@ -583,7 +583,7 @@ class TrafficLightGridEnv(Env):
 class IntersectionRLPOEnv(TrafficLightGridEnv):
     """
     Used to train RL agents in an unsignalized intersection.
-
+    Used by Villarreal et al.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):

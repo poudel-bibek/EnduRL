@@ -118,10 +118,11 @@ class classicIntersectionEnv(IntersectionAccelEnv):
         
         # what model to use for the shock (intensity, duration, frequency)
         if self.stability:
-            self.sm = get_shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"]) # This length is irrelevant here
+            #self.sm = get_shock_model(-1, length=220) 
+            self.sm = (np.asarray([3]), np.asarray([1]), 1) # 1 second means 10 timesteps
         else: 
             self.sm = get_shock_model(self.shock_params['shock_model'], network_scaler=3, bidirectional=False, high_speed=False) # high_speed = True for intersection
-        
+            #print(f"Shock model: {self.sm}")
          # count how many times, shock has been applies
         self.shock_counter = 0
 
@@ -270,7 +271,47 @@ class classicIntersectionEnv(IntersectionAccelEnv):
 
 
     def perform_shock_stability(self, shock_times):
-        pass
+        """
+        Just check the steps and shock the first one after initial population
+        This is only called when the shock time starts anyway.
+        """
+
+        # if the vehicle id is flow_10.1 then shock it i.e., have its leader perform a velocity perturbation
+        # Leader is flow_00.4 and follower is flow_00.5
+        if self.step_counter == shock_times[0][0]: # This occurs only once
+            self.shock_ids = ['flow_00.4']
+
+        # Get controllers and set shock time to False for selected vehicles (default behavior)
+        controllers = [self.k.vehicle.get_acc_controller(i) for i in self.shock_ids]
+        for controller in controllers:
+            controller.set_shock_time(False)
+
+        # Increment shock counter only after shock for the duration was complete
+        if self.shock_counter < len(self.sm[1]) and self.current_duration_counter >= self.sm[1][self.shock_counter]:
+            self.shock_counter += 1
+
+            # reset
+            # Some things missing here because we only apply shocks once 
+            self.k.vehicle.set_max_speed(self.shock_ids[0], 8) #V_enter
+            
+        if self.shock_counter < self.sm[2]: # '<' because shock counter starts from zero
+            # if the we are in the precomputed shock times 
+            if self.step_counter >= shock_times[self.shock_counter][0] and \
+                self.step_counter <= shock_times[self.shock_counter][1]:
+
+                print(f"Step = {self.step_counter}, Shock params: {self.sm[0][self.shock_counter], self.sm[1][self.shock_counter], self.sm[2]} applied to vehicle {self.shock_ids}\n")
+                
+                # Set shock time to True for selected vehicles
+                for controller in controllers:
+                    # The stability shock is a velocity perturbation
+                    self.k.vehicle.set_max_speed(self.shock_ids[0], self.sm[0][0])
+                    controller.set_shock_time(True)
+
+                # Change color to magenta
+                for i in self.shock_ids:
+                    self.k.vehicle.set_color(i, (255,0,255))
+                
+                self.current_duration_counter += 0.1 # increment current duration counter by one timestep seconds
 
 
     def additional_command(self):

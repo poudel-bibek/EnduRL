@@ -43,7 +43,7 @@ Here the arguments are:
 """
 def get_fresh_shock_ids(env, ):
 
-    # only certain vehicle flows contain shockable (human) vehicles
+    # only certain vehicle flows contain shockable (human) vehicles≠
     shockable_flow = ['flow_20.', 'flow_00.']
     sample_vehicles = 4 # How many vehicles to shock at a time
     current_shockable_vehicles  = []
@@ -110,6 +110,19 @@ def visualizer_rllib(args):
 
     flow_params_modify["env"]["horizon"] = args.horizon
     flow_params_modify["env"]["warmup_steps"] = args.warmup
+
+    # when VENTER is changed, many things will have to change.
+    # change all depart speeds
+    # Change all depart speeds
+    for inflow in flow_params_modify["net"]["inflows"]["_InFlows__flows"]:
+        inflow["departSpeed"] = args.venter
+
+    for vehicle in flow_params_modify["veh"]:
+        vehicle['car_following_params']['controller_params']['maxSpeed'] = args.venter
+
+    flow_params_modify["env"]["additional_params"]["target_velocity"] = args.venter + 5 # venter + 5
+    # similarly in net there is a limit to velocity
+    flow_params_modify["net"]["additional_params"]["speed_limit"] = args.venter + 5
 
     flow_params_modify["net"]["long_length"] = args.long_length
     flow_params_modify["net"]["short_length"] = args.short_length
@@ -291,7 +304,9 @@ def visualizer_rllib(args):
 
         shock_model_id = -1 if args.stability else args.shock_model
         if args.stability:
-            pass 
+            # A standard velocity perturbation of 2 m/s is applied for 10 timesteps  
+            # intensities, durations, frequency = get_shock_model(-1, length=220) 
+            intensities, durations, frequency = (np.asarray([3]), np.asarray([1]), 1) # 1 second means 10 timesteps 
         else:
             intensities, durations, frequency =  get_shock_model(shock_model_id, network_scaler=3, bidirectional=False, high_speed=False)
         # Uniquely sampled for each rollout 
@@ -302,18 +317,29 @@ def visualizer_rllib(args):
             speeds = vehicles.get_speed(vehicles.get_ids())
             
             # shock related
+            # if stability or else regular shock
             if args.shock and step >= shock_start_time and step <= shock_end_time:
+
                 if step == shock_times[0][0]: # This occurs only once
                     shock_ids = get_fresh_shock_ids(env)
- 
-                shock_counter, current_duration_counter, shock_ids = perform_shock(env, 
-                                                                                   shock_times, 
-                                                                                   step, 
-                                                                                   shock_counter, 
-                                                                                   current_duration_counter, 
-                                                                                   intensities, durations, 
-                                                                                   frequency, 
-                                                                                   shock_ids)
+
+                if args.stability:
+                    shock_counter, current_duration_counter, shock_ids  = perform_shock_stability(env,
+                                                                                                shock_times,
+                                                                                                step,
+                                                                                                shock_counter, 
+                                                                                                current_duration_counter,
+                                                                                                intensities, durations,
+                                                                                                frequency)
+                else:
+                    shock_counter, current_duration_counter, shock_ids = perform_shock(env, 
+                                                                                    shock_times, 
+                                                                                    step, 
+                                                                                    shock_counter, 
+                                                                                    current_duration_counter, 
+                                                                                    intensities, durations, 
+                                                                                    frequency, 
+                                                                                        shock_ids)
                               
             # only include non-empty speeds
             if speeds:
@@ -407,6 +433,53 @@ def visualizer_rllib(args):
 
     # terminate the environment
     env.unwrapped.terminate()
+
+def perform_shock_stability(env,
+                            shock_times,
+                            step,
+                            shock_counter, 
+                            current_duration_counter,
+                            intensities, durations,
+                            frequency):
+    """
+    Just check the steps and shock the first one after initial population
+    flow_10.1 is the controller RL
+    flow_00.4 is the shocker vehicle
+    flow_00.5 is the follower HV
+
+    # Intensity if the velocity intensity
+    """
+    
+    shock_ids = ['flow_00.4']
+    controllers = [env.unwrapped.k.vehicle.get_acc_controller(i) for i in shock_ids]
+    for controller in controllers:
+        controller.set_shock_time(False)
+
+    # len(durations) is the number of shocks.
+    if shock_counter < len(durations) and current_duration_counter >= durations[shock_counter]:
+        # reset the setup
+        shock_counter += 1
+        current_duration_counter = 0
+        env.unwrapped.k.vehicle.set_max_speed(shock_ids[0], 8.0) # V enter is 8
+        #No need to get fresh shock IDS
+
+    # Only apply shocks for a set number of times
+    if shock_counter < frequency: # '<' because shock counter starts from zero
+        if step >= shock_times[0][0] and step <= shock_times[0][1]:
+            print(f"Step = {step}, Shock params: {intensities[0], durations[0], frequency} applied to vehicle {shock_ids}\n")
+
+            for controller in controllers:
+                env.k.vehicle.set_max_speed(shock_ids[0], intensities[0])
+                controller.set_shock_time(True)
+
+            # Change color to magenta
+            for i in shock_ids:
+                env.unwrapped.k.vehicle.set_color(i, (255,0,255))
+
+            current_duration_counter += 0.1
+
+    # Do I need to return, yes for the counter to work
+    return shock_counter, current_duration_counter, shock_ids 
 
 def perform_shock(env, 
                 shock_times, 

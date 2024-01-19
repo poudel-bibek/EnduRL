@@ -28,14 +28,18 @@ class EvalMetrics():
         
         # Some metrics also require inclusion lists.
         # If classic but not idm them flow_30 and flow_10 is in list
-        if self.args.method in ['fs', 'piws', 'bcm', 'lacc']:
+        if self.args.method in ['fs', 'piws', 'bcm', 'lacc', 'villarreal']:
             self.inclusion_list = ['flow_30', 'flow_10'] # Control vehicle flow to include in ttc and drac
 
         elif self.args.method in ['idm']:
             # Define for idm. Everything? We still look at flow in the North South direction
             self.inclusion_list = ['flow_00', 'flow_10']
 
-    def efficiency(self, flag = 0):
+        # else: # villarreal, ours # The flow ids of vehicles that are controlled.
+        #     self.inclusion_list = ['flow_00', 'flow_10', 'flow_20', 'flow_30']
+
+
+    def efficiency(self, flag = 1):
         """
         Throughput and Fuel consumption
 
@@ -107,7 +111,7 @@ class EvalMetrics():
                         #print(f"distance: {0.000621371*(distances_travelled[-1] - - distance_vehicle[0])}")
 
                 #print("\n")
-            fuel_total = np.asarray(fuel_total)
+            fuel_total = np.asarray(fuel_total, dtype=object)
             fuel_total_sum = np.asarray([np.sum(x) for x in fuel_total])
             
             vmt = np.asarray(distances_travelled) * 0.000621371 # Meters to miles
@@ -234,16 +238,35 @@ class EvalMetrics():
                     
                     # print(f"rel_speeds: {new_rel_speeds.shape}")
                     # print(f"rel_positions: {rel_positions.shape}")
-
+                    
+                    # New rel speed less than zero means, follower speed is less than leader speed and crash is NOT possible 
+                    # Hence the > sign 
                     # 1000.0 # arbitrarily large number
-                    ttc = np.array([ np.abs(rel_positions[i]/ new_rel_speeds[i]) if new_rel_speeds[i] < 0.0 else 1000.0 for i in range(len(new_rel_speeds))])
+                    ttc = np.array([ np.abs(rel_positions[i]/ new_rel_speeds[i]) if new_rel_speeds[i] > 0.0 else 1000.0 for i in range(len(new_rel_speeds))])
                     # print(f"ttc: {ttc.shape}")
                     # print(f"ttc: {ttc}")
                     ttcs.extend(ttc) # For all vehicles collect first
 
                     # default small value 0.0
-                    drac = np.array([ np.square(new_rel_speeds[i]) / rel_positions[i] if new_rel_speeds[i] < 0.0 else 0.0 for i in range(len(new_rel_speeds))])
+                    drac = np.array([ np.square(new_rel_speeds[i]) / rel_positions[i] if new_rel_speeds[i] > 0.0 else 0.0 for i in range(len(new_rel_speeds))])
+
+                    # print vehicle id and drac if it is higher than 20 
+                    # if np.max(drac) > 20.0:
+                    #     print(f"veh_id: {veh_id}")
+                    #     print(f"drac: {np.max(drac)}")
+                    
+                    #     # At what timesteps is the drac higher than 20 and what are the other conditions
+                    #     print(f" timestep where drac is higher than 20: {veh_time[drac > 20.0]}")
+                    #     print(f" speeds at those timesteps: {veh_speed[drac > 20.0]}")
+                    #     print(f" leader speeds at those timesteps: {leader_speed[drac > 20.0]}")
+                    #     print(f" rel_speeds at those timesteps: {new_rel_speeds[drac > 20.0]}")
+                    #     print(f" rel_positions at those timesteps: {rel_positions[drac > 20.0]}")
+                    #     print(f" ttc at those timesteps: {ttc[drac > 20.0]}")
+                    #     print(f" drac at those timesteps: {drac[drac > 20.0]}")
+                       
+                   
                     dracs.extend(drac)
+            
 
             # Every file has one worst ttc and drac
             # worst ttcs and worst dracs
@@ -313,7 +336,7 @@ if __name__ == '__main__':
     metrics = EvalMetrics(args, **kwargs)
     print(f"Calculating metrics for {args.num_rollouts} rollouts on files: \n{files}\n")
 
-    mpgs, throughputs = metrics.efficiency(flag = 0)
+    mpgs, throughputs = metrics.efficiency(flag = 1)
     ttcs, dracs = metrics.safety()
     cavs = metrics.stability()
 
