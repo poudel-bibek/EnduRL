@@ -1461,6 +1461,68 @@ class TraCIVehicle(KernelVehicle):
             return veh_list[0]
     
         
+    # Stuff for intersection
+    def get_veh_list_local_zone_intersection(self, veh_id, distance):
+        """
+        get leader and distance, until distance exceeds the distance
+        sorting: According to how TSE accepts input? 
+
+        """
+        # current vehicles lane
+        #lane = str(self.get_edge(veh_id)) + '_' + str(self.get_lane(veh_id))
+
+        # Vehicles that are ahead may not always be in the same edge.
+        # Since get_x_by_id can be unreliable, use get_distance instead.
+        all_ids = list(self.kernel_api.vehicle.getIDList())
+        #print(f"\nRL ID: {veh_id}, Distance travelled: {self.get_distance(veh_id)}, type = {type(self.get_distance(veh_id))}")
+
+        # Remove the current RL ID from the list
+        # all_ids.remove(veh_id) # Even not removing it, works because of veh_distance > 0
+
+        # Depending on which edge the current vehicle id is, we have 2 cases
+        edge = self.get_edge(veh_id)
+        veh_distance = self.get_distance(veh_id) # distance travelled by the current vehicle
+        
+        distances = {}
+        # If the edge is left0_0 or left1_0
+        if edge == 'left0_0' or edge == 'left1_0' or edge == ':center0_0':
+            # Then we only need to look at vehicles in these edges
+            veh_list = [item for item in all_ids if self.get_edge(item) == 'left0_0' or self.get_edge(item) == 'left1_0' or self.get_edge(item) == ':center0_0']
+            # get the total distance travelled of this vehicle
+            for item in veh_list:
+                distances[item] = self.get_distance(item)
+
+            # Just select the vehicles for which distance travelled - veh_distance <= distance
+            selected_veh_list = [item for item in veh_list if (distances[item] - veh_distance <= distance) and (distances[item] - veh_distance > 0)]
+            # sort according to distance travelled
+            sorted_veh_list = sorted(selected_veh_list, key=lambda x: distances[x])
+        
+        elif edge == 'right0_0' or edge == 'right1_0' or edge == ':center0_2':
+            # Then we only need to look at vehicles in these edges
+            veh_list = [item for item in all_ids if self.get_edge(item) == 'right0_0' or self.get_edge(item) == 'right1_0' or self.get_edge(item) == ':center0_2']
+            
+            # get the total distance travelled of this vehicle
+            for item in veh_list:
+                distances[item] = self.get_distance(item)
+
+            # Just select the vehicles for which distance travelled - veh_distance <= distance
+            selected_veh_list = [item for item in veh_list if (distances[item] - veh_distance <= distance) and (distances[item] - veh_distance > 0)]
+
+            # sort according to distance travelled
+            sorted_veh_list = sorted(selected_veh_list, key=lambda x: distances[x])
+
+        else:
+            # We end up here if the vehicle has exited the network. But this function is still getting called. 
+            print(f"Edge not recognized: {edge}")
+            raise ValueError("Edge not recognized")   
+
+        # Sorted in the order, RL + everyone in front starting from the closest
+        sorted_veh_list.insert(0, veh_id)
+        #print(f"RL ID: {veh_id}, After Sorting: {sorted_veh_list}")
+
+        return sorted_veh_list
+
+
 
 
         #print(f"RL ID: {veh_id}, Return Vehicle List: {return_veh_list}")

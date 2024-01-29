@@ -3,7 +3,7 @@ Benchmark paper is controlling the traffic lights, and does not have RVs
 
 """
 
-from flow.envs import IntersectionRLPOEnv
+from flow.envs import DensityAwareIntersectionEnv
 from flow.networks import TrafficLightGridNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
     InFlows, SumoCarFollowingParams, RLController
@@ -40,7 +40,7 @@ N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 # number of rollouts per training iteration
 N_ROLLOUTS = 10 # CHANGE, Default is 10
 # number of parallel workers
-N_CPUS = 8 # CHANGE, Default is is 10
+N_CPUS = 1 # 8 # CHANGE, Default is is 10
 
 # Same as Villarreal et al.
 rv_penetration = 0.2
@@ -118,7 +118,7 @@ flow_params = dict(
     exp_tag="intersection",
 
     # name of the flow environment the experiment is running on
-    env_name=IntersectionRLPOEnv,
+    env_name=DensityAwareIntersectionEnv,
 
     # name of the network class the experiment is running on
     network=TrafficLightGridNetwork,
@@ -130,7 +130,7 @@ flow_params = dict(
     sim=SumoParams(
         restart_instance=True,
         sim_step=1,
-        render=False,
+        render=True,
     ),
 
     # environment related parameters (see flow.core.params.EnvParams)

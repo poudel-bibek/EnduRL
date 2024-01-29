@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ### Part 1: Training
 ```
 python train.py --exp_config singleagent_ring
-
+python train.py singleagent_bottleneck
 python train.py intersection
 ```
 
