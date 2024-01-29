@@ -150,26 +150,25 @@ def setup_exps_rllib(flow_params,
 
     #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) in acceleration
     # Tanh activations have a range of -1, 1, sigmoid has a range of 0, 1 # "fcnet_activation": "tanh"}
-    config["model"].update({"fcnet_hiddens": [256, 256, 128], "fcnet_activation": "tanh"})
+    config["model"].update({"fcnet_hiddens": [512, 256, 128, 64], "fcnet_activation": "tanh"})
 
     config["lr"] = 5e-05 # default 5e-05
+    config["lr_schedule"] = [[0, 1e-04], [100000, 5e-05]] # default None
     
+    config["clip_param"] = 0.1 # In PPO paper, its 0.1 times alpha where alpha reduces linearly over learning 
+    config["vf_clip_param"] = 20.0 # default 10.0
+
     # Add seed?
     #config["seed"] = 42
     
     config["use_gae"] = True
     config["lambda"] = 0.97
     config["kl_target"] = 0.02
-    config["num_sgd_iter"] = 10
+    config["num_sgd_iter"] = 2 # 10
     config["horizon"] = horizon
 
-    # Bibek: Make the  agent a little more exploratory
     config["entropy_coeff"] = 0.01 # 0.01 from PPO paper# Default 0.0
-    # For single agent
-    #config["entropy_coeff_schedule"] = [[0, 0.1],[500000, 0.02], [1000000, 0.01]] # Default None
-
-    # For multi agent
-    config["entropy_coeff_schedule"] = [[0, 0.15],[500000, 0.05], [1000000, 0.02], [2000000, 0.01]] # Default None
+    config["entropy_coeff_schedule"] = [[0, 0.1],[100000, 0.02], [500000, 0.01], [1000000, 0.0]] # Default None
 
     # save the flow params for replay
     flow_json = json.dumps(

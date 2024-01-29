@@ -31,7 +31,7 @@ class DensityAwareIntersectionEnv(Env):
         #self.num_rl = env_params.additional_params['num_rl']
 
         # Max anticipated RL vehicle at a time
-        self.max_rl_vehicles = 24 # Including both directions
+        self.max_rl_vehicles = 30 # Including both directions
         self.LOCAL_ZONE = 50 #m 
         self.MAX_SPEED= 10 # This is just a normalizer for TSE observations. Its 20 because the speed limit is higher. But in m/sec
         self.tse_model = self.load_tse_model()
@@ -150,20 +150,20 @@ class DensityAwareIntersectionEnv(Env):
 
     def _apply_rl_actions(self, rl_actions):
         """
-        In total, the "agent" produces 22 actions.
-        Actual present RL vehicles may be less than 22.
+        In total, the "agent" produces 30 actions.
+        Actual present RL vehicles may be less than 30.
         Just ignore the rest of the actions. Because the corresponding observations also were empty for those.
         """
 
-        print("RL actions: ", rl_actions)
+        #print("RL actions: ", rl_actions)
 
         # In the same sorted fashion, apply the actions 
         sorted_rl_ids = self.sorted_rl_ids
 
-        print(f"RL actions: {rl_actions.shape}, Sorted RL ids: {len(sorted_rl_ids)}")
+        #print(f"RL actions: {rl_actions.shape}, Sorted RL ids: {len(sorted_rl_ids)}")
 
         for i, rl_id in enumerate(sorted_rl_ids):
-            print("RL id: ", rl_id, " Action: ", rl_actions[i])
+            #print("RL id: ", rl_id, " Action: ", rl_actions[i])
             self.k.vehicle.apply_acceleration(rl_id, rl_actions[i])
             self.rl_storedict[rl_id]['action'] = rl_actions[i]
 
@@ -188,18 +188,24 @@ class DensityAwareIntersectionEnv(Env):
         #################
         # Reward Safety + Stability 
 
+        # Instead of using average velocity of all vehicles, we calculate the weighted average of velocities depending on the inflow distribution along NS and EW directions
+        
+
+
         # 0.2* average_velocity - 4* acceleration
         # Since RL is optimizing for the network, consider all vehicles for average velocity
         reward = 0.2*np.mean(vel) - 4*np.mean(np.abs(rl_actions))
+        #print(f"Reward: {reward}, Average velocity: {np.mean(vel)}, Average acceleration: {np.mean(np.abs(rl_actions))}")
+        #print("\n\n\n")
 
         # Shaping Component
-        penalty_scalar = -5
-        fixed_penalty = -0.5
+        penalty_scalar = -1
+        fixed_penalty = -0.1
 
         # If congestion is forming and the RL wants to accelerate
         # If forming and sign (acceleration) >= 0, then penalty
         sorted_rl_ids = self.sorted_rl_ids
-        for i, rl_id in enumerate(sorted_rl_ids):
+        for rl_id in sorted_rl_ids:
             tse_output = self.rl_storedict[rl_id]['tse_output'] 
 
             # State, action, reward. So make use of this action value that was stored in apply_actions
@@ -209,7 +215,7 @@ class DensityAwareIntersectionEnv(Env):
 
             if tse_output ==1:
                 if sign >= 0:
-                    forming_penalty = min(fixed_penalty, penalty_scalar*magnitude)
+                    forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) # Min because both quantities are negative
                     reward += forming_penalty
 
         #################
@@ -310,7 +316,7 @@ class DensityAwareIntersectionEnv(Env):
                 # Concatenate them and return
                 default_observation = self.get_default_observations(rl_id)
                 obs_for_this_vehicle = np.concatenate((default_observation, tse_output_encoded), axis=None)
-                print("Observation for RL id: ", rl_id) #, " is: ", obs_for_this_vehicle)
+                #print(f"Observation for RL id: {rl_id} is: {obs_for_this_vehicle}")
                 rl_obs.append(obs_for_this_vehicle)
 
         # Append the rest of the observations with 0 to make it shape (max_rl_vehicles, 9)
@@ -320,8 +326,8 @@ class DensityAwareIntersectionEnv(Env):
                 rl_obs.append(np.zeros(9))
 
         rl_obs = np.reshape(rl_obs, (self.max_rl_vehicles, 9))
-        print("RL observations: ", rl_obs)
-        print("\n\n\n")
+        #print("RL observations: ", rl_obs)
+        
         return rl_obs
 
     def reset(self):
