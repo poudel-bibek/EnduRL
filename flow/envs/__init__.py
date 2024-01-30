@@ -18,7 +18,6 @@ from flow.envs.ring.density_aware_env import DensityAwareRLEnv
 from flow.envs.classic_bottleneck import classicBottleneckEnv
 from flow.envs.density_aware_bottleneck_env import DensityAwareBottleneckEnv 
 
-from flow.envs.density_aware_intersection_env import DensityAwareIntersectionEnv
 from flow.envs.classic_intersection import classicIntersectionEnv
 
 from flow.envs.merge import MergePOEnv

@@ -150,7 +150,7 @@ def setup_exps_rllib(flow_params,
 
     #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) in acceleration
     # Tanh activations have a range of -1, 1, sigmoid has a range of 0, 1 # "fcnet_activation": "tanh"}
-    config["model"].update({"fcnet_hiddens": [512, 256, 128, 64], "fcnet_activation": "tanh"})
+    config["model"].update({"fcnet_hiddens": [256, 128, 64], "fcnet_activation": "tanh"})
 
     config["lr"] = 5e-05 # default 5e-05
     config["lr_schedule"] = [[0, 1e-04], [100000, 5e-05]] # default None

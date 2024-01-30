@@ -769,7 +769,157 @@ class TrafficLightGridBenchmarkEnv():
         else:
             return rewards.desired_velocity(self)
 
+class TrafficLightGridPOEnv(TrafficLightGridEnv):
+    """Environment used to train traffic lights.
 
+    Required from env_params:
+
+    * switch_time: minimum switch time for each traffic light (in seconds).
+      Earlier RL commands are ignored.
+    * num_observed: number of vehicles nearest each intersection that is
+      observed in the state space; defaults to 2
+
+    States
+        An observation is the number of observed vehicles in each intersection
+        closest to the traffic lights, a number uniquely identifying which
+        edge the vehicle is on, and the speed of the vehicle.
+
+    Actions
+        The action space consist of a list of float variables ranging from 0-1
+        specifying whether a traffic light is supposed to switch or not. The
+        actions are sent to the traffic light in the grid from left to right
+        and then top to bottom.
+
+    Rewards
+        The reward is the delay of each vehicle minus a penalty for switching
+        traffic lights
+
+    Termination
+        A rollout is terminated once the time horizon is reached.
+
+    Additional
+        Vehicles are rerouted to the start of their original routes once they
+        reach the end of the network in order to ensure a constant number of
+        vehicles.
+
+    """
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        super().__init__(env_params, sim_params, network, simulator)
+
+        for p in ADDITIONAL_PO_ENV_PARAMS.keys():
+            if p not in env_params.additional_params:
+                raise KeyError(
+                    'Environment parameter "{}" not supplied'.format(p))
+
+        # number of vehicles nearest each intersection that is observed in the
+        # state space; defaults to 2
+        self.num_observed = env_params.additional_params.get("num_observed", 2)
+
+        # used during visualization
+        self.observed_ids = []
+
+    @property
+    def observation_space(self):
+        """State space that is partially observed.
+
+        Velocities, distance to intersections, edge number (for nearby
+        vehicles) from each direction, edge information, and traffic light
+        state.
+        """
+        tl_box = Box(
+            low=0.,
+            high=3,
+            shape=(3 * 4 * self.num_observed * self.num_traffic_lights +
+                   2 * len(self.k.network.get_edge_list()) +
+                   3 * self.num_traffic_lights,),
+            dtype=np.float32)
+        return tl_box
+
+    def get_state(self):
+        """See parent class.
+
+        Returns self.num_observed number of vehicles closest to each traffic
+        light and for each vehicle its velocity, distance to intersection,
+        edge_number traffic light state. This is partially observed
+        """
+        speeds = []
+        dist_to_intersec = []
+        edge_number = []
+        max_speed = max(
+            self.k.network.speed_limit(edge)
+            for edge in self.k.network.get_edge_list())
+        grid_array = self.net_params.additional_params["grid_array"]
+        max_dist = max(grid_array["short_length"], grid_array["long_length"],
+                       grid_array["inner_length"])
+        all_observed_ids = []
+
+        for _, edges in self.network.node_mapping:
+            for edge in edges:
+                observed_ids = \
+                    self.get_closest_to_intersection(edge, self.num_observed)
+                all_observed_ids += observed_ids
+
+                # check which edges we have so we can always pad in the right
+                # positions
+                speeds += [
+                    self.k.vehicle.get_speed(veh_id) / max_speed
+                    for veh_id in observed_ids
+                ]
+                dist_to_intersec += [
+                    (self.k.network.edge_length(
+                        self.k.vehicle.get_edge(veh_id)) -
+                        self.k.vehicle.get_position(veh_id)) / max_dist
+                    for veh_id in observed_ids
+                ]
+                edge_number += \
+                    [self._convert_edge(self.k.vehicle.get_edge(veh_id)) /
+                     (self.k.network.network.num_edges - 1)
+                     for veh_id in observed_ids]
+
+                if len(observed_ids) < self.num_observed:
+                    diff = self.num_observed - len(observed_ids)
+                    speeds += [0] * diff
+                    dist_to_intersec += [0] * diff
+                    edge_number += [0] * diff
+
+        # now add in the density and average velocity on the edges
+        density = []
+        velocity_avg = []
+        for edge in self.k.network.get_edge_list():
+            ids = self.k.vehicle.get_ids_by_edge(edge)
+            if len(ids) > 0:
+                vehicle_length = 5
+                density += [vehicle_length * len(ids) /
+                            self.k.network.edge_length(edge)]
+                velocity_avg += [np.mean(
+                    [self.k.vehicle.get_speed(veh_id) for veh_id in
+                     ids]) / max_speed]
+            else:
+                density += [0]
+                velocity_avg += [0]
+        self.observed_ids = all_observed_ids
+        return np.array(
+            np.concatenate([
+                speeds, dist_to_intersec, edge_number, density, velocity_avg,
+                self.last_change.flatten().tolist(),
+                self.direction.flatten().tolist(),
+                self.currently_yellow.flatten().tolist()
+            ]))
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition."""
+        if self.env_params.evaluate:
+            return - rewards.min_delay_unscaled(self)
+        else:
+            return (- rewards.min_delay_unscaled(self) +
+                    rewards.penalize_standstill(self, gain=0.2))
+
+    def additional_command(self):
+        """See class definition."""
+        # specify observed vehicles
+        [self.k.vehicle.set_observed(veh_id) for veh_id in self.observed_ids]
+        
 class TrafficLightGridTestEnv(TrafficLightGridEnv):
     """
     Class for use in testing.
