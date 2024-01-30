@@ -2,13 +2,17 @@
 Benchmark paper is controlling the traffic lights, and does not have RVs
 
 """
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
+from ray.tune.registry import register_env
 
-from flow.envs import DensityAwareIntersectionEnv
+from flow.envs.multiagent import DensityAwareIntersectionEnv
+
 from flow.networks import TrafficLightGridNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
     InFlows, SumoCarFollowingParams, RLController
 from flow.core.params import VehicleParams
 from flow.controllers import SimCarFollowingController, GridRouter
+from flow.utils.registry import make_create_env
 
 # time horizon of a single rollout
 HORIZON = 3600 # Default 400 in the paper. The horizon for trainig and test can be separate. At test set it to 3800
@@ -40,7 +44,7 @@ N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 # number of rollouts per training iteration
 N_ROLLOUTS = 10 # CHANGE, Default is 10
 # number of parallel workers
-N_CPUS =  8 # CHANGE, Default is is 10
+N_CPUS =  1 # CHANGE, Default is is 10
 
 # Same as Villarreal et al.
 rv_penetration = 0.2
@@ -185,3 +189,26 @@ flow_params = dict(
         shuffle=True,
     ),
 )
+
+create_env, env_name = make_create_env(params=flow_params, version=0)
+
+# Register as rllib env
+register_env(env_name, create_env)
+
+test_env = create_env()
+obs_space = test_env.observation_space
+act_space = test_env.action_space
+
+def gen_policy():
+    # Generate a policy in RLlib
+    return PPOTFPolicy, obs_space, act_space, {}
+
+# Setup single policy for all vehicles
+POLICY_GRAPHS = {'shared_policy': gen_policy()}
+
+def policy_mapping_fn(agent_id):
+    # All agents use the shared policy
+    return 'shared_policy'
+
+# Only the shared policy needs to be trained
+POLICIES_TO_TRAIN = ['shared_policy']
