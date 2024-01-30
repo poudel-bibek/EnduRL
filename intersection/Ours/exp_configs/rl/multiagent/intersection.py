@@ -44,7 +44,7 @@ N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 # number of rollouts per training iteration
 N_ROLLOUTS = 10 # CHANGE, Default is 10
 # number of parallel workers
-N_CPUS =  1 # CHANGE, Default is is 10
+N_CPUS =  9 # CHANGE, Default is is 10
 
 # Same as Villarreal et al.
 rv_penetration = 0.2
