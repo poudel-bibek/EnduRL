@@ -15,11 +15,11 @@ from flow.controllers import SimCarFollowingController, GridRouter
 from flow.utils.registry import make_create_env
 
 # time horizon of a single rollout
-HORIZON = 3600 # Default 400 in the paper. The horizon for trainig and test can be separate. At test set it to 3800
-WARMUP = 400 
+HORIZON = 20 # 3600 # Default 400 in the paper. The horizon for trainig and test can be separate. At test set it to 3800
+WARMUP = 1000 # 400
 
 # inflow rate of vehicles at every edge
-EDGE_INFLOW = 1300 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
+EDGE_INFLOW = 1800 # Default 300 veh/hr/lane. Similar to Villarreal et al.,  set it to 1000
 
 # enter speed for departing vehicles
 V_ENTER = 5 #8 
@@ -44,10 +44,10 @@ N_LEFT, N_RIGHT, N_TOP, N_BOTTOM = 1, 1, 1, 1
 # number of rollouts per training iteration
 N_ROLLOUTS = 10 # CHANGE, Default is 10
 # number of parallel workers
-N_CPUS =  9 # CHANGE, Default is is 10
+N_CPUS =  10 # 9 # CHANGE, Default is is 10
 
 # Same as Villarreal et al.
-rv_penetration = 0.2
+rv_penetration = 0.1 #0.2
 
 # we place a sufficient number of vehicles to ensure they confirm with the
 # total number specified above. We also use a "right_of_way" speed mode to
