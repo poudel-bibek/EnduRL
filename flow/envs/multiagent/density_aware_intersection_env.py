@@ -36,11 +36,11 @@ class DensityAwareIntersectionEnv(MultiEnv):
 
         self.LOCAL_ZONE = 50 #m
         self.VEHICLE_LENGTH = 5 #m can use self.k.vehicle.get_length(veh_id) 
-        self.MAX_SPEED= 10 # This is just a normalizer for TSE observations. Its 20 because the speed limit is higher. But in m/sec
+        self.MAX_SPEED= 10 # This is just a normalizer for CSC observations. Its 20 because the speed limit is higher. But in m/sec
         
         self.data_storage = []
         self.selected_rl_id = None
-        self.tse_model = self.load_tse_model()
+        self.CSC_model = self.load_csc_model()
         self.rl_storedict = {}
 
     @property
@@ -56,7 +56,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
         # return Box(
         #     low=-float("inf"),
         #     high=float("inf"),
-        #     shape=(9,), # First theree are default observations, next 6 are TSE observations encoded
+        #     shape=(9,), # First theree are default observations, next 6 are CSC observations encoded
         #     dtype=np.float32) 
 
     @property
@@ -97,29 +97,29 @@ class DensityAwareIntersectionEnv(MultiEnv):
         #print(f"RL id: {rl_id} Observation: {observation}")
         return observation
     
-    def get_tse_output(self, current_obs):
+    def get_CSC_output(self, current_obs):
         """
         Get the output of Traffic State Estimator Neural Network
         """
         current_obs = torch.from_numpy(current_obs).flatten()
 
         with torch.no_grad():
-            outputs = self.tse_model(current_obs.unsqueeze(0))
+            outputs = self.CSC_model(current_obs.unsqueeze(0))
 
-        # print("TSE output: ", outputs)
+        # print("CSC output: ", outputs)
         # return outputs.numpy() # Logits
 
         _, predicted_label = torch.max(outputs, 1)
         predicted_label = predicted_label.numpy()
         return predicted_label
         
-    def load_tse_model(self, ):
+    def load_csc_model(self, ):
         """
         Load the Traffic State Estimator Neural Network and its trained weights
         """
-        class TSE_Net(nn.Module):
+        class CSC_Net(nn.Module):
             def __init__(self, input_size, num_classes):
-                super(TSE_Net, self).__init__() 
+                super(CSC_Net, self).__init__() 
                 self.fc1 = nn.Linear(input_size, 32)
                 self.relu = nn.ReLU()
                 self.fc2 = nn.Linear(32, 16)
@@ -137,7 +137,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
         input_size = 10*2
         num_classes = 6
         url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Estimator/resolve/main/best_cse_model.pt"
-        saved_best_net = TSE_Net(input_size, num_classes)
+        saved_best_net = CSC_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
         saved_best_net.load_state_dict(state_dict)
@@ -160,6 +160,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
                 continue
             self.k.vehicle.apply_acceleration(rl_id, rl_actions[rl_id])
 
+ 
     # Helper 2: Get Monotonoicity based label. 
     # The monotonocity based label is supported by the assymetric driving theory. 
     # That when accelerating, humans leave a larger gap in front and while decelerating, they leave a smaller gap. This is more intuitive to understand as well
@@ -217,14 +218,14 @@ class DensityAwareIntersectionEnv(MultiEnv):
         
         # Then check with thresholds (congested or free flow)
         # threshold for free flow 
-        if all([difference >= 1.6*min_gap for difference in differences]):
+        if all([difference >= 1.45*min_gap for difference in differences]):
             print("Free flow")
             identifier.append(2)
         
         # threshold for congestion: all vehicles will have more or less the small multiple of minGap distance
         # When there is congestion, there will be many vehicles in the local zone, so instead of all check any?
         # This check is performed after the leaving check is performed, so it will not be confused with leaving
-        if all([difference <= 1.3*min_gap for difference in differences]):
+        if all([difference <= 1.2*min_gap for difference in differences]):
             print("Congested")
             identifier.append(3)
 
@@ -232,10 +233,17 @@ class DensityAwareIntersectionEnv(MultiEnv):
             print("Undefined")
             identifier.append(4)
             
-        #print("Identifier: ", identifier)
-        # If both leaving and free flow, then free flow (0 vs 2)
-        # If both forming and congested, then congested (1 vs 3)
-        return_val = max(identifier)
+        # If both leaving and free flow, then free flow (0 vs 2) i.e., Higher should win
+        if 0 in identifier and 2 in identifier:
+            identifier.remove(0)
+        # If both forming and congested, then congested (1 vs 3) i.e., Higher should win
+        if 1 in identifier and 3 in identifier:
+            identifier.remove(1)
+        # If both forming and free flow then free flow (1 vs 2) i.e., Higher should win
+        if 1 in identifier and 2 in identifier:
+            identifier.remove(1)
+            
+        return_val = identifier[0]
         return return_val
 
 
@@ -281,8 +289,8 @@ class DensityAwareIntersectionEnv(MultiEnv):
         #         penalty_scalar = -5
         #         fixed_penalty = -0.5
 
-        #         tse_output = self.rl_storedict[rl_id]['tse_output']
-        #         if tse_output ==1:
+        #         CSC_output = self.rl_storedict[rl_id]['CSC_output']
+        #         if CSC_output ==1:
         #             if sign >= 0:
         #                 forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) # Min because both quantities are negative
         #                 reward_value += forming_penalty
@@ -300,7 +308,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
 
     def get_state(self):
         """
-        First three observations are the default observations, next 6 are TSE observations
+        First three observations are the default observations, next 6 are CSC observations
         Sorting: RL ids dont have to be sorted in any order.
         """
         ########## FOR CSC DATA COLLECTION ##########
@@ -335,7 +343,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
         rl_dist = self.k.vehicle.get_distance(rl_id) # get x is broken, get distance is used.
 
         print(f"\n\n selected RL id: {rl_id}\n\n")
-        observation_tse = np.full((self.LOCAL_ZONE // self.VEHICLE_LENGTH, 2), -1.0) # (10, 2)
+        observation_CSC = np.full((self.LOCAL_ZONE // self.VEHICLE_LENGTH, 2), -1.0) # (10, 2)
 
         timestep = self.step_counter
         # distances of vehicles in the local zone
@@ -355,41 +363,41 @@ class DensityAwareIntersectionEnv(MultiEnv):
             vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
             norm_vel = vel / self.MAX_SPEED # Normalize it
 
-            observation_tse[i] = [norm_pos, norm_vel]
+            observation_CSC[i] = [norm_pos, norm_vel]
 
 
         label = self.get_monotonicity_label(distances)
-        print(f"Writing data: {timestep}, {label}, {observation_tse}")
+        print(f"Writing data: {timestep}, {label}, {observation_CSC}")
         
-        self.data_storage.append([timestep, label, observation_tse])
+        self.data_storage.append([timestep, label, observation_CSC])
         if self.step_counter == self.env_params.warmup_steps - 1: #leave this self.env_params.horizon 
             # if does not exist 
             if not os.path.exists("./csc_data"):
                 os.makedirs("./csc_data")
             np.save("./csc_data/csc_data_{}.npy".format(strftime("%Y-%m-%d-%H:%M:%S")), np.array(self.data_storage))
 
-        return {self.selected_rl_id: observation_tse}
+        return {self.selected_rl_id: observation_CSC}
 
         ########## FOR REGULAR TRAINING ##########
         # self.rl_storedict = {}
         # observation = {}
         # for rl_id in self.k.vehicle.get_rl_ids():
 
-        #     # Get the TSE observations for each RL vehicle
+        #     # Get the CSC observations for each RL vehicle
         #     # Increasing in the order of distance to the RL vehicle (including RL as well)
         #     # Get vehicle list in the local zone for intersection.
         #     sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone_intersection(rl_id, self.LOCAL_ZONE)
 
         #     if len(sorted_veh_ids) == 0:
-        #             tse_output_encoded = np.zeros(6) # i.e., nothing
+        #             CSC_output_encoded = np.zeros(6) # i.e., nothing
 
         #     else:
-        #         # For TSE, both relative position and relative velocity to the leaders in zone are required
-        #         # The default input to TSE is set to -1
-        #         observation_tse = np.full((10, 2), -1.0) # Max 2 vehicles with 2 properties
+        #         # For CSC, both relative position and relative velocity to the leaders in zone are required
+        #         # The default input to CSC is set to -1
+        #         observation_CSC = np.full((10, 2), -1.0) # Max 2 vehicles with 2 properties
         #         rl_pos = self.k.vehicle.get_distance(rl_id) #self.k.vehicle.get_x_by_id(rl_id) 
 
-        #         # Go through each sorted vehicle to get TSE output
+        #         # Go through each sorted vehicle to get CSC output
         #         for i in range(len(sorted_veh_ids)):
 
         #             # Lets not use x to get relative positions, lets use total distance travelled
@@ -399,20 +407,20 @@ class DensityAwareIntersectionEnv(MultiEnv):
 
         #             vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
         #             norm_vel = vel / self.MAX_SPEED # Normalize it
-        #             observation_tse[i] = [norm_pos, norm_vel]
+        #             observation_CSC[i] = [norm_pos, norm_vel]
 
-        #         observation_tse = np.array(observation_tse, dtype = np.float32)
+        #         observation_CSC = np.array(observation_CSC, dtype = np.float32)
 
-        #         # For using TSE model: add TSE output to appropriate observation
-        #         tse_output = self.get_tse_output(observation_tse)
-        #         tse_output_encoded = np.zeros(6) 
-        #         tse_output_encoded[tse_output] = 1 # i.e. something
+        #         # For using CSC model: add CSC output to appropriate observation
+        #         CSC_output = self.get_CSC_output(observation_CSC)
+        #         CSC_output_encoded = np.zeros(6) 
+        #         CSC_output_encoded[CSC_output] = 1 # i.e. something
 
-        #         self.rl_storedict[rl_id] = {'veh_in_zone': sorted_veh_ids , 'tse_output': tse_output, 'action': 0}
+        #         self.rl_storedict[rl_id] = {'veh_in_zone': sorted_veh_ids , 'CSC_output': CSC_output, 'action': 0}
 
         #     # Concatenate them and return
         #     default_observation = self.get_default_observations(rl_id)
-        #     obs_for_this_vehicle = np.concatenate((default_observation, tse_output_encoded), axis=None)
+        #     obs_for_this_vehicle = np.concatenate((default_observation, CSC_output_encoded), axis=None)
         #     observation[rl_id] = obs_for_this_vehicle
 
         # #print(f"\n\nObservation: {observation}\n\n")

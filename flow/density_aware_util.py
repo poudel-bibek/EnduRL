@@ -70,7 +70,7 @@ def get_shock_model(identifier, length = None, network_scaler=1, bidirectional=F
     if identifier == 2:
         # Thiese ranges are obtained form data
         # sample frequency 
-        frequency = network_scaler*np.random.randint(5, 20) # value of 10 means once shock every 3000/10 = 300 steps, 5 = 600 steps, 15 = 200 steps
+        frequency = network_scaler*np.random.randint(10, 30) # value of 10 means once shock every 3000/10 = 300 steps, 5 = 600 steps, 15 = 200 steps
         
         intensity_collect = [] 
         duration_collect = []

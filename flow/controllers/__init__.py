@@ -31,7 +31,9 @@ from flow.controllers.routing_controllers import ContinuousRouter, \
     GridRouter, BayBridgeRouter, I210Router
 
 # Controllers for Density Aware
-from flow.controllers.controllers_for_daware import ModifiedIDMController
+from flow.controllers.controllers_for_daware import ModifiedIDMController, \
+    TrainedAgentController
+
 
 __all__ = [
     "RLController", "BaseController", "BaseLaneChangeController", "BaseRouter",
@@ -40,5 +42,5 @@ __all__ = [
     "PISaturation", "StaticLaneChanger", "SimLaneChangeController",
     "ContinuousRouter", "GridRouter", "BayBridgeRouter", "LACController",
     "GippsController", "NonLocalFollowerStopper", "BandoFTLController",
-    "I210Router", "ModifiedIDMController"
+    "I210Router", "ModifiedIDMController", "TrainedAgentController"
 ]

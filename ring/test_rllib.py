@@ -39,6 +39,7 @@ from common_args import update_arguments
 from flow.density_aware_util import get_shock_model, get_time_steps, get_time_steps_stability
 import random 
 
+from ray.cloudpickle import cloudpickle
 
 EXAMPLE_USAGE = """
 example usage:
@@ -49,23 +50,29 @@ Here the arguments are:
 2 - the number of the checkpoint
 """
 
-
+#### Required for multiagent because it cant find the exp configs ####
+#Just copy and paste the exp_configs folder outside to where test_rllib.py is located
+#### ####
 
 def visualizer_rllib(args):
     
     result_dir = args.result_dir if args.result_dir[-1] != '/' \
         else args.result_dir[:-1]
-
-    #print("\n1.:",result_dir)
+    
     config = get_rllib_config(result_dir)
-    #print(config)
 
     #First figure out if the environment is multiagent or not
     if config.get('multiagent', {}).get('policies', None):
         multiagent = True
         pkl = get_rllib_pkl(result_dir)
+
+        # drr = result_dir + "/params.pkl"
+        # print(f"\n\nLoading pkl file from {drr}\n\n")
+        # with open(drr, 'rb') as f:
+        #     pkl = cloudpickle.load(f)
+
         config['multiagent'] = pkl['multiagent']
-        # print(f"\n\nmultiagent{config['multiagent']}\n\n")
+        #print(f"\n\nmultiagent{config['multiagent']}\n\n")
     else:
         multiagent = False
 
@@ -79,45 +86,18 @@ def visualizer_rllib(args):
     #print(f"\n\nflow_params_modify= {flow_params_modify}\n\n")
 
     if multiagent:
+        #print(f"\n\n{flow_params_modify}\n\n")
         # For some reason, in multiagent, RL vehicles are veh[0]..onwards
-        human_index = NUM_AUTOMATED # This is the index within "veh"
+        human_index = args.num_controlled # This is the index within "veh"
 
+        # Since we need to shock, they need to be of this type.
         flow_params_modify["veh"][human_index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
                                                                                             "shock_vehicle": True}]
         
         flow_params_modify["veh"][human_index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
 
-        # The leader RL has to be made RL controller, its the last RL
-        leader_index = NUM_AUTOMATED - 1
-        flow_params_modify["veh"][leader_index]["acceleration_controller"] = ["RLController", {}]
-        flow_params_modify["veh"][leader_index]["car_following_params"]["controller_params"] = {
-            "accel": 2.6, 
-            "carFollowModel": "IDM", 
-            "decel": 4.5, 
-            "impatience": 0.5, 
-            "maxSpeed": 30, 
-            "minGap": 0.1, 
-            "sigma": 0.5, 
-            "speedDev": 0.1, 
-            "speedFactor": 1.0, 
-            "tau": 1.0
-        }
-        flow_params_modify["veh"][leader_index]["car_following_params"]["speed_mode"] = 25
-        flow_params_modify["veh"][leader_index]["initial_speed"] = 0
-        flow_params_modify["veh"][leader_index]["lane_change_controller"] = ["SimLaneChangeController", {}]
-        flow_params_modify["veh"][leader_index]["lane_change_params"] = {
-            "controller_params": {
-                "laneChangeModel": "LC2013", 
-                "lcCooperative": "1.0", 
-                "lcKeepRight": "1.0", 
-                "lcSpeedGain": "1.0", 
-                "lcStrategic": "1.0"
-            }, 
-            "lane_change_mode": 512
-        }
-        flow_params_modify["veh"][leader_index]["num_vehicles"] = 1
-        flow_params_modify["veh"][leader_index]["routing_controller"] = ["ContinuousRouter", {}]
-        #flow_params_modify["veh"][leader_index]["veh_id"] = "rl_3" # This is already set
+        leader_index = human_index - 1
+        flow_params_modify["veh"][leader_index]["color"] = 'red'
 
     else: 
         # 2. Be able to set shock vehicles (set the IDM vehicles to ModifiedIDM)
@@ -220,7 +200,6 @@ def visualizer_rllib(args):
         rets = {}
         # map the agent id to its policy
         policy_map_fn = policy_mapping_fn #config['multiagent']['policy_mapping_fn']
-
         # Bibek: Debug hack. define the policy mapping function here instead of getting it form file
 
         for key in config['multiagent']['policies'].keys():
@@ -278,7 +257,8 @@ def visualizer_rllib(args):
         shock_counter = 0
         current_duration_counter = 0
         vehicles = env.unwrapped.k.vehicle
-        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+        total_rl_ids = vehicles.get_rl_ids() if args.num_controlled ==1 else vehicles.get_rl_ids() + ["rl_leader_0"]
+        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in total_rl_ids])
 
         # This program counts for warmup or not? 
         # This will start running only after warmup ends 
@@ -290,10 +270,10 @@ def visualizer_rllib(args):
             # perform_shock function RL version
             if args.shock and step >= shock_start_time and step <= shock_end_time:
                 if args.stability:
-                    single_shock_id, shock_counter, current_duration_counter = perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency, num_automated = NUM_AUTOMATED) # For stability the values are single values
+                    single_shock_id, shock_counter, current_duration_counter = perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency, num_automated = args.num_controlled) # For stability the values are single values
                 else:
                     single_shock_id, shock_counter, current_duration_counter = perform_shock(env, vehicles, single_shock_id, \
-                        shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency)
+                        shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency, args.num_controlled)
 
                 
 
@@ -393,11 +373,9 @@ def visualizer_rllib(args):
 def perform_shock_stability(env, shock_times, shock_counter, current_duration_counter, step, intensity, duration, frequency, num_automated):
 
     if num_automated == 4:
-        # 3_0 for ours4x
-        single_shock_id = 'human_3_0'
-        reference_speed_limit_id = 'human_3_1'
+        single_shock_id = 'human_2_0'
+        reference_speed_limit_id = 'human_2_1'
     elif num_automated == 9:
-        # 8_0 for ours9x
         single_shock_id = 'human_8_0'
         reference_speed_limit_id = 'human_8_1'
     else: 
@@ -421,17 +399,22 @@ def perform_shock_stability(env, shock_times, shock_counter, current_duration_co
 
     return single_shock_id, shock_counter, current_duration_counter
     
-def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency):
+def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, current_duration_counter, step, intensities, durations, frequency, num_automated):
 
     controller = env.unwrapped.k.vehicle.get_acc_controller(single_shock_id)
-    print(f"\n\nController: {controller}\n\n")
+    #print(f"\n\nController: {controller}\n\n")
+
+    # change color to white
+    env.unwrapped.k.vehicle.set_color(single_shock_id, (255, 255, 255))
+    
     # Default: at times when shock is not applied, get acceleration from IDM
     controller.set_shock_time(False)
 
     if current_duration_counter == durations[shock_counter]*10:
         shock_counter += 1
         current_duration_counter = 0
-        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in vehicles.get_rl_ids()])
+        total_rl_ids = vehicles.get_rl_ids() if num_automated ==1 else vehicles.get_rl_ids() + ["rl_leader_0"]
+        single_shock_id = random.choice([item for item in vehicles.get_ids() if item not in total_rl_ids])
         
     if shock_counter< frequency:
         if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
@@ -440,6 +423,9 @@ def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, cu
             
             controller.set_shock_time(True) 
             controller.set_shock_accel(intensities[shock_counter])
+
+            # change color to magenta
+            env.unwrapped.k.vehicle.set_color(single_shock_id, (255, 0, 255))
 
             current_duration_counter+= 1
     return single_shock_id, shock_counter, current_duration_counter
@@ -484,38 +470,21 @@ def create_parser():
     parser.add_argument('--method',type=str,default=None, help='Method name, can be [wu, ours]')
     return parser
 
-
 if __name__ == '__main__':
 
     parser = create_parser()
+    parser.add_argument('--num_controlled', type=int, default=1)
     parser = update_arguments(parser)
     args = parser.parse_args()
 
     if args.method is None:
-        raise ValueError("Method name must be specified, can be [wu, ours, ours4x, ours9x]")
+        raise ValueError("Method name must be specified, can be [wu, ours, ours4x, ours9x, ours13x]")
     
-    if args.method == "ours4x":
-        # Bibek: Hack
-        NUM_AUTOMATED = 4 # Change this accordingly for 4x and 9x
-
-    elif args.method == "ours9x":
-        NUM_AUTOMATED = 9
-
-    else: 
-        NUM_AUTOMATED = 1
-
     def policy_mapping_fn(agent_id):
         """
-        map policy to agent, only required for multi-agents
-        The naming convention has been changed slightly here
-        Now its rl_3_0.. and such instead of rl_0_3.. and such
+        map policy id to agent id, only required for multi-agents
         """
-        # Based on the assumption (which is correct for now). The last item is the leader
-        leader_id = f"rl_{NUM_AUTOMATED-1}_0"
-        if agent_id == leader_id:
-            return 'leader'
-        else:
-            return 'follower'
+        return 'follower'
             
     ray.init(num_cpus=1)
     visualizer_rllib(args)

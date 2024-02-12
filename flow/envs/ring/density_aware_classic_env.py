@@ -65,7 +65,7 @@ class classicEnv(AccelEnv):
         if self.stability:
             self.sm = get_shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"])
         else: 
-            self.sm = get_shock_model(self.shock_params['shock_model'])
+            self.sm = get_shock_model(self.shock_params['shock_model'], bidirectional=True)
             
         # count how many times, shock has been applies
         self.shock_counter = 0
@@ -153,7 +153,9 @@ class classicEnv(AccelEnv):
 
         # This is instantiated for every veh_id, we get for just the vehicle we selected as the shock vehicle
         controller = self.k.vehicle.get_acc_controller(self.single_shock_id) 
-
+        # change color to white
+        self.k.vehicle.set_color(self.single_shock_id, (255, 255, 255))
+        
         # Default: at times when shock is not applied, get acceleration from IDM
         controller.set_shock_time(False) 
 
@@ -176,6 +178,8 @@ class classicEnv(AccelEnv):
                 controller.set_shock_accel(self.sm[0][self.shock_counter])
                 controller.set_shock_time(True)
 
+                # change color to magenta
+                self.k.vehicle.set_color(self.single_shock_id, (255, 0, 255))
                 self.current_duration_counter += 1
         
     # For stability

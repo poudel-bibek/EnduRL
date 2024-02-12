@@ -1336,6 +1336,7 @@ class TraCIVehicle(KernelVehicle):
                     (vehicle_pos[i]>position_bound[2] and vehicle_pos[i]<=current_length) else 0 for i in range(len(vehicle_pos))]
             else: 
                 veh_selected = [veh_ids[i] if vehicle_pos[i]>=position_bound[0] and vehicle_pos[i]<=position_bound[1] else 0 for i in range(len(vehicle_pos))]
+
         # filter zeros
         veh_selected = list(filter(lambda a: a != 0, veh_selected))
         return veh_selected

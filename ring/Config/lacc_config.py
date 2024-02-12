@@ -22,7 +22,7 @@ def config_lacc(args, **kwargs):
 
     vehicles = VehicleParams()
     num_controlled = 9 if args.num_controlled is None else args.num_controlled
-
+    num_human = 22 - num_controlled
     if args.length is None:
         kwargs['length'] = random.randint(220, 270)
     else: 
@@ -41,7 +41,7 @@ def config_lacc(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles=13 if args.stability else 13) # 9 for stable
+        num_vehicles=num_human if args.stability else num_human) # 9 for stable
 
     vehicles.add(
         veh_id= kwargs['method_name'],

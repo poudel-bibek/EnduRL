@@ -11,6 +11,7 @@ from gym.spaces.box import Box
 from gym.spaces.discrete import Discrete
 from gym.spaces.tuple import Tuple
 
+import os
 import torch
 import torch.nn as nn
 from time import strftime
@@ -49,11 +50,13 @@ class DensityAwareRLEnv(Env):
         self.MAX_SPEED = 10 # m/s
         self.velocity_track = []
         self.label_meaning = ["Leaving", "Forming", "Free Flow", "Congested", "Undefined", "No vehicle in front"] 
+
         # Set this on init and reset
         self.data_storage = []
-        self.tse_model = self.load_tse_model()
-        self.tse_output = None
-        self.tse_output_encoded = None
+        self.csc_model = self.load_csc_model()
+        self.csc_output = None
+        self.csc_output_encoded = None
+        self.estimated_free_speed = 0
 
     @property
     def action_space(self):
@@ -75,18 +78,16 @@ class DensityAwareRLEnv(Env):
         shape = (LZ/length_of_vehicle) , 2
         """
         
-        # For TSE data collection
+        ########## FOR CSC DATA COLLECTION ##########
         # return Box(low=-float('inf'), 
         #            high=float('inf'), 
         #            shape=((self.LOCAL_ZONE // self.VEHICLE_LENGTH), 2), 
         #            dtype = np.float32)
 
-        # For RL training, flatten all observations and add a single one in the end
-        shp = (3 + 6,) # 6 categories of labels one hot encoded
-        #print(f"\nObservation shape: {shp}\n")
+        ########## FOR REGULAR TRAINING ##########
         return Box(low=-float('inf'), 
                    high=float('inf'), 
-                   shape=shp, 
+                   shape=(9,), # 3 regular + 6 categories of labels one hot encoded
                    dtype = np.float32)
     
         
@@ -94,19 +95,17 @@ class DensityAwareRLEnv(Env):
         """ 
         
         """
-        # For Efficiency (Fuel and Throughput)
+        ##############
+        # For Efficiency (Fuel and Throughput). Only present in test time. For multi-agents, not to be controlled from here (see controllersforaware)
+        # For the first 300 steps after warmup, estimate the free flow speed in the local zone (Leverage CSC)
         # if speed is greater than desired speed, then just maintain the speed
-        # get rl speed
-
         # rl_speed = self.k.vehicle.get_speed(self.k.vehicle.get_rl_ids()[0])
-
-        # desired_speed = 4.82 # For 260m
-        # if rl_speed >= desired_speed:
+        # if self.estimated_free_speed!=0 and rl_speed >= self.estimated_free_speed:
         #     rl_actions = [0.0]
         
-        
-        print(f"\n\nRL action received: {rl_actions}")
-
+        # print(f"RL action received: {rl_actions}")
+            
+        ##############
         # Original acceleration action
         self.k.vehicle.apply_acceleration(
             self.k.vehicle.get_rl_ids(), rl_actions)
@@ -114,154 +113,211 @@ class DensityAwareRLEnv(Env):
     def compute_reward(self, rl_actions, **kwargs):
         """ 
         """
-        # for warmup 
-        if rl_actions is None: 
-            return 0 
+        ########## FOR CSC DATA COLLECTION ##########
+        # return 0
 
+        ########## FOR REGULAR TRAINING ##########
+        if rl_actions is None: 
+            return 0
+        
         vel = np.array([
             self.k.vehicle.get_speed(veh_id)
             for veh_id in self.k.vehicle.get_ids()
         ])
-        
+
         # Fail the current episode if these
         if any(vel <-100) or kwargs['fail']:
-            return 0 
+            return 0
         
-        rl_id = self.k.vehicle.get_rl_ids()[0]
+        ##############
+        # Reward for safety and stability
 
-        # Desired acceleration (control action)
+        # rl_accel = rl_actions[0]
+        # magnitude = np.abs(rl_accel)
+        # sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0
+        # #print(f"RL accel: {rl_accel}, magnitude: {magnitude}, sign: {sign}")
+
+        # reward = 0.2*np.mean(vel) - 4*magnitude # The general acceleration penalty
+        # #print(f"First Reward: {reward}")
+
+        # # Forming Shaping
+        # penalty_scalar = -5
+        # fixed_penalty = -1
+
+        # # 0 = Leaving, 1 = Forming, 2 = Free Flow, 3 = Congested, 4 = Undefined, 5 = No vehicle in front
+        # if self.csc_output[0] == 1:
+        #     if sign >= 0:
+        #         forming_penalty = min(fixed_penalty, penalty_scalar*magnitude)
+        #         #print(f"Forming: {forming_penalty}")
+        #         reward += forming_penalty # If congestion is fomring, penalize acceleration
+    
+        # return reward
+
+        ###########
+        # Reward for efficiency (new)
+
+        # rl_accel = rl_actions[0]
+        # magnitude = np.abs(rl_accel)
+        # sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0
+        # reward = np.mean(vel) - 2*magnitude # The acceleration penalty is only for the magnitude
+
+        # # Congested, forming and undefined shaping 
+        # penalty_scalar = -5
+        # penalty_scalar_2 = -5
+        # fixed_penalty = -1
+
+        # # 0 = Leaving, 1 = Forming, 2 = Free Flow, 3 = Congested, 4 = Undefined, 5 = No vehicle in front
+        # # Going into ``Forming'' states is allowed. Kind of unfair to be penalizing Undefined.
+        # if self.csc_output[0] == 3:  
+        #     if sign > 0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
+        #         # If congested or undefined state is entered then there is penalty. Even more for wrong action.
+        #         first_penalty = min(fixed_penalty, penalty_scalar*magnitude) # min is correct bacause values are -ve
+        #         #print(f"First (Congested + Undefined): {first_penalty}")
+        #         reward += first_penalty 
+
+        # if self.csc_output[0] == 0:
+        #     # When leaving, we want the acceleration to be positive or zero.
+        #     if sign < 0: # Again, no penalty for acceleration = 0 
+        #         # No penalty just for entering a leaving state, only for wrong action.
+        #         second_penalty = penalty_scalar_2*max(0.1, magnitude)
+        #         #print(f"Second (Leaving): {second_penalty}")
+        #         reward += second_penalty
+
+        # return reward
+
+        ###########
+        # Reward for efficiency  (previous modified)
         rl_accel = rl_actions[0]
-        
         magnitude = np.abs(rl_accel)
         sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0
-
-        print(f"RL accel: {rl_accel}, magnitude: {magnitude}, sign: {sign}")
-
-        # The acceleration penalty is only for the magnitude
         reward = np.mean(vel) - 2*magnitude # The general acceleration penalty
-        print(f"First Reward: {reward}")
-        
+
         # Congested, forming and undefined shaping 
         penalty_scalar = -10
-        #penalty_scalar_2 = -5
-        penalty_scalar_3 = -10
+        penalty_scalar_2 = -10
         fixed_penalty = -1
 
         # Maintaining velocity is fine
-        if self.tse_output[0] == 3 or self.tse_output[0] == 4 or self.tse_output[0] == 1:
-            if sign>0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
+        # 0 = Leaving, 1 = Forming, 2 = Free Flow, 3 = Congested, 4 = Undefined, 5 = No vehicle in front
+        if self.csc_output[0] == 3 : # Congested
+            if sign > 0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
                 # Fixed penalty of -1, to prevent agent from cheating the system when sign= 0 
                 # min is correct bacause values are -ve
                 forming_penalty = min(fixed_penalty, penalty_scalar*magnitude) 
-                print(f"Forming: {forming_penalty}")
+                #print(f"Forming: {forming_penalty}")
                 reward += forming_penalty # If congestion is fomring, penalize acceleration
 
-        # Acheivement of free flow itself should not induce any penalty. Or it will keep oscillating
-        # elif self.tse_output[0] == 2: # Free flow
-        #     # Penalize acceleration/deceleration magnitude
-        #     free_flow_penalty = -penalty_scalar_2*magnitude
-        #     print(f"Free flow: {free_flow_penalty}")
-        #     reward += free_flow_penalty
-
         # Leaving shaping 
-        elif self.tse_output[0] == 0:
+        elif self.csc_output[0] == 0:
             # We want the acceleration to be positive
-            if sign<0:
-                leaving_penalty = penalty_scalar_3*magnitude
-                print(f"Leaving: {leaving_penalty}")
+            if sign < 0:
+                leaving_penalty = penalty_scalar_2*magnitude
+                #print(f"Leaving: {leaving_penalty}")
                 reward += leaving_penalty
 
-        print(f"Last Reward: {reward}")
         return reward
 
     
     # Helper 1
-    def sort_vehicle_list(self, vehicles_in_zone):
-        return sorted(vehicles_in_zone, key=lambda x: (x[:-1], -int(x[-1])) if len(x) > 1 else (x, 0))
+    # def sort_vehicle_list(self, vehicles_in_zone):
+    #     return sorted(vehicles_in_zone, key=lambda x: (x[:-1], -int(x[-1])) if len(x) > 1 else (x, 0))
 
-    # Helper 2: Get Monotonoicity based label. VEMA based label has too many parameters to manually set or estimate
+    # Helper 2: Get Monotonoicity based label. 
     # The monotonocity based label is supported by the assymetric driving theory. 
-    # That when accelerating, humans leave a larger gap in front and while decelerating, they leave a smaller gap
-    # This is more intuitive to understand as well
-    # This is based on positions whereas the VEMA (Exponential moving average velocity) is based on velocity
-    # This basis of assymetric driving theory will be easier to scale (to more densities) as well
+    # That when accelerating, humans leave a larger gap in front and while decelerating, they leave a smaller gap. This is more intuitive to understand as well
     def get_monotonicity_label(self, distances):
         """
-        Get the normalized distance (sorted from farthest to closest) of the vehicles in front
+        The normalized distance (sorted from RL at index 0 and furthest vehicle at index n) of the vehicles in front
         Put else undefined condition as well for more than no vehicles in front
-
         """
         
-        # Determine the monotonicity of the difference of distances
-        # Monotonicity condition is not strict i.e. less than/ greater than, equal to
-        differences = [distances[i] - distances[i+1] for i in range(len(distances)-1)]
+        # Difference of distances. E.g., RL - the one in front.
+        differences = [-1*(distances[i] - distances[i+1]) for i in range(len(distances)-1)] # Rl has travelled the least distance so -1 in front
         num_diff = len(differences)
         print("Differences: ", differences)
+
+        # No vehicle in front
+        if num_diff == 0:
+            print("No vehicles in front")
+            return 5
         
         # Since the distance measures is center to center (length of vehicle + effective gap) 
         min_gap = 6.8/self.LOCAL_ZONE 
-
-        # For leaving, all vehicles should participate in monotonic increase (away from RL)
+        
+        # For leaving, all vehicles should participate in monotonic increase (as we move away from RL). i.e., diff at 1 is higher than at 0, 2 is higher than 1..etc
         # So that its actually clear to accelerate (and wont have to brake again immediately later)
         leaving = []
-        for i in range(num_diff-1, 0, -1):
+        for i in range(num_diff-1):
             # Nearest to Farthest, the difference is increasing
-            if differences[i-1] > differences[i]: # Greater than or equal to (if its equal to then it will be in both free flow and leaving)
+            if (1.05)*differences[i] < differences[i+1]:
                 leaving.append(True)
-            else: 
+            else:
                 leaving.append(False)
 
-        # For forming, any vehicle can participate in monotonic decrease (away from RL)
+        # For forming, any vehicle can participate in monotonic decrease (as we away from RL)
         # To account for both formation of congestion that travels upstream and occurs within the local zone
         forming = []
-        for i in range(num_diff-1, 0, -1):
-            # Nearest to Farthest, the difference is decreasing
-            if (1.1)*differences[i-1] < differences[i]: # Buffer
+        for i in range(num_diff-1):
+            if differences[i] > (1.1)*differences[i+1]:
                 forming.append(True)
             else:
                 forming.append(False)
 
+        identifier = []
         # Once a condition is met immediately return 
         if len(distances) == 0:
-            return 5 # No vehicles in front, This never occurs 
+            identifier.append(5) # No vehicles in front, This never occurs because we include RL in distances
         
-        # First check increasing or decreasing (leaving for forming)
-        elif all(leaving):
+        # Check increasing or decreasing (leaving for forming)
+        if all(leaving):
             print("Leaving")
-            return 0 # Leaving congestion
+            identifier.append(0) # Leaving congestion
         
-        elif any(forming):
+        if any(forming): # TODO idea: Any is a problem. Because when RL approaches a platoon of HVs this will be true. It could be any, excluding the vehicle in front
             print("Forming")
-            return 1
+            identifier.append(1)
         
         # Then check with thresholds (congested or free flow)
         # threshold for free flow 
-        elif all([difference >= 1.5*min_gap for difference in differences]):
+        if all([difference >= 1.45*min_gap for difference in differences]):
             print("Free flow")
-            return 2
+            identifier.append(2)
         
         # threshold for congestion: all vehicles will have more or less the small multiple of minGap distance
         # When there is congestion, there will be many vehicles in the local zone, so instead of all check any?
         # This check is performed after the leaving check is performed, so it will not be confused with leaving
-        elif all([difference <= 1.2*min_gap for difference in differences]):
+        if all([difference <= 1.2*min_gap for difference in differences]):
             print("Congested")
-            return 3
+            identifier.append(3)
 
-        else:
+        if len(identifier) == 0:
             print("Undefined")
-            return 4
+            identifier.append(4)
+            
+        # If both leaving and free flow, then free flow (0 vs 2) i.e., Higher should win
+        if 0 in identifier and 2 in identifier:
+            identifier.remove(0)
+        # If both forming and congested, then congested (1 vs 3) i.e., Higher should win
+        if 1 in identifier and 3 in identifier:
+            identifier.remove(1)
+        # If both forming and free flow then free flow (1 vs 2) i.e., Higher should win
+        if 1 in identifier and 2 in identifier:
+            identifier.remove(1)
+            
+        return_val = identifier[0]
+        return return_val
         
-    # Helper 3: Get TSE output
-    def get_tse_output(self, current_obs):
+    # Helper 3: Get csc output
+    def get_csc_output(self, current_obs):
         """
         Get the output of Traffic State Estimator Neural Network
         """
         current_obs = torch.from_numpy(current_obs).flatten()
 
         with torch.no_grad():
-            outputs = self.tse_model(current_obs.unsqueeze(0))
+            outputs = self.csc_model(current_obs.unsqueeze(0))
 
-        # print("TSE output: ", outputs)
+        # print("csc output: ", outputs)
         # return outputs.numpy() # Logits
 
         _, predicted_label = torch.max(outputs, 1)
@@ -269,14 +325,14 @@ class DensityAwareRLEnv(Env):
         return predicted_label
         
 
-    # Helper 4: Load TSE model 
-    def load_tse_model(self, ):
+    # Helper 4: Load csc model 
+    def load_csc_model(self, ):
         """
         Load the Traffic State Estimator Neural Network and its trained weights
         """
-        class TSE_Net(nn.Module):
+        class csc_Net(nn.Module):
             def __init__(self, input_size, num_classes):
-                super(TSE_Net, self).__init__() 
+                super(csc_Net, self).__init__() 
                 self.fc1 = nn.Linear(input_size, 32)
                 self.relu = nn.ReLU()
                 self.fc2 = nn.Linear(32, 16)
@@ -293,8 +349,8 @@ class DensityAwareRLEnv(Env):
 
         input_size = 10*2
         num_classes = 6
-        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Estimator/resolve/main/best_cse_model.pt"
-        saved_best_net = TSE_Net(input_size, num_classes)
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/ring_best_csc_model.pt"
+        saved_best_net = csc_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
         saved_best_net.load_state_dict(state_dict)
@@ -308,47 +364,90 @@ class DensityAwareRLEnv(Env):
         Relative position difference (normalized by the ring length)
         Absolute velocity (normalized by the max speed)
         """
+        ########## FOR CSC DATA COLLECTION ##########
+        # rl_id = self.k.vehicle.get_rl_ids()[0]
+        # rl_pos = self.k.vehicle.get_x_by_id(rl_id)
+        # current_length = self.k.network.length()
+
+        # # This is sorted as ['human_0', 'human_1', 'human_2', 'human_3', 'rl_0'], with human_3 as furthest
+        # sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone(rl_id, self.k.network.length(), self.LOCAL_ZONE)
+
+        # # sorting needs to be RL at index 0 with furthest vehicle at index n
+        # sorted_veh_ids.remove('rl_0')  
+        # sorted_veh_ids.insert(0, 'rl_0')
+        # print(f"Vehicles in zone: {sorted_veh_ids}")
+
+        # observation_csc = np.full((10, 2), -1.0)
+        # distances = []
+        # for i in range(len(sorted_veh_ids)):
+        #     # Get the distance of the vehicle from the RL vehicle
+        #     rel_pos = (self.k.vehicle.get_x_by_id(sorted_veh_ids[i]) - rl_pos) % current_length
+        #     norm_pos = rel_pos / self.LOCAL_ZONE # This is actually the normalized distance
+        #     distances.append(norm_pos)
+
+        #     vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
+        #     norm_vel = vel / self.MAX_SPEED
+
+        #     observation_csc[i] = [norm_pos, norm_vel]
+
+        # timestep = self.step_counter
+        # label = self.get_monotonicity_label(distances)
+        # print(f"Writing data: {timestep}, {label}, {observation_csc}")
+        # self.data_storage.append([timestep, label, observation_csc])
+
+        # # Make the RL stop for some times towards last timesteps of warmup, to include more variety in data
+        # # Because RL vehicle Stopped and others moving, this scenario is hard to obtain.
+        # stop_timesteps = [(2900, 3000), (3400, 3500)]
+        
+        # # If timestep is in ranges of stop_timesteps, then stop the RL vehicle
+        # if any([timestep in range(start, end) for start, end in stop_timesteps]):
+        #     self.k.vehicle.apply_acceleration(rl_id, -1.0)
+
+        # if self.step_counter == self.env_params.warmup_steps - 1: 
+        #      # if does not exist 
+        #     if not os.path.exists("./csc_data"):
+        #         os.makedirs("./csc_data")
+        #     time_now = strftime("%Y-%m-%d-%H:%M:%S")
+        #     np.save(f"./csc_data/length_{int(current_length)}/csc_data_{time_now}.npy", np.array(self.data_storage))
+
+        # return observation_csc
+    
+        ########## FOR REGULAR TRAINING ##########
         rl_id = self.k.vehicle.get_rl_ids()[0]
         rl_pos = self.k.vehicle.get_x_by_id(rl_id)
         current_length = self.k.network.length()
 
-        # Get the list of all vehicles in the local zone (sorted from farthest to closest)
-        vehicles_in_zone = self.sort_vehicle_list(self.k.vehicle.get_veh_list_local_zone(rl_id, 
-                                                                                         current_length, 
-                                                                                         self.LOCAL_ZONE )) # Direction i front by default
-        
-        # For TSE data collection
-        #observation = np.full(self.observation_space.shape, -1.0)
+        # This is sorted as ['human_0', 'human_1', 'human_2', 'human_3', 'rl_0'], with human_3 as furthest
+        sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone(rl_id, self.k.network.length(), self.LOCAL_ZONE)
+        # sorting needs to be RL at index 0 with furthest vehicle at index n
+        sorted_veh_ids.remove('rl_0')  
+        sorted_veh_ids.insert(0, 'rl_0')
 
-        # For RL training
-        observation_tse = np.full((10, 2), -1.0)
+        #distances = []
+        observation_csc = np.full((10, 2), -1.0)
+        for i in range(len(sorted_veh_ids)):
+            # Get the distance of the vehicle from the RL vehicle
+            rel_pos = (self.k.vehicle.get_x_by_id(sorted_veh_ids[i]) - rl_pos) % current_length
+            norm_pos = rel_pos / self.LOCAL_ZONE # This is actually the normalized distance
+            #distances.append(norm_pos)
 
-        num_vehicle_in_zone = len(vehicles_in_zone)
-        distances = []
-        if num_vehicle_in_zone > 0:
-            for i in range(len(vehicles_in_zone)):
-                # Distance is measured center to center between the two vehicles (if -5 present, distance if bumper to bumper)
-                rel_pos = (self.k.vehicle.get_x_by_id(vehicles_in_zone[i]) - rl_pos) % current_length
-                norm_pos = rel_pos / self.LOCAL_ZONE # This is actually the normalized distance
-                distances.append(norm_pos)
+            vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
+            norm_vel = vel / self.MAX_SPEED
+            observation_csc[i] = [norm_pos, norm_vel]
 
-                vel = self.k.vehicle.get_speed(vehicles_in_zone[i])
-                norm_vel = vel / self.MAX_SPEED
+        #label = self.get_monotonicity_label(distances)
+        observation_csc = np.array(observation_csc, dtype = np.float32) # required for torch
 
-                observation_tse[i] = [norm_pos, norm_vel]
-                
-        observation_tse = np.array(observation_tse, dtype=np.float32)
-        
-        # For using TSE model: add TSE output to appropriate observation
-        self.tse_output = self.get_tse_output(observation_tse)
-        self.tse_output_encoded = np.zeros(6) 
-        self.tse_output_encoded[self.tse_output] = 1
+        # For using csc model: add csc output to appropriate observation
+        self.csc_output = self.get_csc_output(observation_csc)
+        self.csc_output_encoded = np.zeros(6) 
+        self.csc_output_encoded[self.csc_output] = 1 
 
-        print(f"TSE output: {self.tse_output}, one hot encoded: {self.tse_output_encoded}, meaning: {self.label_meaning[self.tse_output[0]]}")
+        print(f"csc output: {self.csc_output}, one hot encoded: {self.csc_output_encoded}, meaning: {self.label_meaning[self.csc_output[0]]}")
 
-        # Zone count will count the RL agent itself as well
+        # Zone count will count the RL agent icsclf as well
         # Observe the leader
-        if num_vehicle_in_zone > 1:
+        if len(sorted_veh_ids) > 1:
             lead_id = self.k.vehicle.get_leader(rl_id) or rl_id
 
             # normalizers
@@ -368,19 +467,18 @@ class DensityAwareRLEnv(Env):
         else:
             observation = np.array([-1, -1, -1]) # the second -1 could be plausible above but unlikely
 
-        observation = np.append(observation, self.tse_output_encoded)
-        print(f"Observations new: {observation, observation.shape}\n")
+        # If time steps are less than warmup + 300 then estimate the free speed
+        if (self.step_counter > self.env_params.warmup_steps and self.step_counter < self.env_params.warmup_steps + 300):
+            # csc output is free flow
+            if self.csc_output[0] == 2:
+                estimate = 0.70*np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids])
+                if estimate > self.estimated_free_speed:
+                    self.estimated_free_speed = estimate
+        
+        #print(f"Estimated free speed: {self.estimated_free_speed}")
 
-        # For training TSE model: Get data for TSE NN training
-        #print("Observation\n", observation)
-        # timestep = self.step_counter
-        # label = self.get_monotonicity_label(distances)
-        # print(f"Writing data: {timestep}, {label}, {observation}")
-        # self.data_storage.append([timestep, label, observation])
-        # # For data collection, make  warmup 2500
-        # if self.step_counter == self.env_params.warmup_steps - 1: #leave this self.env_params.horizon 
-        #     np.save("./tse_data/tse_data_{}.npy".format(strftime("%Y-%m-%d-%H:%M:%S")), np.array(self.data_storage))
-
+        observation = np.append(observation, self.csc_output_encoded)
+        #print(f"Observation: {observation, observation.shape}\n")
         return observation
 
     def reset(self):
