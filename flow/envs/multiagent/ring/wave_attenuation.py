@@ -212,8 +212,8 @@ class MultiAgentWaveAttenuationPOEnv(MultiEnv):
             ])
             obs.update({rl_id: observation})
 
-            print(f"RL_ID: {rl_id}, observation: {observation}")
-        print("\n")
+            #print(f"RL_ID: {rl_id}, observation: {observation}")
+       
         
         return obs
 

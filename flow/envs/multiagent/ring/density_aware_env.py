@@ -70,8 +70,8 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
             ##############
             # For Safety + Stability. Only present in test time.
-            if self.k.vehicle.get_speed(rl_id) >= self.estimated_free_speed:
-                rl_action = 0.0
+            # if self.k.vehicle.get_speed(rl_id) >= self.estimated_free_speed:
+            #     rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
@@ -163,10 +163,12 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             obs[rl_id] = np.array(current_obs, dtype = np.float32).flatten()
             #print(f"RL id:{rl_id} Observation: {obs[rl_id]}, {obs[rl_id].shape} \n")
         
-        if self.step_counter > self.env_params.warmup_steps:
-            estimate = 0.94*self.k.vehicle.get_speed(trained_rl_id)
-            if estimate > self.estimated_free_speed:
-                    self.estimated_free_speed = estimate
+        ##############
+        # For Safety + Stability. Only present in test time.
+        # if self.step_counter > self.env_params.warmup_steps:
+        #     estimate = 0.96*self.k.vehicle.get_speed(trained_rl_id)
+        #     if estimate > self.estimated_free_speed:
+        #             self.estimated_free_speed = estimate
 
         #print(f"Total Observations: {obs} \n")
         return obs
