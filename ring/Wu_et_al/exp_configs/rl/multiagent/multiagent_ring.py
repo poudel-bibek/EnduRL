@@ -18,9 +18,9 @@ HORIZON = 3000
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
-N_CPUS = 2
+N_CPUS = 4
 # number of automated vehicles. Must be less than or equal to 22.
-NUM_AUTOMATED = 2
+NUM_AUTOMATED = 4 # 4 for 20%, 9 for 40%, 
 
 
 # We evenly distribute the automated vehicles in the network.
@@ -74,7 +74,7 @@ flow_params = dict(
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
         horizon=HORIZON,
-        warmup_steps=750,
+        warmup_steps=2500,
         clip_actions=False,
         additional_params={
             "max_accel": 1,

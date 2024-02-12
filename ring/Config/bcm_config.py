@@ -35,7 +35,6 @@ def config_bcm(args, **kwargs):
     
     vehicles = VehicleParams()
     num_controlled = 4 if args.num_controlled is None else args.num_controlled # Minimum
-    num_human = 22- num_controlled
 
     if args.length is None:
         kwargs['length'] = random.randint(220, 270)
@@ -62,7 +61,7 @@ def config_bcm(args, **kwargs):
         ),
 
         routing_controller=(ContinuousRouter, {}),
-        num_vehicles= num_human if args.stability else num_human) # 14 for stable
+        num_vehicles= 22- num_controlled) # 14 for stable
 
     vehicles.add(
         veh_id=kwargs['method_name'],

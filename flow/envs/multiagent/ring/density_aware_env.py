@@ -35,6 +35,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         self.LOCAL_ZONE = 50 # m, arbitrarily set
         self.VEHICLE_LENGTH = 5 #m can use self.k.vehicle.get_length(veh_id)
         self.MAX_SPEED = 10 # m/s
+        self.estimated_free_speed = 0
 
     @property
     def action_space(self):
@@ -60,11 +61,21 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
     
     def _apply_rl_actions(self, rl_actions):
         """
+        # In Multi agent ring, for followers, at test time, when the leader has found a stabilizing velocity, followers just stay stable.
         """
         
         #print(f"RL actions: {rl_actions} \n")
         for rl_id in self.k.vehicle.get_rl_ids():
-            self.k.vehicle.apply_acceleration(rl_id, rl_actions[rl_id])
+            rl_action = rl_actions[rl_id]
+
+            ##############
+            # For Safety + Stability. Only present in test time.
+            if self.k.vehicle.get_speed(rl_id) >= self.estimated_free_speed:
+                rl_action = 0.0
+
+            self.k.vehicle.apply_acceleration(rl_id, rl_action)
+
+        
     
     def compute_reward(self, rl_actions, **kwargs):
             """
@@ -152,6 +163,11 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             obs[rl_id] = np.array(current_obs, dtype = np.float32).flatten()
             #print(f"RL id:{rl_id} Observation: {obs[rl_id]}, {obs[rl_id].shape} \n")
         
+        if self.step_counter > self.env_params.warmup_steps:
+            estimate = 0.94*self.k.vehicle.get_speed(trained_rl_id)
+            if estimate > self.estimated_free_speed:
+                    self.estimated_free_speed = estimate
+
         #print(f"Total Observations: {obs} \n")
         return obs
 
