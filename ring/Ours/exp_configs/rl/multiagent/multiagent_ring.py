@@ -18,7 +18,7 @@ N_CPUS = 4
 WARMUP_STEPS = 2500
 
 # number of automated vehicles. Unfortunately it has to be changed here everytime.
-NUM_AUTOMATED = 3 # 3 for 20%, 8 for 40%
+NUM_AUTOMATED = 8 # 3 for 20%, 8 for 40%
 num_human = 22 - (NUM_AUTOMATED + 1) # 1 for the trained leader
 
 vehicles = VehicleParams()

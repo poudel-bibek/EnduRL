@@ -308,19 +308,20 @@ class TrainedAgentController(BaseController):
         # Finally compute the action
         acceleration = self.leader_agent.compute_action(full_observation)
         #print(f"Acceleration: {acceleration}, Efficiency: {self.efficiency} \n")
-        # Efficiency specific
-        # Estimate the free flow speed
-        if self.efficiency:
-            
-            if env.step_counter < self.WARMUP_STEPS + 200:
-                # csc output is free flow 
-                if csc_output[0] == 2:
-                    estimate = 0.70*np.mean([env.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids])
-                    if estimate > self.free_flow_speed:
-                        self.free_flow_speed = estimate
 
-            if env.step_counter > self.WARMUP_STEPS + 200 and env.k.vehicle.get_speed(self.veh_id) >= self.free_flow_speed:
-                acceleration = 0.0
+        # Efficiency specific (Only present at test time)
+        # Estimate the free flow speed
+        # if self.efficiency:
+            
+        #     if env.step_counter < self.WARMUP_STEPS + 200:
+        #         # csc output is free flow 
+        #         if csc_output[0] == 2:
+        #             estimate = 0.70*np.mean([env.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids])
+        #             if estimate > self.free_flow_speed:
+        #                 self.free_flow_speed = estimate
+
+        #     if env.step_counter > self.WARMUP_STEPS + 200 and env.k.vehicle.get_speed(self.veh_id) >= self.free_flow_speed:
+        #         acceleration = 0.0
 
             #print("Estimated Free Flow Speed: ", self.free_flow_speed)
         return acceleration

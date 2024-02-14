@@ -52,7 +52,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         What do the followers observe? 
         Just the 3 regular observations with the Full platoon leader (not thier subjective leader)
         """
-        NUM_AUTOMATED = 3 # Change to 3, 8, .. accordingly i.e. number of RL agents 
+        NUM_AUTOMATED = 8 # Change to 3, 8, .. accordingly i.e. number of RL agents 
         return Box(low=-float('inf'), 
                    high=float('inf'), 
                    shape=((NUM_AUTOMATED+1)*2,), # Since there is one leader and we want the total platoon info.

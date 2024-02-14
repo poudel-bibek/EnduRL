@@ -87,17 +87,34 @@ def visualizer_rllib(args):
 
     if multiagent:
         #print(f"\n\n{flow_params_modify}\n\n")
-        # For some reason, in multiagent, RL vehicles are veh[0]..onwards
-        human_index = args.num_controlled # This is the index within "veh"
+        # When vehicles are dispersed, in wu et al. There are multiple human and rl indices.
 
-        # Since we need to shock, they need to be of this type.
-        flow_params_modify["veh"][human_index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
-                                                                                            "shock_vehicle": True}]
-        
-        flow_params_modify["veh"][human_index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+        if args.method == "wu":
+            
+            if args.num_controlled == 4:
+                # In 20%, 1 RL, 4 HV, 1 RL, 5 HV, 1 RL, 4 HV, 1 RL, 5 HV
+                # So HV indices are 1, 3, 5, 7
+                human_indices = [1, 3, 5, 7]
+                for index in human_indices:
+                    flow_params_modify["veh"][index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
+                                                                                                    "shock_vehicle": True}]
+                
+                    flow_params_modify["veh"][index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+            else: 
+                print("Not defined for this number of controlled vehicles")
 
-        leader_index = human_index - 1
-        flow_params_modify["veh"][leader_index]["color"] = 'red'
+        else: 
+            # For some reason, in multiagent, RL vehicles are veh[0]..onwards
+            human_index = args.num_controlled # This is the index within "veh"
+
+            # Since we need to shock, they need to be of this type.
+            flow_params_modify["veh"][human_index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
+                                                                                                "shock_vehicle": True}]
+            
+            flow_params_modify["veh"][human_index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+
+            leader_index = human_index - 1
+            flow_params_modify["veh"][leader_index]["color"] = 'red'
 
     else: 
         # 2. Be able to set shock vehicles (set the IDM vehicles to ModifiedIDM)
@@ -199,7 +216,7 @@ def visualizer_rllib(args):
     if multiagent:
         rets = {}
         # map the agent id to its policy
-        policy_map_fn = policy_mapping_fn #config['multiagent']['policy_mapping_fn']
+        policy_map_fn =  policy_mapping_fn #config['multiagent']['policy_mapping_fn'] # policy_mapping_fn # For ours
         # Bibek: Debug hack. define the policy mapping function here instead of getting it form file
 
         for key in config['multiagent']['policies'].keys():
@@ -479,12 +496,16 @@ if __name__ == '__main__':
 
     if args.method is None:
         raise ValueError("Method name must be specified, can be [wu, ours, ours4x, ours9x, ours13x]")
-    
+     
+    # For ours at multiagent
     def policy_mapping_fn(agent_id):
         """
         map policy id to agent id, only required for multi-agents
         """
-        return 'follower'
-            
+        if args.method == "ours":
+            return 'follower'
+        else: 
+            return 'av'
+
     ray.init(num_cpus=1)
     visualizer_rllib(args)
