@@ -5,8 +5,12 @@ from flow.envs.multiagent.ring.wave_attenuation import \
     MultiWaveAttenuationPOEnv
 from flow.envs.multiagent.ring.wave_attenuation import \
     MultiAgentWaveAttenuationPOEnv
-from flow.envs.multiagent.ring.density_aware_env import MultiAgentDensityAwareRLEnv # Bibek
+
+# Bibek
+from flow.envs.multiagent.ring.density_aware_env import MultiAgentDensityAwareRLEnv 
 from flow.envs.multiagent.density_aware_intersection_env import DensityAwareIntersectionEnv
+from flow.envs.multiagent.density_aware_bottleneck_env import DensityAwareBottleneckEnv
+
 from flow.envs.multiagent.ring.accel import AdversarialAccelEnv
 from flow.envs.multiagent.ring.accel import MultiAgentAccelPOEnv
 from flow.envs.multiagent.traffic_light_grid import MultiTrafficLightGridPOEnv
@@ -25,5 +29,6 @@ __all__ = [
     'MultiAgentMergePOEnv',
     'I210MultiEnv',
     'MultiAgentDensityAwareRLEnv',
-    'DensityAwareIntersectionEnv'
+    'DensityAwareIntersectionEnv',
+    'DensityAwareBottleneckEnv',
 ]

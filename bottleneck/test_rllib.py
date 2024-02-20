@@ -241,7 +241,7 @@ def visualizer_rllib(args):
                     shock_ids = np.random.choice(current_shockable_vehicle_ids, sample_vehicles)
                     #print(f"\n\nShock ids: {shock_ids}\n\n")
 
-                shock_counter, current_duration_counter, shock_ids = perform_shock(env, 
+                shock_counter, current_duration_counter, shock_ids = perform_shock(args, env, 
                             shock_times, 
                             step,
                             args.warmup,
@@ -348,7 +348,7 @@ def visualizer_rllib(args):
     # terminate the environment
     env.unwrapped.terminate()
 
-def perform_shock(env, 
+def perform_shock(args, env, 
                   shock_times, 
                   step, 
                   warmup, 
@@ -396,7 +396,7 @@ def perform_shock(env,
             for i in shock_ids:
                 env.unwrapped.k.vehicle.set_color(i, (255,0,255))
 
-            current_duration_counter += 0.1 # increment current duration counter by one timestep seconds 
+            current_duration_counter += args.sim_step # 0.1 # increment current duration counter by one timestep seconds 
 
     return shock_counter, current_duration_counter, shock_ids
 

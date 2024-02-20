@@ -146,7 +146,7 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
             self.shock_times = get_time_steps(self.sm[1], self.sm[2], self.shock_start_time, self.shock_end_time)
 
         self.density_collector = []
-        # Dont allow '5' to avoid vehicles exiting from the network cause a NoneType erro
+        # Dont allow '5' to avoid vehicles exiting from the network cause a NoneType error
         self.edges_allowed_list = ['3', '4_0', '4_1', '4_2', '4_3', '4_4', '4_5', '4_6', '4_7',  '4'] # 5_0, 5_1, and 5_2 are not allowed
         self.threshold_speed = 3.0 # m/s # Just to make sure they are not actually stopped
         self.sample_vehicles = 4 # Number of vehicles to simultaneously shock in the network

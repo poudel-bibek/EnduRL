@@ -78,7 +78,7 @@ class Plotter:
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Speed (m/s)')
-        ax.set_ylim(0,5.5)
+        ax.set_ylim(0,6.5)
         ax.legend()
         plt.savefig(self.save_dir + '/speeds.png')
 

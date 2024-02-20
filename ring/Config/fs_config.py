@@ -34,21 +34,21 @@ def config_fs(args, **kwargs):
     print("length: ", kwargs['length'])
     
     vehicles.add(
-        veh_id="human",
-        acceleration_controller=(ModifiedIDMController, {
-            "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
-            "noise": args.noise,
-        }),
-        car_following_params=SumoCarFollowingParams(
-            min_gap= args.min_gap,
-        ),
+            veh_id="human",
+            acceleration_controller=(ModifiedIDMController, {
+                "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
+                "noise": args.noise,
+            }),
+            car_following_params=SumoCarFollowingParams(
+                min_gap= args.min_gap,
+            ),
 
-        routing_controller=(ContinuousRouter, {}),
-        num_vehicles=21 if args.stability else 22 - num_controlled) # 17 for stable
+            routing_controller=(ContinuousRouter, {}),
+            num_vehicles= 22 - num_controlled) 
 
     vehicles.add(
         veh_id= kwargs['method_name'],
-         acceleration_controller=(ModifiedIDMController, {
+        acceleration_controller=(ModifiedIDMController, {
             "noise": args.noise,
         }),
         car_following_params=SumoCarFollowingParams(
@@ -57,6 +57,81 @@ def config_fs(args, **kwargs):
         routing_controller=(ContinuousRouter, {}),
         num_vehicles= num_controlled,
         color = 'yellow')
+    
+    # if args.num_controlled == 13: # Unstable for the desired velocity of 4.82 in platoon configuration.
+    #     # Add 5 humans, 7 controlled, 4 humans, 6 controlled
+    #     vehicles.add(
+    #         veh_id="human_0",
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "shock_vehicle": True,
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles=5)
+        
+    #     vehicles.add(
+    #         veh_id= f"{kwargs['method_name']}_0",
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles=7,
+    #         color = 'yellow')
+        
+    #     vehicles.add(
+    #         veh_id="human_1",
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "shock_vehicle": True, 
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles=4)
+        
+    #     vehicles.add(
+    #         veh_id= f"{kwargs['method_name']}_1",
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles=6,
+    #         color = 'yellow')
+    # else:
+    #     vehicles.add(
+    #         veh_id="human",
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "shock_vehicle": True, # Just because it was initialized as a shock vehicle does not mean it will shock
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles=21 if args.stability else 22 - num_controlled) # 17 for stable
+
+    #     vehicles.add(
+    #         veh_id= kwargs['method_name'],
+    #         acceleration_controller=(ModifiedIDMController, {
+    #             "noise": args.noise,
+    #         }),
+    #         car_following_params=SumoCarFollowingParams(
+    #             min_gap= args.min_gap,
+    #         ),
+    #         routing_controller=(ContinuousRouter, {}),
+    #         num_vehicles= num_controlled,
+    #         color = 'yellow')
 
     # Add specific properties of vehicles with this method_name id
     desired_velocity = get_desired_velocity(len(vehicles.ids), kwargs['length'], args.method)

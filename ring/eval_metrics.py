@@ -642,7 +642,7 @@ class EvalMetrics():
             #print(f"Speed of all vehicles (m/s): {speeds_total_avg.shape}\n")
             #print(f"Std of average speeds{speeds_total_std}")
             
-            if args.method == 'idm': # For unstable percentages put names here. ;bcm
+            if args.method == 'fs': # For unstable percentages put names here. ;bcm
                 tts = -1
             else: 
                 # Where was the first instance of the std being less than the IDM noise?
@@ -740,8 +740,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x', 'ours9x']:
-        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours, , ours4x, ours9x]")
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'wu', 'ours', 'ours4x', 'ours9x', 'ours13x']:
+        raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours, , ours4x, ours9x, ours13x]")
 
     #if args.metric is None:
         #raise ValueError("Please specify the metric to evaluate\n Metric can be [Stability, safety, efficiency]")

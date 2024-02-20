@@ -52,5 +52,10 @@ if __name__ == '__main__':
     parser.add_argument('--num_controlled', type=int, default=None)
     parser = update_arguments(parser)
     args = parser.parse_args()
+    
+    # If args.av_frac is None, then throw error
+    if args.av_frac is None:
+        raise ValueError("The 'av_frac' argument is required and must be a float.")
+
     run(args)
     

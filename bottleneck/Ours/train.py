@@ -145,31 +145,25 @@ def setup_exps_rllib(flow_params,
     config = deepcopy(agent_cls._default_config)
 
     config["num_workers"] = n_cpus
-    config["train_batch_size"] = horizon * n_rollouts
+    config["train_batch_size"] = horizon * n_rollouts # Take the entirety of the rollouts
     config["gamma"] = 0.999  # discount rate
 
-    #Bibek: Hyper-parameters, dont use relu activation (negative values are present/ expected) in acceleration
-    # Tanh activations have a range of -1, 1, sigmoid has a range of 0, 1 # "fcnet_activation": "tanh"}
-    config["model"].update({"fcnet_hiddens": [256, 256, 128], "fcnet_activation": "tanh"})
+    # Conservative set of params + smaller NN (because there are a lot of RLs)
+    # Even smaller than the ring
+    config["model"].update({"fcnet_hiddens": [32, 16, 8], "fcnet_activation": "tanh"})
 
     config["lr"] = 5e-05 # default 5e-05
-    
-    # Add seed?
-    #config["seed"] = 42
+    config["lr_schedule"] = [[0, 1e-04], [100000, 5e-05]] # default None
     
     config["use_gae"] = True
     config["lambda"] = 0.97
     config["kl_target"] = 0.02
-    config["num_sgd_iter"] = 10
+    config["num_sgd_iter"] = 2 #10
     config["horizon"] = horizon
 
     # Bibek: Make the  agent a little more exploratory
     config["entropy_coeff"] = 0.01 # 0.01 from PPO paper# Default 0.0
-    # For single agent
-    #config["entropy_coeff_schedule"] = [[0, 0.1],[500000, 0.02], [1000000, 0.01]] # Default None
-
-    # For multi agent
-    config["entropy_coeff_schedule"] = [[0, 0.15],[500000, 0.05], [1000000, 0.02], [2000000, 0.01]] # Default None
+    config["entropy_coeff_schedule"] = [[0, 0.1],[100000, 0.02], [500000, 0.01]] # Default None
 
     # save the flow params for replay
     flow_json = json.dumps(
@@ -210,7 +204,7 @@ def train_rllib(submodule, flags):
         flow_params, n_cpus, n_rollouts,
         policy_graphs, policy_mapping_fn, policies_to_train)
 
-    ray.init(num_cpus=n_cpus + 1, object_store_memory=2000 * 1024 * 1024)
+    ray.init(num_cpus=n_cpus + 1, object_store_memory= 2000 * 1024 * 1024)
     exp_config = {
         "run": alg_run,
         "env": gym_name,

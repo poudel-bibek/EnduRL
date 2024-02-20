@@ -100,6 +100,26 @@ def visualizer_rllib(args):
                                                                                                     "shock_vehicle": True}]
                 
                     flow_params_modify["veh"][index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+
+            elif args.num_controlled == 9:
+                # In 40%, 1 RL, 1 HV, 1 RL, 2 HV, 1 RL, 1 HV, 1 RL, 2 HV, 1 RL, 1 HV, 1 RL, 2 HV, 1 RL, 1 HV, 1 RL, 2 HV, 1 RL, 1 HV
+                human_indices = [1, 3, 5, 7, 9, 11, 13, 15, 17]
+                for index in human_indices:
+                    flow_params_modify["veh"][index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
+                                                                                                    "shock_vehicle": True}]
+                
+                    flow_params_modify["veh"][index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+            
+            elif args.num_controlled == 13:
+            #     # In 60% , 5 x (1 RL, 1 HV) then 4 x (2 RL, 1 HV) makes total 22 
+                human_indices = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25] # Although only 9 HVs make it to the scene.
+                for index in human_indices:
+                    flow_params_modify["veh"][index]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise,
+                                                                                                    "shock_vehicle": True}]
+                
+                    flow_params_modify["veh"][index]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
+
+
             else: 
                 print("Not defined for this number of controlled vehicles")
 
@@ -392,9 +412,15 @@ def perform_shock_stability(env, shock_times, shock_counter, current_duration_co
     if num_automated == 4:
         single_shock_id = 'human_2_0'
         reference_speed_limit_id = 'human_2_1'
+        
     elif num_automated == 9:
         single_shock_id = 'human_8_0'
         reference_speed_limit_id = 'human_8_1'
+
+    elif num_automated == 13:
+        single_shock_id = 'human_12_0'
+        reference_speed_limit_id = 'human_12_1'
+
     else: 
         single_shock_id = 'human_0'
         reference_speed_limit_id = 'human_1'
@@ -422,7 +448,7 @@ def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, cu
     #print(f"\n\nController: {controller}\n\n")
 
     # change color to white
-    env.unwrapped.k.vehicle.set_color(single_shock_id, (255, 255, 255))
+    # env.unwrapped.k.vehicle.set_color(single_shock_id, (255, 255, 255))
     
     # Default: at times when shock is not applied, get acceleration from IDM
     controller.set_shock_time(False)
@@ -441,7 +467,7 @@ def perform_shock(env, vehicles, single_shock_id, shock_times, shock_counter, cu
             controller.set_shock_time(True) 
             controller.set_shock_accel(intensities[shock_counter])
 
-            # change color to magenta
+            # change color to magenta (exclude the observed vehicles?)
             env.unwrapped.k.vehicle.set_color(single_shock_id, (255, 0, 255))
 
             current_duration_counter+= 1
@@ -502,7 +528,7 @@ if __name__ == '__main__':
         """
         map policy id to agent id, only required for multi-agents
         """
-        if args.method == "ours":
+        if args.method == "ours" or args.method == "ours4x" or args.method == "ours9x" or args.method == "ours13x":
             return 'follower'
         else: 
             return 'av'

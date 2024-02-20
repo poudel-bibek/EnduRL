@@ -15,7 +15,7 @@ def config_fs(args, **kwargs):
 
     DISABLE_TB = True
     DISABLE_RAMP_METER = True
-    AV_FRAC = 0.10 # args.av_frac # For FS its 5%
+    AV_FRAC = args.av_frac # For FS its 5%
     SCALING = 2
 
     vehicles.add(

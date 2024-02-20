@@ -96,14 +96,14 @@ class DensityAwareRLEnv(Env):
         
         """
         ##############
-        # For Efficiency (Fuel and Throughput). Only present in test time. For multi-agents, not to be controlled from here (see controllersforaware)
+        # For Efficiency (Fuel and Throughput). Only present in test time. For multi-agents, even for the trained agent's zero acceleration behavior, change in controllersforaware (Not from here)
         # For the first 300 steps after warmup, estimate the free flow speed in the local zone (Leverage CSC)
         # if speed is greater than desired speed, then just maintain the speed
         # rl_speed = self.k.vehicle.get_speed(self.k.vehicle.get_rl_ids()[0])
         # if self.estimated_free_speed!=0 and rl_speed >= self.estimated_free_speed:
         #     rl_actions = [0.0]
         
-        # print(f"RL action received: {rl_actions}")
+        #print(f"RL action received: {rl_actions}")
             
         ##############
         # Original acceleration action
@@ -443,7 +443,7 @@ class DensityAwareRLEnv(Env):
         self.csc_output_encoded = np.zeros(6) 
         self.csc_output_encoded[self.csc_output] = 1 
 
-        print(f"csc output: {self.csc_output}, one hot encoded: {self.csc_output_encoded}, meaning: {self.label_meaning[self.csc_output[0]]}")
+        #print(f"csc output: {self.csc_output}, one hot encoded: {self.csc_output_encoded}, meaning: {self.label_meaning[self.csc_output[0]]}")
 
         # Zone count will count the RL agent icsclf as well
         # Observe the leader

@@ -23,7 +23,7 @@ def update_arguments(parser):
 
     parser.add_argument('--sim_step', type=float, default=0.1)
     parser.add_argument('--inflow', type=int, default= 3600) # This is set to 1800*scaling
-    #parser.add_argument('--av_frac ', type=float, default= 0.1) # May not be used by all
+    parser.add_argument('--av_frac', type=float, default= None) 
     parser.add_argument('--render', action='store_true', default=False)
     return parser
 

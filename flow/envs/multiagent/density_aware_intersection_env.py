@@ -148,9 +148,7 @@ class DensityAwareIntersectionEnv(MultiEnv):
 
     def _apply_rl_actions(self, rl_actions):
         """
-        In total, the "agent" produces 30 actions.
-        Actual present RL vehicles may be less than 30.
-        Just ignore the rest of the actions. Because the corresponding observations also were empty for those.
+    
         """
         #print(f"\n\nRL Actions: {rl_actions}\n\n")
 

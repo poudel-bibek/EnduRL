@@ -113,7 +113,7 @@ class TrainedAgentController(BaseController):
                  checkpoint_num,
                  num_cpus, # Make the num cpu here one more than the one in training config file for the single agent
                  warmup_steps,
-                 efficiency = False, # For efficiency leader
+                 efficiency = False, # For efficiency leader. Only at test time.
                  v0=30,
                  T=1,
                  a=1,
@@ -311,17 +311,17 @@ class TrainedAgentController(BaseController):
 
         # Efficiency specific (Only present at test time)
         # Estimate the free flow speed
-        # if self.efficiency:
+        if self.efficiency:
             
-        #     if env.step_counter < self.WARMUP_STEPS + 200:
-        #         # csc output is free flow 
-        #         if csc_output[0] == 2:
-        #             estimate = 0.70*np.mean([env.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids])
-        #             if estimate > self.free_flow_speed:
-        #                 self.free_flow_speed = estimate
+            if env.step_counter < self.WARMUP_STEPS + 200:
+                # csc output is free flow 
+                if csc_output[0] == 2:
+                    estimate = 0.70*np.mean([env.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) # 0.70 for 20% and 40%, 0.78 for 60%,
+                    if estimate > self.free_flow_speed:
+                        self.free_flow_speed = estimate
 
-        #     if env.step_counter > self.WARMUP_STEPS + 200 and env.k.vehicle.get_speed(self.veh_id) >= self.free_flow_speed:
-        #         acceleration = 0.0
+            if env.step_counter > self.WARMUP_STEPS + 200 and env.k.vehicle.get_speed(self.veh_id) >= self.free_flow_speed:
+                acceleration = 0.0
 
             #print("Estimated Free Flow Speed: ", self.free_flow_speed)
         return acceleration

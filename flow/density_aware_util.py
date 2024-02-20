@@ -45,7 +45,7 @@ def get_desired_velocity(num_vehicles, length, method_name = None):
 
     elif length == 260:
         # From hit and trial, for 
-        return 4.82 # Value from LORR paper, other sources
+        return 4.55 # 4.82 is the value from LORR paper, other sources # For 60% (13 cars controlled always unstable at this velocity). Change to 4.55 for that
 
     elif length == 270:
         return 5.2

@@ -16,7 +16,8 @@ def config_idm(args, **kwargs):
     DISABLE_TB = True
     DISABLE_RAMP_METER = True
     SCALING = 2
-
+    AV_FRAC = args.av_frac # Although its not used here. 
+    
     # All IDM
     vehicles.add(
         veh_id="human",

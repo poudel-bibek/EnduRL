@@ -52,7 +52,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
         What do the followers observe? 
         Just the 3 regular observations with the Full platoon leader (not thier subjective leader)
         """
-        NUM_AUTOMATED = 8 # Change to 3, 8, .. accordingly i.e. number of RL agents 
+        NUM_AUTOMATED = 12 # Change to 3, 8, 12 .. accordingly i.e. number of RL agents 
         return Box(low=-float('inf'), 
                    high=float('inf'), 
                    shape=((NUM_AUTOMATED+1)*2,), # Since there is one leader and we want the total platoon info.
@@ -69,9 +69,9 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             rl_action = rl_actions[rl_id]
 
             ##############
-            # For Safety + Stability. Only present in test time.
-            # if self.k.vehicle.get_speed(rl_id) >= self.estimated_free_speed:
-            #     rl_action = 0.0
+            # For Safety + Stability. Only present in test time. In multi agents, for followers.
+            if self.k.vehicle.get_speed(rl_id) >= 0.90*self.estimated_free_speed: # 0.98 for 20%, 0.95 for 40%, 0.90 for 60%
+                rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
@@ -164,11 +164,11 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
             #print(f"RL id:{rl_id} Observation: {obs[rl_id]}, {obs[rl_id].shape} \n")
         
         ##############
-        # For Safety + Stability. Only present in test time.
-        # if self.step_counter > self.env_params.warmup_steps:
-        #     estimate = 0.96*self.k.vehicle.get_speed(trained_rl_id)
-        #     if estimate > self.estimated_free_speed:
-        #             self.estimated_free_speed = estimate
+        # For Safety + Stability. Its fine to have this ON at all times.
+        if self.step_counter > self.env_params.warmup_steps:
+            estimate = self.k.vehicle.get_speed(trained_rl_id)
+            if estimate >= self.estimated_free_speed:
+                    self.estimated_free_speed = estimate
 
         #print(f"Total Observations: {obs} \n")
         return obs

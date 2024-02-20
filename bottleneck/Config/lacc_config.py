@@ -15,7 +15,7 @@ def config_lacc(args, **kwargs):
 
     DISABLE_TB = True
     DISABLE_RAMP_METER = True
-    AV_FRAC = 0.10 # args.av_frac # For BCM its 20%?
+    AV_FRAC = args.av_frac # For BCM its 20%?
     SCALING = 2
 
     vehicles.add(
