@@ -92,7 +92,7 @@ if not DISABLE_TB:
 if not DISABLE_RAMP_METER:
     traffic_lights.add(node_id="3")
 
-additional_net_params = {"scaling": SCALING, "speed_limit": 23}
+additional_net_params = {"scaling": SCALING, "speed_limit": 17}
 net_params = NetParams(
     inflows=inflow,
     additional_params=additional_net_params)
