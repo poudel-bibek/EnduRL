@@ -20,7 +20,7 @@ def update_arguments(parser):
     parser.add_argument('--shock_start_time', type=int, default= 7400) # 780
     parser.add_argument('--shock_end_time', type=int, default= 11000) # 1500
     parser.add_argument('--shock_model', type=int, default= 2)
-
+    parser.add_argument('--min_gap', type=float, default= 0.1) # Specifically for our RL
     parser.add_argument('--sim_step', type=float, default=0.1)
     parser.add_argument('--inflow', type=int, default= 3600) # This is set to 1800*scaling
     parser.add_argument('--av_frac', type=float, default= None) 

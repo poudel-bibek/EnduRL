@@ -55,7 +55,7 @@ def config_fs(args, **kwargs):
     if args.gen_emission:
         save_path = 'test_time_rollout/fs_stability' if args.stability else 'test_time_rollout/fs'
         sim_params = SumoParams(
-            sim_step=0.1,
+            sim_step=args.sim_step,
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
@@ -63,14 +63,14 @@ def config_fs(args, **kwargs):
 
     else:
         sim_params = SumoParams(
-            sim_step=0.1,
+            sim_step=args.sim_step,
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
             emission_path=None)
 
     additional_env_params = {
-        "target_velocity": 40, # Change that to match the ring? Or match the noise levels accordingly
+        "target_velocity": 15, # Change that to match the ring? Or match the noise levels accordingly
         "disable_tb": True,
         "disable_ramp_metering": True,
         "symmetric": False,
@@ -96,14 +96,14 @@ def config_fs(args, **kwargs):
         #/ num_controlled, # Uncomment if want to operatate at min. no . of vehicles required to stabilize in ring, Because later we scale them up
         vehs_per_hour=flow_rate * AV_FRAC, 
         departLane="random",
-        departSpeed=10)
+        departSpeed=6)
     
     inflow.add(
         veh_type="human",
         edge="1",
         vehs_per_hour=flow_rate * (1 - AV_FRAC),
         departLane="random",
-        departSpeed=10)
+        departSpeed=6)
 
 
     traffic_lights = TrafficLightParams()

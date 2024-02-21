@@ -76,7 +76,7 @@ controlled_segments = [("1", 1, False), ("2", 2, True), ("3", 2, True),
                        ("4", 2, True), ("5", 1, False)]
 num_observed_segments = [("1", 1), ("2", 3), ("3", 3), ("4", 3), ("5", 1)]
 additional_env_params = {
-    "target_velocity": 40,
+    "target_velocity": 15,
     "disable_tb": True,
     "disable_ramp_metering": True,
     "controlled_segments": controlled_segments,
@@ -99,13 +99,13 @@ inflow.add(
     edge="1",
     vehs_per_hour=flow_rate * AV_FRAC,
     departLane="random",
-    departSpeed=10)
+    departSpeed=6)
 inflow.add(
     veh_type="human",
     edge="1",
     vehs_per_hour=flow_rate * (1 - AV_FRAC),
     departLane="random",
-    departSpeed=10)
+    departSpeed=6)
 
 traffic_lights = TrafficLightParams()
 if not DISABLE_TB:

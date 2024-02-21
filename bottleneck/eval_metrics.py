@@ -30,13 +30,19 @@ class EvalMetrics():
         # Since the times exist as a fraction (in multiples of sim_time)
         self.start_time = self.args.start_time*self.args.sim_step
         self.end_time = self.args.end_time*self.args.sim_step
+        #print(f"Start time: {self.start_time}, End time: {self.end_time}")
 
         if args.method == 'idm':
-            self.reference_id = 'flow_00'
-        elif args.method == 'vinitsky' or 'ours':
-            self.reference_id = 'flow_10'
+            self.reference_id = 'flow_00' #TODO: Verify this. Verified for IDM
+
+        elif args.method == 'vinitsky':
+            self.reference_id = 'flow_10' #TODO: Verify this.
+
+        elif args.method == 'ours':
+            self.reference_id = 'flow_00' #TTC, DRAC, and CAV are measured only for control vehicles
+
         else:
-            self.reference_id = 'classic_00'
+            self.reference_id = 'classic_00' #TODO: Verify this. Verified for LACC, BCM, FS, PI
 
     def efficiency(self, ):
         """
@@ -138,35 +144,41 @@ class EvalMetrics():
                 if veh_id not in [f'{self.args.method}_0', f'{self.args.method}_1', 'human_0', 'human_1']:
 
                     vehicle = self.df[self.df['id'] == veh_id]
-                    veh_time = vehicle['time'].values
+                    # Filter based on time condition
+                    vehicle_filtered = vehicle[vehicle['time'] >= self.start_time]
+                    if not vehicle_filtered.empty:
+                        vehicle_x = vehicle_filtered['x'].values
+                        # Check if any x value is beyond the start of edge 5
+                        if np.any(vehicle_x >= 980):  #-1001 is not
+                            throughput += 1
 
-                    # If there exists a time greater
-                    if np.any(veh_time >= self.start_time):
-                        #print(f"Vehicle time: {veh_time}")
-                        # Only consider the time greater
-                        vehicle_x = vehicle['x'].values
-                        #print(f"Length of vehicle_x: {len(vehicle_x)}")
-                        vehicle_x = vehicle_x[int(self.start_time):] # Only consider subset
-                        #print(f"Length of vehicle_x: {len(vehicle_x)}")
 
-                        # Only consider vehicle_x where time is greater than start time
+                    # vehicle = self.df[self.df['id'] == veh_id]
+                    # veh_time = vehicle['time'].values
+
+                    # # If there exists a time greater
+                    # if np.any(veh_time >= self.start_time):
+                    #     #print(f"Vehicle time: {veh_time}")
+                    #     # Only consider the time greater
+                    #     vehicle_x = vehicle['x'].values
+                    #     #print(f"Length of vehicle_x: {len(vehicle_x)}")
+                    #     vehicle_x = vehicle_x[int(self.start_time):] # Only consider subset
+                    #     #print(f"Length of vehicle_x: {len(vehicle_x)}")
+
+                    #     # Only consider vehicle_x where time is greater than start time
                         
 
-                        # If vehicle_x is greater then the start of edge 5
-                        # Count it once
-                        if np.any(vehicle_x >= 980): #-1001 is not
-                            #print(f"Vehicle id: {veh_id} made it to edge 5")
-                            throughput += 1
-                            #print(f"Vehicle id: {veh_id}, vehicle_x: {vehicle_x}")
+                    #     # If vehicle_x is greater then the start of edge 5
+                    #     # Count it once
+                    #     if np.any(vehicle_x >= 980): #-1001 is not
+                    #         #print(f"Vehicle id: {veh_id} made it to edge 5")
+                    #         throughput += 1
+                    #         #print(f"Vehicle id: {veh_id}, vehicle_x: {vehicle_x}")
 
             #print(f"First: Throughput (vehicles): {throughput}")
             #print(f"Number of vehicles that made it to edge 5: {throughput}")
-            # First reverse the multiplication my sim_step (dont in init)
-            interest_time = (self.end_time - self.start_time)/self.args.sim_step 
-            # Now this is in timesteps, then convert to seconds
-            interest_time = interest_time* self.args.sim_step # In seconds
-            #print(f"Interest time (seconds): {interest_time}")
-            # The way time is recorded here vs the ring, makes this claculation seem little different
+
+            interest_time = (self.end_time - self.start_time) 
             throughput = (throughput/interest_time) # Throughput per second
             #print(f"Second: Throughput (vehicles/ second): {throughput}")
             throughput= throughput*3600 # Throughput per hour
@@ -383,7 +395,7 @@ if __name__ == '__main__':
     parser.add_argument('--sim_step', type=float, default=0.1)
 
     args = parser.parse_args()
-    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'vinitsky', 'ours', 'ours4x','ours9x']:
+    if args.method is None or args.method not in ['bcm', 'idm', 'fs', 'pi', 'lacc', 'vinitsky', 'ours']:
         raise ValueError("Please specify the method to evaluate metrics for\n Method can be [bcm, idm, fs, pi, lacc, wu, ours]")
     
     files = [f"{args.emissions_file_path}/{args.method}/{item}" for item in os.listdir(f"{args.emissions_file_path}/{args.method}") \

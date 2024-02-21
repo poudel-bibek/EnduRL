@@ -40,7 +40,7 @@ def config_idm(args, **kwargs):
     if args.gen_emission:
         save_path = 'test_time_rollout/idm_stability' if args.stability else 'test_time_rollout/idm'
         sim_params = SumoParams(
-            sim_step=0.1,
+            sim_step=args.sim_step,
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
@@ -48,14 +48,14 @@ def config_idm(args, **kwargs):
 
     else:
         sim_params = SumoParams(
-            sim_step=0.1,
+            sim_step=args.sim_step,
             render=True, # Bibek, these are not going to be trained, True is fine
             print_warnings=True,
             restart_instance=True,
             emission_path=None)
 
     additional_env_params = {
-        "target_velocity": 40, # Change that to match the ring? Or match the noise levels accordingly
+        "target_velocity": 15, # Change that to match the ring? Or match the noise levels accordingly
         "disable_tb": True,
         "disable_ramp_metering": True,
         "symmetric": False,
@@ -79,7 +79,7 @@ def config_idm(args, **kwargs):
         edge="1",
         vehs_per_hour=flow_rate,
         departLane="random",
-        departSpeed=10)
+        departSpeed=6)
 
 
     traffic_lights = TrafficLightParams()

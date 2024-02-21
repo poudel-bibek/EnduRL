@@ -100,7 +100,7 @@ def config_bcm(args, **kwargs):
         additional_params={
             "max_accel": 1,
             "max_decel": 1,
-            "target_velocity": 10,
+            "target_velocity": 15,
             "sort_vehicles": False,
             "classic_params": kwargs['classic_parms'], # Hacky way to pass
             "shock_params": kwargs['shock_params'], # Hacky way to pass

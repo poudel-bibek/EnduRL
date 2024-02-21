@@ -13,18 +13,18 @@ from ray.tune.registry import register_env
 from flow.utils.registry import make_create_env
 
 # Time horizon of a single rollout
-HORIZON = 3000 
+HORIZON = 1300 
 
 # Number of parallel workers
-N_CPUS = 4 
-N_ROLLOUTS = N_CPUS * 4 # 24 rollouts per iteration
+N_CPUS = 4
+N_ROLLOUTS = N_CPUS * 2 # 24 rollouts per iteration
 
 SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N is 2
 NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
 
-AV_FRAC = .05 # NEED to change this here everytime for a new training instance.
+AV_FRAC = 0.05 # NEED to change this here everytime for a new training instance.
 
 vehicles = VehicleParams()
 vehicles.add(
@@ -32,7 +32,7 @@ vehicles.add(
     acceleration_controller=(RLController, {}), #IDMController
     routing_controller=(ContinuousRouter, {}),
     car_following_params=SumoCarFollowingParams(
-        minGap=0.1, # Hack: Make it 9.0 and IDM to simulate RL effect
+        minGap=0.1, # Hack: # 
     ),
     lane_change_params=SumoLaneChangeParams(
         lane_change_mode=0,
@@ -53,7 +53,7 @@ controlled_segments = [("1", 1, False), ("2", 2, True), ("3", 2, True),
                        ("4", 2, True), ("5", 1, False)]
 num_observed_segments = [("1", 1), ("2", 3), ("3", 3), ("4", 3), ("5", 1)]
 additional_env_params = {
-    "target_velocity": 40,
+    "target_velocity": 15,
     "disable_tb": True,
     "disable_ramp_metering": True,
     "controlled_segments": controlled_segments,
@@ -78,13 +78,13 @@ inflow.add(
     edge="1",
     vehs_per_hour=flow_rate * AV_FRAC,
     departLane="random",
-    departSpeed=10)
+    departSpeed=6)
 inflow.add(
     veh_type="human",
     edge="1",
     vehs_per_hour=flow_rate * (1 - AV_FRAC),
     departLane="random",
-    departSpeed=10)
+    departSpeed=6)
 
 traffic_lights = TrafficLightParams()
 if not DISABLE_TB:
@@ -120,7 +120,7 @@ flow_params = dict(
 
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
-        warmup_steps= 2500,
+        warmup_steps= 100,
         sims_per_step=1, # Sims per step huh
         horizon=HORIZON,
         additional_params=additional_env_params,

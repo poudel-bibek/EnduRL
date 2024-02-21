@@ -18,6 +18,7 @@ try:
 except ImportError:
     from ray.rllib.agents.registry import get_agent_class
 from ray.tune.registry import register_env
+from datetime import datetime
 
 from flow.core.util import emission_to_csv
 from flow.utils.registry import make_create_env
@@ -64,7 +65,9 @@ def visualizer_rllib(args):
 
     # Grab the config and make modifications 
     flow_params_modify = json.loads(config["env_config"]["flow_params"])
+    #print(f"Flow params: {flow_params_modify}")
 
+    flow_params_modify["veh"][0]["car_following_params"]["controller_params"]["minGap"] = args.min_gap
     flow_params_modify["veh"][1]["acceleration_controller"] = ["ModifiedIDMController", {"noise": args.noise, # Just need to specify as string
                                                                                             "shock_vehicle": True}] 
     flow_params_modify["sim"]["sim_step"] = args.sim_step
@@ -114,6 +117,7 @@ def visualizer_rllib(args):
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     rl_folder_name = f"{args.method}_stability" if args.stability else args.method
+
     emission_path = f"{dir_path}/test_time_rollout/{rl_folder_name}" #'{0}/test_time_rollout/'.format(dir_path)
 
     sim_params.emission_path = emission_path if args.gen_emission else None
@@ -121,6 +125,8 @@ def visualizer_rllib(args):
     # Create and register a gym+rllib env
     create_env, env_name = make_create_env(params=flow_params, version=0)
     register_env(env_name, create_env)
+    
+
 
     # check if the environment is a single or multiagent environment, and
     # get the right address accordingly
@@ -220,26 +226,26 @@ def visualizer_rllib(args):
         if args.stability:
             pass 
         else:
-            intensities, durations, frequency =  get_shock_model(shock_model_id, network_scaler=3, bidirectional=False, high_speed=False)
+            intensities, durations, frequency =  get_shock_model(shock_model_id, network_scaler=2, bidirectional=True, high_speed=False)
         shock_times = get_time_steps(durations, frequency, shock_start_time, shock_end_time)
 
         for step in range(env_params.horizon):
-            vehicles = env.unwrapped.k.vehicle
+            vehicles = env.k.vehicle
             speeds = vehicles.get_speed(vehicles.get_ids())
 
             if args.shock and step >= shock_start_time and step <= shock_end_time:
                 
-                edges_allowed_list = ['3', '4_0', '4_1', '4_2', '4_3', '4_4', '4_5', '4_6', '4_7',  '4']#
-                threshold_speed = 3.0
+                edges_allowed_list = ['3', '4_0', '4_1', '4_2', '4_3', '4_4', '4_5', '4_6', '4_7',  '4']# 
+                threshold_speed = 20.0 #0.5
                 sample_vehicles = 4
 
                 if step == shock_times[0][0]: # This occurs only once
                     all_ids = env.k.vehicle.get_ids()
 
-                    current_shockable_vehicle_ids = [i for i in all_ids if 'flow_00' not in i and env.unwrapped.k.vehicle.get_edge(i) in edges_allowed_list and env.unwrapped.k.vehicle.get_speed(i) > threshold_speed and env.unwrapped.k.vehicle.get_leader(i) is not None]
+                    current_shockable_vehicle_ids = [i for i in all_ids if 'flow_10' in i and env.k.vehicle.get_edge(i) in edges_allowed_list and env.k.vehicle.get_speed(i) < threshold_speed] #and env.k.vehicle.get_leader(i) is not None]
 
                     shock_ids = np.random.choice(current_shockable_vehicle_ids, sample_vehicles)
-                    #print(f"\n\nShock ids: {shock_ids}\n\n")
+                    
 
                 shock_counter, current_duration_counter, shock_ids = perform_shock(args, env, 
                             shock_times, 
@@ -346,7 +352,7 @@ def visualizer_rllib(args):
                                         np.std(throughput_efficiency)))
 
     # terminate the environment
-    env.unwrapped.terminate()
+    env.terminate()
 
 def perform_shock(args, env, 
                   shock_times, 
@@ -369,34 +375,47 @@ def perform_shock(args, env,
     shock_times is the shock time steps
     """
     all_ids = env.k.vehicle.get_ids()
+    #print(f"\n\n Step: {step}, Shock ids: {shock_ids}\n\n")
 
-    controllers = [env.unwrapped.k.vehicle.get_acc_controller(i) for i in shock_ids]
-    for controller in controllers:
-        controller.set_shock_time(False)
+    if len(shock_ids) > 0:
+        controllers = [env.k.vehicle.get_acc_controller(i) for i in shock_ids]
+        for controller in controllers:
+            controller.set_shock_time(False)
 
+    #print(f"Step: {step}, Shock counter: {shock_counter, len(durations)}, Current duration counter: {current_duration_counter, durations[shock_counter]}\n")
     # Reset duration counter and increase shock counter, after completion of shock duration
     # The durations can be anywhere between 0.1 to 2.5 at intervals of 0.1 but the current duration counter does not increment that way (make it >=)
     if shock_counter < len(durations) and current_duration_counter >= durations[shock_counter]: 
-        shock_counter += 1
+        shock_counter += 1 # How many times showcks were applied
         current_duration_counter = 0
-
-        current_shockable_vehicle_ids = [i for i in all_ids if 'flow_00' not in i and env.unwrapped.k.vehicle.get_edge(i) in edges_allowed_list and env.unwrapped.k.vehicle.get_speed(i) > threshold_speed and env.unwrapped.k.vehicle.get_leader(i) is not None]
-        shock_ids = np.random.choice(current_shockable_vehicle_ids, sample_vehicles)
-        #print(f"\n\nShock ids: {shock_ids}\n\n")
-
+        
     if shock_counter < frequency: # '<' because shock counter starts from zero
-        if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
 
+        if step == shock_times[shock_counter][0]:
+            current_shockable_vehicle_ids = [i for i in all_ids if 'flow_10' in i and env.k.vehicle.get_edge(i) in edges_allowed_list and env.k.vehicle.get_speed(i) < threshold_speed] #and env.k.vehicle.get_leader(i) is not None]
+            shock_ids = np.random.choice(current_shockable_vehicle_ids, sample_vehicles) 
+            #print(f"\n\nNew sampled Shock ids: {shock_ids}\n\n")
+            controllers = [env.k.vehicle.get_acc_controller(i) for i in shock_ids]
+
+        if step >= shock_times[shock_counter][0] and step <= shock_times[shock_counter][1]:
             #print(f"Step = {step}, Shock params: {intensities[shock_counter], durations[shock_counter], frequency} applied to vehicle {shock_ids}\n")
-            
             for controller in controllers:
                 controller.set_shock_accel(intensities[shock_counter])
                 controller.set_shock_time(True)
     #         # Change color to magenta
             for i in shock_ids:
-                env.unwrapped.k.vehicle.set_color(i, (255,0,255))
+                env.k.vehicle.set_color(i, (255,0,255))
 
             current_duration_counter += args.sim_step # 0.1 # increment current duration counter by one timestep seconds 
+        
+        if step == shock_times[shock_counter][1]:
+            shock_ids = [] # Reset the shock ids after the shock duration is over
+
+        
+
+            
+
+
 
     return shock_counter, current_duration_counter, shock_ids
 

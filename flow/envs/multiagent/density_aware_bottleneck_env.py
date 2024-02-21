@@ -297,7 +297,15 @@ class DensityAwareBottleneckEnv(MultiEnv):
             if rl_id not in rl_actions.keys():
                 # the vehicle just entered, so ignore
                 continue
-            self.k.vehicle.apply_acceleration(rl_id, rl_actions[rl_id])
+
+            ############## SAFETY + STAILITY (AT TEST TIME) ##############
+            # If rl velocity greater than estimated free flow velocity, acceleration = 0
+            rl_action = rl_actions[rl_id]
+            rl_vel = self.k.vehicle.get_speed(rl_id)
+            if rl_vel >= 4.0: #m/s
+                rl_action = 0.0
+
+            self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
 
     def additional_command(self):

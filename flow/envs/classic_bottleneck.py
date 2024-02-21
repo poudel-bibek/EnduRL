@@ -32,7 +32,7 @@ ADDITIONAL_ENV_PARAMS = {
 # Keys for RL experiments
 ADDITIONAL_RL_ENV_PARAMS = {
     # velocity to use in reward functions
-    "target_velocity": 30,
+    "target_velocity": 15,
     # if an RL vehicle exits, place it back at the front
     "add_classic_if_exit": True,
 }
@@ -131,7 +131,7 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
         if self.stability:
             self.sm = get_shock_model(self.shock_params['shock_model'], self.network.net_params.additional_params["length"]) # This length is irrelevant here
         else: 
-            self.sm = get_shock_model(self.shock_params['shock_model'], network_scaler=3, bidirectional=False, high_speed=False) 
+            self.sm = get_shock_model(self.shock_params['shock_model'], network_scaler=2, bidirectional=True, high_speed=False) 
         
          # count how many times, shock has been applies
         self.shock_counter = 0
@@ -148,7 +148,7 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
         self.density_collector = []
         # Dont allow '5' to avoid vehicles exiting from the network cause a NoneType error
         self.edges_allowed_list = ['3', '4_0', '4_1', '4_2', '4_3', '4_4', '4_5', '4_6', '4_7',  '4'] # 5_0, 5_1, and 5_2 are not allowed
-        self.threshold_speed = 3.0 # m/s # Just to make sure they are not actually stopped
+        self.threshold_speed = 20.0 #0.5 # m/s # Just to make sure they are not actually stopped
         self.sample_vehicles = 4 # Number of vehicles to simultaneously shock in the network
 
     @property
@@ -255,14 +255,15 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
         # if vehicle IDs have a 'classic_00' in it, then its a classic vehicle
         if self.step_counter == shock_times[0][0]: # This occurs only once
             #current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) > self.threshold_speed] 
-            current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) > self.threshold_speed and self.k.vehicle.get_leader(i) is not None]
+            current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) < self.threshold_speed] # and self.k.vehicle.get_leader(i) is not None]
             
             self.shock_ids = np.random.choice(current_shockable_vehicle_ids, self.sample_vehicles)
             print(f"\n\nShock ids: {self.shock_ids}\n\n")
-            
-        controllers = [self.k.vehicle.get_acc_controller(i) for i in self.shock_ids]
-        for controller in controllers:
-            controller.set_shock_time(False)
+        
+        if len(self.shock_ids) > 0:
+            controllers = [self.k.vehicle.get_acc_controller(i) for i in self.shock_ids]
+            for controller in controllers:
+                controller.set_shock_time(False)
 
         # Reset duration counter and increase shock counter, after completion of shock duration
         # Since the sim step here is 0.5, applying shock for 2 timesteps means 1 second
@@ -272,11 +273,17 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
             self.current_duration_counter = 0
 
             #current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) > self.threshold_speed]
-            current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) > self.threshold_speed and self.k.vehicle.get_leader(i) is not None]
+            current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) < self.threshold_speed ]# and self.k.vehicle.get_leader(i) is not None]
             self.shock_ids = np.random.choice(current_shockable_vehicle_ids, self.sample_vehicles)
             print(f"\n\nShock ids: {self.shock_ids}\n\n")
 
         if self.shock_counter < self.sm[2]: # '<' because shock counter starts from zero
+            if self.step_counter == shock_times[self.shock_counter][0]:
+                current_shockable_vehicle_ids = [i for i in all_ids if 'classic_00' not in i and self.k.vehicle.get_edge(i) in self.edges_allowed_list and self.k.vehicle.get_speed(i) < self.threshold_speed] # and self.k.vehicle.get_leader(i) is not None]
+                for controller in controllers:
+                    controller.set_shock_accel(self.sm[0][self.shock_counter])
+                    controller.set_shock_time(True)
+
             if self.step_counter >= shock_times[self.shock_counter][0] and \
                 self.step_counter <= shock_times[self.shock_counter][1]:
                 print(f"Step = {self.step_counter}, Shock params: {self.sm[0][self.shock_counter], self.sm[1][self.shock_counter], self.sm[2]} applied to vehicle {self.shock_ids}\n")
@@ -289,7 +296,10 @@ class classicBottleneckEnv(BottleneneckAccelEnv):
                 for i in self.shock_ids:
                     self.k.vehicle.set_color(i, (255,0,255))
 
-                self.current_duration_counter += 0.1 # increment current duration counter by one timestep seconds 
+                self.current_duration_counter += 0.5 # increment current duration counter by one timestep seconds # sim_step = 0.5
+
+            if self.step_counter == shock_times[self.shock_counter][1]:
+                self.shock_ids = []
 
     def perform_shock_stability(self, shock_times):
         pass
