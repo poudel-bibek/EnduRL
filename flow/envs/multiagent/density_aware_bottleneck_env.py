@@ -14,9 +14,9 @@ Irrespective of the lane that the RL vehicle finds icsclf in, the actions are sa
 
 ADDITIONAL_ENV_PARAMS = {
     # maximum acceleration for autonomous vehicles, in m/s^2
-    "max_accel": 5,
+    "max_accel": 3,
     # maximum deceleration for autonomous vehicles, in m/s^2
-    "max_decel": 5,
+    "max_decel": 3,
     # lane change duration for autonomous vehicles, in s. Autonomous vehicles
     # reject new lane changing commands for this duration after successfully
     # changing lanes.
@@ -301,9 +301,9 @@ class DensityAwareBottleneckEnv(MultiEnv):
             ############## SAFETY + STAILITY (AT TEST TIME) ##############
             # If rl velocity greater than estimated free flow velocity, acceleration = 0
             rl_action = rl_actions[rl_id]
-            rl_vel = self.k.vehicle.get_speed(rl_id)
-            if rl_vel >= 4.0: #m/s
-                rl_action = 0.0
+            # rl_vel = self.k.vehicle.get_speed(rl_id)
+            # if rl_vel >= 4.0: #m/s
+            #     rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 

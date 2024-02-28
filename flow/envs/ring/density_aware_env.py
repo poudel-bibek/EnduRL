@@ -45,7 +45,7 @@ class DensityAwareRLEnv(Env):
         super().__init__(env_params, sim_params, network, simulator)
 
         
-        self.LOCAL_ZONE = 50 # 50 #m, arbitrarily set
+        self.LOCAL_ZONE = 35 # 50 #m, arbitrarily set
         self.VEHICLE_LENGTH = 5 #m can use self.k.vehicle.get_length(veh_id)
         self.MAX_SPEED = 10 # m/s
         self.velocity_track = []

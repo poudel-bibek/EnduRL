@@ -47,7 +47,7 @@ SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N
 NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
-AV_FRAC = .10
+AV_FRAC = .05
 
 vehicles = VehicleParams()
 vehicles.add(

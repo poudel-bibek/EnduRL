@@ -95,6 +95,7 @@ def get_shock_model(identifier, length = None, network_scaler=1, bidirectional=F
             print("Intensity:", intensity)
 
             durations = np.linspace(0.1, 2.5, 20) # In seconds
+            
             abs_intensity = abs(intensity)
             intensity_bucket = np.linspace(intensity_abs_min, intensity_abs_max,len(durations))
             loc = np.searchsorted(intensity_bucket, abs_intensity)

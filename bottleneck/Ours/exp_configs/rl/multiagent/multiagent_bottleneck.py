@@ -24,7 +24,7 @@ NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
 
-AV_FRAC = 0.05 # NEED to change this here everytime for a new training instance.
+AV_FRAC = 0.6 # NEED to change this here everytime for a new training instance.
 
 vehicles = VehicleParams()
 vehicles.add(

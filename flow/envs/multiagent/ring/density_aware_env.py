@@ -15,9 +15,9 @@ from flow.envs.ring.wave_attenuation import v_eq_max_function
 
 ADDITIONAL_ENV_PARAMS = {
     # maximum acceleration of autonomous vehicles
-    'max_accel': 1,
+    'max_accel': 3,
     # maximum deceleration of autonomous vehicles
-    'max_decel': 1,
+    'max_decel': 3,
     # bounds on the ranges of ring road lengths the autonomous vehicle is
     # trained on
     'ring_length': [220, 270],
@@ -70,7 +70,7 @@ class MultiAgentDensityAwareRLEnv(MultiEnv):
 
             ##############
             # For Safety + Stability. Only present in test time. In multi agents, for followers.
-            if self.k.vehicle.get_speed(rl_id) >= 0.90*self.estimated_free_speed: # 0.98 for 20%, 0.95 for 40%, 0.90 for 60%
+            if self.k.vehicle.get_speed(rl_id) >= 0.98*self.estimated_free_speed: # 0.98 for 20%, 0.95 for 40%, 0.90 for 60%
                 rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
