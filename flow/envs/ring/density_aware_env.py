@@ -154,39 +154,7 @@ class DensityAwareRLEnv(Env):
         # return reward
 
         ###########
-        # Reward for efficiency (new)
-
-        # rl_accel = rl_actions[0]
-        # magnitude = np.abs(rl_accel)
-        # sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0
-        # reward = np.mean(vel) - 2*magnitude # The acceleration penalty is only for the magnitude
-
-        # # Congested, forming and undefined shaping 
-        # penalty_scalar = -5
-        # penalty_scalar_2 = -5
-        # fixed_penalty = -1
-
-        # # 0 = Leaving, 1 = Forming, 2 = Free Flow, 3 = Congested, 4 = Undefined, 5 = No vehicle in front
-        # # Going into ``Forming'' states is allowed. Kind of unfair to be penalizing Undefined.
-        # if self.csc_output[0] == 3:  
-        #     if sign > 0: # This equal to sign must be removed. To make more like FS sign=0 has to be enabled
-        #         # If congested or undefined state is entered then there is penalty. Even more for wrong action.
-        #         first_penalty = min(fixed_penalty, penalty_scalar*magnitude) # min is correct bacause values are -ve
-        #         #print(f"First (Congested + Undefined): {first_penalty}")
-        #         reward += first_penalty 
-
-        # if self.csc_output[0] == 0:
-        #     # When leaving, we want the acceleration to be positive or zero.
-        #     if sign < 0: # Again, no penalty for acceleration = 0 
-        #         # No penalty just for entering a leaving state, only for wrong action.
-        #         second_penalty = penalty_scalar_2*max(0.1, magnitude)
-        #         #print(f"Second (Leaving): {second_penalty}")
-        #         reward += second_penalty
-
-        # return reward
-
-        ###########
-        # Reward for efficiency  (previous modified)
+        # Reward for efficiency  
         rl_accel = rl_actions[0]
         magnitude = np.abs(rl_accel)
         sign = np.sign(rl_accel) # Sign can be 0.0 as well as -1.0 or 1.0

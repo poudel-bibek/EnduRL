@@ -240,53 +240,87 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         ##############
         # Reward for safety and stability
-        reward = {}
-        for rl_id in self.k.vehicle.get_rl_ids():
-            if rl_id not in rl_actions.keys():
-                #print(f"\nRL id: {rl_id} not in rl_actions\n")
-                # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
-                # the vehicle just entered
-                reward[rl_id] = 0.0
+        # reward = {}
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     if rl_id not in rl_actions.keys():
+        #         #print(f"\nRL id: {rl_id} not in rl_actions\n")
+        #         # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
+        #         # the vehicle just entered
+        #         reward[rl_id] = 0.0
                 
-            else: 
-                rl_action = rl_actions[rl_id] # Acceleration
-                sign = np.sign(rl_action)
-                magnitude = np.abs(rl_action)
+        #     else: 
+        #         rl_action = rl_actions[rl_id] # Acceleration
+        #         sign = np.sign(rl_action)
+        #         magnitude = np.abs(rl_action)
 
-                # Speed 
-                rl_vel = self.k.vehicle.get_speed(rl_id)
+        #         # Speed 
+        #         rl_vel = self.k.vehicle.get_speed(rl_id)
 
-                # Perhaps we need to add a small component of its own velocity so that it does not stop in zippers
-                reward_value = 0.2*np.mean(vel) - 4*magnitude + 0.25*rl_vel
+        #         # Perhaps we need to add a small component of its own velocity so that it does not stop in zippers
+        #         reward_value = 0.2*np.mean(vel) - 4*magnitude + 0.25*rl_vel
 
-                penalty_scalar = -5 
-                fixed_penalty = -1 
-                csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-                #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+        #         penalty_scalar = -5 
+        #         fixed_penalty = -1 
+        #         csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+        #         #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
 
-                # Shaping component 1
-                if csc_output == 1 or csc_output== 3: # Forming TODO: and Congested
-                    if sign >= 0:
-                        forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
-                        #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
-                        reward_value += forming_penalty
+        #         # Shaping component 1
+        #         if csc_output == 1 or csc_output== 3: # Forming TODO: and Congested
+        #             if sign >= 0:
+        #                 forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
+        #                 #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
+        #                 reward_value += forming_penalty
                 
-                # Shaping component 2
-                # Is there is no vehicle in front, then the RL be rewarded for having a high velocity
-                if csc_output == 5:
-                    reward_value += 0.75 * rl_vel # Note that this is not just magnitude.
-                    #print(f"RL id: {rl_id} No vehicle in front reward: {0.75 * rl_vel}")
+        #         # Shaping component 2
+        #         # Is there is no vehicle in front, then the RL be rewarded for having a high velocity
+        #         if csc_output == 5:
+        #             reward_value += 0.75 * rl_vel # Note that this is not just magnitude.
+        #             #print(f"RL id: {rl_id} No vehicle in front reward: {0.75 * rl_vel}")
 
-                reward[rl_id] = reward_value[0]
+        #         reward[rl_id] = reward_value[0]
 
-        #print(f"Reward: {reward}")
-        #print(f"\n Reward keys: {reward.keys()}")
-        return reward
+        # #print(f"Reward: {reward}")
+        # #print(f"\n Reward keys: {reward.keys()}")
+        # return reward
 
         ##############
         # Reward for efficiency
+        reward = {}
+        for rl_id in self.k.vehicle.get_rl_ids():
+            if rl_id not in rl_actions.keys():
+                reward[rl_id] = 0.0
 
+            else:
+                rl_action = rl_actions[rl_id]
+                sign = np.sign(rl_action)
+                magnitude = np.abs(rl_action)
+                # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
+                # Here, its its own velocity. A small component of its own velocity is also required so that it does not stop in zippers
+                rl_vel = self.k.vehicle.get_speed(rl_id)
+                reward_value = 0.25*rl_vel - 4*magnitude
+
+                # Congested, forming and undefined shaping 
+                penalty_scalar = -10
+                penalty_scalar_2 = -10
+                fixed_penalty = -1
+                csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+
+                #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+
+                if csc_output == 3 : # Congested
+                    if sign >= 0:
+                        reward_value += min(fixed_penalty, penalty_scalar * magnitude)
+                        #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
+                
+                elif csc_output == 0:
+                    if sign >= 0:
+                        reward_value += min(fixed_penalty, penalty_scalar_2 * magnitude)
+                        #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
         
+                reward[rl_id] = reward_value[0]
+
+        return reward
+    
 
     def _apply_rl_actions(self, rl_actions):
         """
