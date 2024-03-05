@@ -68,6 +68,15 @@ class DensityAwareBottleneckEnv(MultiEnv):
         # Create a dictionary to store the id, csc output and action of each RL vehicle
         self.rl_storedict = {}
 
+        # A nested dict for 2 zippers (edge :4 and :5)
+        # RL is inside and wants to look for vehicle outsize the zipper
+        self.lane_mapping_dict_outside = {"4":{ 0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3},
+                                     "5":{ 0: 0, 1: 0, 2: 1, 3: 1,}}
+        
+        # RL is inside and wants to look for vehicle inside the zipper
+        self.lane_mapping_dict_inside = {":4_0":{ 0: [0,1], 1: [0, 1], 2: [2, 3], 3: [2, 3], 4: [4, 5], 5: [4, 5], 6: [6, 7], 7: [6, 7]},
+                                    ":5_0":{ 0: [0, 1], 1: [0, 1], 2: [2, 3], 3: [2, 3],}}
+
     @property
     def observation_space(self):
         """
@@ -139,13 +148,15 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         return saved_best_net
     
-    def get_default_observations(self, rl_id):
-        
-        if self.k.vehicle.get_leader_bottleneck(rl_id) is not None:
-            
-            lead_id = self.k.vehicle.get_leader_bottleneck(rl_id)
-            #print(f"RL id: {rl_id} Lead id: {lead}")
+    def get_default_observations(self, rl_id, new_positions):
+        """
+        We need to supply the position dict for the immediate leader
+        """
 
+        lead_id = self.k.vehicle.get_leader_bottleneck(rl_id, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions) # Leader itself maybe hard to get in the bottleneck. In zipper lanes
+        if lead_id is not None:
+
+            # print(f"RL id: {rl_id} Lead id: {lead_id}")
             # Use similar normalizers,  arbitrary high values should suffice
             max_length = 270
 
@@ -154,11 +165,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 (self.k.vehicle.get_speed(lead_id) - self.k.vehicle.get_speed(rl_id)) / self.MAX_SPEED,
 
-                (self.k.vehicle.get_x_by_id(lead_id) - self.k.vehicle.get_x_by_id(rl_id)) / max_length
+                (self.k.vehicle.get_distance(lead_id) - self.k.vehicle.get_distance(rl_id)) / max_length # x is bad. Use distance here. This problem should be fixed
 
                 ])
-        # If there is no leader, then we are not observing the leader
-        else:
+        
+        else: # Current solution. In zipper lanes, if there is no leader, then we are not observing the leader
+            #print(f"RL id: {rl_id} No leader")
             observation = np.array([-1, -1, -1])
         
         return observation
@@ -169,18 +181,15 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         """
 
+        new_positions = self.k.vehicle.corrected_position_zipper()
         observation = {}
         for rl_id in self.k.vehicle.get_rl_ids():
 
             # Get the CSC observations for each RL vehicle 
-            # The order of vehicles should be increasing in the order of distance to the RL vehicle (include RL vehicle itself)
-
-            # Previous comment: # Already sorted in increasing distance order from the RL
-            sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE)
-            sorted_veh_ids.remove(rl_id)
-            sorted_veh_ids.insert(0, rl_id)
-            # print(f"RL id: {rl_id} Sorted veh ids: {sorted_veh_ids}") #TODO: Verify this. Verified.
+            # The order of vehicles should be increasing in the order of distance to the RL vehicle (include RL vehicle itself at 0th index)
             # RL needs to be at index 0 and the rest of the vehicles should be sorted in increasing order of distance
+            sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions)
+            #print(f"RL id: {rl_id} Sorted veh ids: {sorted_veh_ids}") #TODO: Verify this. Verified.
             
             if len(sorted_veh_ids) == 0:
                 csc_output_encoded = np.zeros(6) # i.e., nothing
@@ -192,8 +201,11 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 rl_pos = self.k.vehicle.get_distance(rl_id) # get_x_by distance may be misleading so using this. #TODO: Verify this. Verified.
                 
                 for i in range(len(sorted_veh_ids)):
+                    distance = self.k.vehicle.get_distance(sorted_veh_ids[i])
+                    #x = self.k.vehicle.get_x_by_id(sorted_veh_ids[i])
+                    #print(f"RL id: {rl_id} Distance: {distance}, x: {x}")
 
-                    rel_pos = (self.k.vehicle.get_distance(sorted_veh_ids[i]) - rl_pos)
+                    rel_pos = (distance - rl_pos)
                     norm_pos = rel_pos / self.LOCAL_ZONE
 
                     vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
@@ -209,10 +221,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 csc_output_encoded[csc_output] = 1 # i.e. something
 
             # Add the item to dict
-            self.rl_storedict[rl_id] = {'csc_output': csc_output, 'action': 0}
+            self.rl_storedict[rl_id] = {'csc_output': csc_output, 
+                                        'sorted_ids': sorted_veh_ids,}
+                
 
             # Concatenate observations and return 
-            default_obs = self.get_default_observations(rl_id)
+            default_obs = self.get_default_observations(rl_id, new_positions)
             obs_for_this_vehicle = np.concatenate((default_obs, csc_output_encoded), axis=None)
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
@@ -283,6 +297,46 @@ class DensityAwareBottleneckEnv(MultiEnv):
         # #print(f"\n Reward keys: {reward.keys()}")
         # return reward
 
+        # Reward for safety and stability
+        ############## WITHOUT STUPID MISTAKES ##############
+        # Not trained on this so far. Maybe in the future.
+        # reward = {}
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     if rl_id not in rl_actions.keys():
+        #         #print(f"\nRL id: {rl_id} not in rl_actions\n")
+        #         # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
+        #         # the vehicle just entered
+        #         reward[rl_id] = 0.0
+                
+        #     else: 
+        #         rl_action = rl_actions[rl_id] # Acceleration
+        #         sign = np.sign(rl_action)
+        #         magnitude = np.abs(rl_action)
+
+        #         # Speed 
+        #         rl_vel = self.k.vehicle.get_speed(rl_id)
+
+        #         # Perhaps we need to add a small component of its own velocity so that it does not stop in zippers
+        #         reward_value = 0.25*rl_vel- 2*magnitude
+
+        #         penalty_scalar = -5 
+        #         fixed_penalty = -1 
+        #         csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+        #         #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+
+        #         # Shaping component 1
+        #         if csc_output == 1: # Forming
+        #             if sign >= 0:
+        #                 forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
+        #                 #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
+        #                 reward_value += forming_penalty
+
+        #         reward[rl_id] = reward_value[0]
+
+        #print(f"Reward: {reward}")
+        #print(f"\n Reward keys: {reward.keys()}")
+        #return reward
+
         ##############
         # Reward for efficiency
         reward = {}
@@ -297,9 +351,8 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
                 # Here, its its own velocity. A small component of its own velocity is also required so that it does not stop in zippers
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                reward_value = 0.25*rl_vel - 4*magnitude
+                reward_value = 0.75*rl_vel - 2*magnitude # 0.25, 4 may be too much. Last round policies were trained with these. 
 
-                # Congested, forming and undefined shaping 
                 penalty_scalar = -10
                 penalty_scalar_2 = -10
                 fixed_penalty = -1
@@ -312,13 +365,14 @@ class DensityAwareBottleneckEnv(MultiEnv):
                         reward_value += min(fixed_penalty, penalty_scalar * magnitude)
                         #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
                 
-                elif csc_output == 0:
+                elif csc_output == 0: # Leaving
                     if sign >= 0:
                         reward_value += min(fixed_penalty, penalty_scalar_2 * magnitude)
                         #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
-        
+                
                 reward[rl_id] = reward_value[0]
 
+        #print(f"Reward: {reward}")
         return reward
     
 
@@ -336,7 +390,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # If rl velocity greater than estimated free flow velocity, acceleration = 0
             rl_action = rl_actions[rl_id]
             # rl_vel = self.k.vehicle.get_speed(rl_id)
-            # if rl_vel >= 4.0: #m/s
+            # if rl_vel >= 4.0: #m/s # This can be estimated automatically, just like in the ring
             #     rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
@@ -348,33 +402,20 @@ class DensityAwareBottleneckEnv(MultiEnv):
         """
 
         super().additional_command()
-
-        # if the number of rl vehicles has decreased introduce it back in
-        # num_rl = self.k.vehicle.num_rl_vehicles
-        # if num_rl != len(self.rl_id_list) and self.add_rl_if_exit:
-        #     # find the vehicles that have exited
-        #     diff_list = list(
-        #         set(self.rl_id_list).difference(self.k.vehicle.get_rl_ids()))
-        #     for rl_id in diff_list:
-        #         # distribute rl cars evenly over lanes
-        #         lane_num = self.rl_id_list.index(rl_id) % \
-        #                    MAX_LANES * self.scaling
-        #         # reintroduce it at the start of the network
-        #         try:
-        #             self.k.vehicle.add(
-        #                 veh_id=rl_id,
-        #                 edge='1',
-        #                 type_id=str('rl'),
-        #                 lane=str(lane_num),
-        #                 pos="0",
-        #                 speed="max")
-        #         except Exception:
-        #             pass
         
-        for rl_id in self.k.vehicle.get_rl_ids():
-            vehicles_in_zone = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE)
+        # This is too expensive just to show color
+        # new_positions = self.k.vehicle.corrected_position_zipper()
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     vehicles_in_zone = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE, new_positions)
+        #     for veh_id in vehicles_in_zone:
+        #         self.k.vehicle.set_observed(veh_id)
+
+        #print(f"\nRL storedict {self.rl_storedict}")
+        for rl_id in self.rl_storedict.keys():
+            vehicles_in_zone = self.rl_storedict[rl_id]['sorted_ids']
             for veh_id in vehicles_in_zone:
                 self.k.vehicle.set_observed(veh_id)
+        
 
     def get_idm_accel(self, rl_id):
         """

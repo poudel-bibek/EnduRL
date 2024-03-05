@@ -150,7 +150,7 @@ def setup_exps_rllib(flow_params,
 
     # Conservative set of params + smaller NN (because there are a lot of RLs)
     # Even smaller than the ring
-    config["model"].update({"fcnet_hiddens": [32, 16, 8], "fcnet_activation": "tanh"})
+    config["model"].update({"fcnet_hiddens": [32, 16, 8], "fcnet_activation": "tanh"}) 
 
     config["lr"] = 5e-05 # default 5e-05
     config["lr_schedule"] = [[0, 1e-04], [100000, 5e-05]] # default None

@@ -27,7 +27,7 @@ The autonomous penetration rate in this example is 10%.
 
 from flow.envs import BottleneckDesiredVelocityEnv
 from flow.networks import BottleneckNetwork
-from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, \
+from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams, 
     InFlows, SumoLaneChangeParams, SumoCarFollowingParams
 from flow.core.params import TrafficLightParams
 from flow.core.params import VehicleParams
@@ -47,7 +47,7 @@ SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N
 NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
-AV_FRAC = .05
+AV_FRAC = 0.6
 
 vehicles = VehicleParams()
 vehicles.add(

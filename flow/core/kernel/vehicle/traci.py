@@ -1378,88 +1378,120 @@ class TraCIVehicle(KernelVehicle):
 
         return num_vehicles
 
-
     # Stuff for Bottleneck
-    def get_veh_list_local_zone_bottleneck(self, veh_id, distance):
+    def corrected_position_zipper(self,):
         """
-        get leader and distance, until distance exceeds the distance
-        already sorted in increasing order to the leader
-        
-        if edge id begins with `:` then the vehicle is in a zipper assume that vehicle is in the middle of the zipper because precise position cant be obtained
-        edge_lane format is used, edge id 4_0 is the left most zipper and id 5_0 is the right one
-        
-        position increments from left to right
-        When a RL vehicle crosses a zipper, it wont have vehicles in front of it that have the same lane and edge
-
-        If the RL vehicle is itself in Zipper lane 
+        To reduce computations:
+        Instead of putthing this logic in get_veh_list_local_zone_bottleneck, where every RL vehicle would repeat the same logic,
+        We call this function once every time a state is called 
         """
 
-        veh_position = self.get_x_by_id(veh_id)
+        # Perform the position offset to all vehicles and store fresh positions in dict
+        # Every RL vehicle calls this.
+        all_ids = self.kernel_api.vehicle.getIDList()
+        position_dict = {}
+        for item in all_ids:
+            position = self.get_x_by_id(item)
+            edge = self.get_edge(item)
+
+            # Inside zipper lane
+            if edge.startswith(":"):
+                lane_position = self.get_position(item)
+                if ":4" in edge:
+                    position = 550 + lane_position 
+                elif ":5" in edge:
+                    position = 550 + 40 + 280 + lane_position
+
+            # After the zipper lanes
+            if edge == "4":
+                position = position + 40 
+
+            if edge == "5":
+                position = position + 80
+            
+            position_dict[item] = position 
+        return position_dict
+
+    def get_veh_list_local_zone_bottleneck(self, veh_id, distance, lane_mapping_dict_outside, lane_mapping_dict_inside,  position_dict):
+        """
+        Need fixes:
+        1. When the RL vehicle itself is in zipper lane
+        2. When the leader/s are in zipper lane
+        3. The position just continues after the zipper lane. For example, position is 550 before zipper, after the vehicle travels 50m inside zipper, position is 551 after zipper lane. 
+
+        Sorting: In increasing distance order from the RL with RL at index 0
+        
+        The mapping of lanes before and after zipper is simple and straightforward.
+        0,1 map to 0, 2,3 map to 1, 4,5 map to 2 and 6,7 map to 3
+        
+        Length of both zippers is 40m
+        """
+
+        x_position = position_dict[veh_id]
         veh_lane = self.get_lane(veh_id)
         veh_edge = self.get_edge(veh_id)
-        #print(f"ID: {veh_id} Vehicle Position: {veh_position}, Lane: {veh_lane}, Edge: {veh_edge}")
 
-        all_ids = self.kernel_api.vehicle.getIDList()
+        veh_list = []
+        vehicles_within_lz = [ (item, self.get_edge(item), self.get_lane(item))  for item in position_dict if position_dict[item] >= x_position and position_dict[item] <= x_position + distance]
+        #print(f"ID: {veh_id}:, Vehicles within LZ: {vehicles_within_lz}")
+        # Since the position problem is solved, all cases become a lane problem now. Just do the lane filtering in various cases.
+                                             
+        # Case 1: If the ego RL vehicle itself is in zipper lane (Identified by the edge id starting with `:`)
+        # Then get the x_position by adding the distance to the zipper and lane position
+        # When the RL ego vehicle is in zipper lane: position= -1001 (useless)
+        # lane= 0, 5, 7 (based on the edge before the zipper lane) 
+        # edge= :4_0 or :5_0 (always :4_0 for first zipper)
+        if veh_edge in lane_mapping_dict_inside.keys(): # They keys should be for for inside edges
+            veh_list = []
+            for item, item_edge, item_lane in vehicles_within_lz:
+                #print(f"Item: {item}, Edge: {self.get_edge(item)}, Lane: {self.get_lane(item)}")
+                # Vehicles inside: i.e., among all vehicles in vehicles_within_lz with edge :4, lane 0 or lane 1 .. simiarly according to mapping
+                # If RL and the vehicle both have 4: or 5:
+                if item_edge == veh_edge and item_lane in lane_mapping_dict_inside[veh_edge][veh_lane]: # [current_edge][veh_lane] returns a list with 2 options
+                    veh_list.append(item)
+            
+                # Vehicles outside: Among all vehicles in vehicles_within_lz with edge 4 and lane 0 and such
+                outside_edge = veh_edge[1] # 4 or 5
+                if item_edge == outside_edge and item_lane == lane_mapping_dict_outside[outside_edge][veh_lane]: # If the vehicle is in lane 0 or lane 1, outside the zip, we should look at lane 0
+                    veh_list.append(item)
 
-        if veh_edge.startswith(":"):
-            veh_list = [] 
         else: 
-            # Among all ids, get vehicles with the same lane and edge, if the position is higher and is not in zipper (exclude this here)
-            veh_list = [item for item in all_ids if self.get_lane(item) == veh_lane and self.get_edge(item) == veh_edge and self.get_x_by_id(item) > veh_position and not self.get_edge(item).startswith(":")]
-        #print(f"RL id: {veh_id}, Vehicle List: {veh_list}")
+            # Case 2: If the ego RL vehicle is not in the zipper lane. 
+            for item, item_edge, item_lane in vehicles_within_lz:
+                # Subcase I: Some of the leader/s are in zipper lane (but the RL vehicle is not). 
+                if item_edge in lane_mapping_dict_inside.keys():
+                    # Consider vehicles in the zipper lane according to lane_mapping_dict_inside mapping    
+                    if item_edge[1] == str(int(veh_edge) +1) and item_lane in lane_mapping_dict_inside[item_edge][veh_lane]: # This dict has to be accessed by leader_edge because leader does not have : in this case
+                        veh_list.append(item)
 
-        # For now just exclude the zipper
-        # If the vehicle is close to the zipper 4_0 (which apparently has 6 lanes)
-        # For a vehicle in edge 3 check the 2 closest lanes in the zipper. 
-
-        return_veh_list = [veh_id]
-        # Now sort these vehicles based on thier positions
-        if len(veh_list) == 0:
-            #print(f"RL ID: {veh_id}, No vehicles in front")
-            return return_veh_list
-        else:
-            distances = []
-            for item in veh_list:
-                # Because veh_position is always smaller
-                veh_distance = self.get_x_by_id(item) - veh_position
-                distances.append(veh_distance)
-                #print(f"Item: {item}, Distance: {veh_distance}")
-
-                if veh_distance <= distance:
-                    return_veh_list.append(item)
                 else:
-                    continue
-            # sort according to distance 
-            return_veh_list = sorted(return_veh_list, key=lambda x: self.get_x_by_id(x))
-            #print(f"RL ID: {veh_id}, After Sorting: {return_veh_list}")
+                    # Subcase II: Some of the leaders are NOT in zipper lane.
+                    # No mappings, only append if they are in the same lane and edge
+                    if item_edge == veh_edge or item_edge == str(int(veh_edge) +1):
+                        if item_lane == veh_lane:
+                            veh_list.append(item)
 
-            return return_veh_list
+        #print(f"Veh list: {veh_list}") 
+        # sort according to x-value
+        veh_list = sorted(veh_list, key=lambda x: position_dict[x])
+        return veh_list
 
-
-    def get_leader_bottleneck(self, veh_id):
+    def get_leader_bottleneck(self, veh_id, lane_mapping_dict_outside, lane_mapping_dict_inside, position_dict):
         """
-        No leader when vehicle itself or actual leader is in the zipper lane
+        Just use the function above to get the closest leader. 
+        However, the leader may be way up ahead (outside the Local zone).
+
+        In case of bottltneck, we can make use of the function above with local zone set to 100m. That should be fine.
         """
-        veh_position = self.get_x_by_id(veh_id)
-        veh_lane = self.get_lane(veh_id)
-        veh_edge = self.get_edge(veh_id)
+        local_zone = 100
+        vehicles_in_zone = self.get_veh_list_local_zone_bottleneck(veh_id, local_zone,  lane_mapping_dict_outside, lane_mapping_dict_inside, position_dict)
+        #print(f"Vehicles in zone: {vehicles_in_zone}")
 
-        all_ids = self.kernel_api.vehicle.getIDList()
-
-        if veh_edge.startswith(":"):
-            veh_list = [] 
-        else: 
-            # Among all ids, get vehicles with the same lane and edge, if the position is higher and is not in zipper (exclude this here)
-            veh_list = [item for item in all_ids if self.get_lane(item) == veh_lane and self.get_edge(item) == veh_edge and self.get_x_by_id(item) > veh_position and not self.get_edge(item).startswith(":")]
-      
-        if len(veh_list) == 0:
-            # Then no leader
+        if len(vehicles_in_zone) <= 1: # When there is  no leader, RL itself will be present
             return None
         else:
-            # sort according to x-value, they are already towards the higher distances
-            veh_list = sorted(veh_list, key=lambda x: self.get_x_by_id(x))
-            #print(f"RL ID: {veh_id}, After Sorting: {veh_list}")
-            return veh_list[0]
+            immediate_leader = vehicles_in_zone[1] # 0 is the RL itself
+            return immediate_leader
     
         
     # Stuff for intersection

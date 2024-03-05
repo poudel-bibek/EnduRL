@@ -16,7 +16,7 @@ from flow.utils.registry import make_create_env
 HORIZON = 1300 
 
 # Number of parallel workers
-N_CPUS = 4
+N_CPUS = 1
 N_ROLLOUTS = N_CPUS * 2 # 24 rollouts per iteration
 
 SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N is 2
@@ -108,12 +108,12 @@ flow_params = dict(
     network=BottleneckNetwork,
 
     # simulator that is used by the experiment
-    simulator='traci',
+    simulator='traci',  
 
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
         sim_step=0.5, # 0.1 is too much 
-        render=False,
+        render=True,
         print_warnings=False,
         restart_instance=True,
     ),
