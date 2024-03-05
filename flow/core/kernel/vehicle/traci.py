@@ -1465,7 +1465,12 @@ class TraCIVehicle(KernelVehicle):
                         veh_list.append(item)
 
                 else:
-                    # Subcase II: Some of the leaders are NOT in zipper lane.
+                    # Subcase II: Some of the leaders are NOT in zipper lanes that we care about (but still may be in other edges that begin with :, such as :3_0).
+                    if veh_edge.startswith(":"):
+                        veh_edge = veh_edge[1] # so that int operations can be performed
+                    if item_edge.startswith(":"):
+                        item_edge = item_edge[1] 
+
                     # No mappings, only append if they are in the same lane and edge
                     if item_edge == veh_edge or item_edge == str(int(veh_edge) +1):
                         if item_lane == veh_lane:

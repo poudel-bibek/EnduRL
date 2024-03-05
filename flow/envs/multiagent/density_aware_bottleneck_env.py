@@ -77,6 +77,8 @@ class DensityAwareBottleneckEnv(MultiEnv):
         self.lane_mapping_dict_inside = {":4_0":{ 0: [0,1], 1: [0, 1], 2: [2, 3], 3: [2, 3], 4: [4, 5], 5: [4, 5], 6: [6, 7], 7: [6, 7]},
                                     ":5_0":{ 0: [0, 1], 1: [0, 1], 2: [2, 3], 3: [2, 3],}}
 
+        self.free_flow_speed = 0.0 # All the RL vehicles estimate a single free flow speed 
+
     @property
     def observation_space(self):
         """
@@ -220,17 +222,27 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 csc_output_encoded = np.zeros(6)
                 csc_output_encoded[csc_output] = 1 # i.e. something
 
-            # Add the item to dict
+            # Add items to the dict
             self.rl_storedict[rl_id] = {'csc_output': csc_output, 
-                                        'sorted_ids': sorted_veh_ids,}
-                
-
+                                        'sorted_ids': sorted_veh_ids,} 
+            
+            ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
+            # Add the free estimated flow speed for each RL.
+            # csc output is free flow 
+            if csc_output[0] == 2: 
+                # Get an estimate of the free flow speed 
+                estimate = 0.60 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+                # May need to change the scalar based on penetration rate. 0.60 for 0.05
+                if estimate > self.free_flow_speed:
+                    self.free_flow_speed = estimate
+            
             # Concatenate observations and return 
             default_obs = self.get_default_observations(rl_id, new_positions)
             obs_for_this_vehicle = np.concatenate((default_obs, csc_output_encoded), axis=None)
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
-        
+
+        print(f"Free flow speed: {self.free_flow_speed}")
         return observation
 
     def compute_reward(self, rl_actions, **kwargs):
@@ -303,9 +315,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 sign = np.sign(rl_action)
                 magnitude = np.abs(rl_action)
                 # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
-                # Here, its its own velocity. A small component of its own velocity is also required so that it does not stop in zippers
+                # Here, its its own velocity. 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                reward_value = 0.75*rl_vel - 2*magnitude # 0.25, 4 may be too much. Last round policies were trained with these. 
+
+                # Average velocity of vehicles in its lane? Behind it.
+                # Just want it to behave that way, does not have to be part of observations
+                reward_value = 0.75*rl_vel - 2*magnitude 
 
                 penalty_scalar = -10
                 penalty_scalar_2 = -10
@@ -314,14 +329,16 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
 
+                # Forming states are allowed.
                 if csc_output == 3 : # Congested
-                    if sign >= 0:
+                    if sign > 0: 
                         reward_value += min(fixed_penalty, penalty_scalar * magnitude)
                         #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
                 
                 elif csc_output == 0: # Leaving
-                    if sign >= 0:
-                        reward_value += min(fixed_penalty, penalty_scalar_2 * magnitude)
+                    if sign < 0: 
+                        # Fixed penalty
+                        reward_value += penalty_scalar_2 * magnitude
                         #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
                 
                 reward[rl_id] = reward_value[0]
@@ -339,13 +356,14 @@ class DensityAwareBottleneckEnv(MultiEnv):
             if rl_id not in rl_actions.keys():
                 # the vehicle just entered, so ignore
                 continue
-
-            ############## SAFETY + STAILITY (AT TEST TIME) ##############
-            # If rl velocity greater than estimated free flow velocity, acceleration = 0
             rl_action = rl_actions[rl_id]
-            # rl_vel = self.k.vehicle.get_speed(rl_id)
-            # if rl_vel >= 4.0: #m/s # This can be estimated automatically, just like in the ring
-            #     rl_action = 0.0
+            ############## SAFETY + STAILITY (AT TEST TIME) ##############
+
+            ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
+            # If rl velocity greater than estimated free flow velocity, acceleration = 0
+            rl_vel = self.k.vehicle.get_speed(rl_id)
+            if rl_vel >= self.free_flow_speed:
+                rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
