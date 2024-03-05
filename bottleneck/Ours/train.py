@@ -152,6 +152,9 @@ def setup_exps_rllib(flow_params,
     # Even smaller than the ring
     config["model"].update({"fcnet_hiddens": [32, 16, 8], "fcnet_activation": "tanh"}) 
 
+    # The one used in the ring
+    #config["model"].update({"fcnet_hiddens": [64, 32, 16], "fcnet_activation": "tanh"}) # Too big for bottleneck
+
     config["lr"] = 5e-05 # default 5e-05
     config["lr_schedule"] = [[0, 1e-04], [100000, 5e-05]] # default None
     
