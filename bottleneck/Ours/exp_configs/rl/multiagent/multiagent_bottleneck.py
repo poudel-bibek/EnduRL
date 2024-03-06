@@ -16,7 +16,7 @@ from flow.utils.registry import make_create_env
 HORIZON = 1300 
 
 # Number of parallel workers
-N_CPUS = 4
+N_CPUS = 6 # Num_CPUs increased to 6 for AV_frac greater than 0.05 (ofcourse at training time)
 N_ROLLOUTS = N_CPUS * 2 # 24 rollouts per iteration
 
 SCALING = 2 # The paper mentions N should be 3 with inflow = 3800 but in code, N is 2
@@ -24,7 +24,7 @@ NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
 
-AV_FRAC = 0.05 # NEED to change this here everytime for a new training instance.
+AV_FRAC = 0.4 # NEED to change this here everytime for a new training instance.
 
 vehicles = VehicleParams()
 vehicles.add(

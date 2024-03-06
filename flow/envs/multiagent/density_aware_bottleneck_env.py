@@ -191,6 +191,9 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # The order of vehicles should be increasing in the order of distance to the RL vehicle (include RL vehicle itself at 0th index)
             # RL needs to be at index 0 and the rest of the vehicles should be sorted in increasing order of distance
             sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions)
+            # Due to the nature of zipper lanes, sometimes there can be more than 10 vehicles in the local zone.
+            # In that case, we will only consider the first 10 vehicles in the local zone.
+            sorted_veh_ids = sorted_veh_ids[:10] # Only truncates if there are more than 10
             #print(f"RL id: {rl_id} Sorted veh ids: {sorted_veh_ids}") #TODO: Verify this. Verified.
             
             if len(sorted_veh_ids) == 0:
@@ -229,12 +232,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
             ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
             # Add the free estimated flow speed for each RL.
             # csc output is free flow 
-            if csc_output[0] == 2: 
-                # Get an estimate of the free flow speed 
-                estimate = 0.60 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
-                # May need to change the scalar based on penetration rate. 0.60 for 0.05
-                if estimate > self.free_flow_speed:
-                    self.free_flow_speed = estimate
+            # if csc_output[0] == 2: 
+            #     # Get an estimate of the free flow speed 
+            #     estimate = 0.60 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+            #     # May need to change the scalar based on penetration rate. 0.60 for 0.05
+            #     if estimate > self.free_flow_speed:
+            #         self.free_flow_speed = estimate
             
             # Concatenate observations and return 
             default_obs = self.get_default_observations(rl_id, new_positions)
@@ -242,7 +245,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
 
-        print(f"Free flow speed: {self.free_flow_speed}")
+        #print(f"Free flow speed: {self.free_flow_speed}")
         return observation
 
     def compute_reward(self, rl_actions, **kwargs):
@@ -361,9 +364,9 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
             ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
             # If rl velocity greater than estimated free flow velocity, acceleration = 0
-            rl_vel = self.k.vehicle.get_speed(rl_id)
-            if rl_vel >= self.free_flow_speed:
-                rl_action = 0.0
+            # rl_vel = self.k.vehicle.get_speed(rl_id)
+            # if rl_vel >= self.free_flow_speed:
+            #     rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
