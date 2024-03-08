@@ -167,7 +167,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 (self.k.vehicle.get_speed(lead_id) - self.k.vehicle.get_speed(rl_id)) / self.MAX_SPEED,
 
-                (self.k.vehicle.get_distance(lead_id) - self.k.vehicle.get_distance(rl_id)) / max_length # x is bad. Use distance here. This problem should be fixed
+                # Distance vs new_position 3
+                # TODO: Use new_positions instead of distacnce?
+                # Lets say a vehicle just became leader by moving from lane 7 to lane 6. It will have more distance because of curvature.
+                # But its new_position will be less affected by curvature. 
+                #(self.k.vehicle.get_distance(lead_id) - self.k.vehicle.get_distance(rl_id)) / max_length # x is bad. Use distance here. This problem should be fixed
+                (new_positions[lead_id] - new_positions[rl_id]) / max_length
 
                 ])
         
@@ -203,14 +208,19 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 # For csc, both relative position and relative velocity to the leaders in the zone are required. 
                 # The default input to csc is set to -1
                 observation_csc = np.full((10, 2), -1.0) # Max 10 vehicles, with 2 properties each. Make this LOCAL_ZONE dependent?
-                rl_pos = self.k.vehicle.get_distance(rl_id) # get_x_by distance may be misleading so using this. #TODO: Verify this. Verified.
+                # Distance vs new_position 1
+                #rl_pos = self.k.vehicle.get_distance(rl_id) # get_x_by distance may be misleading so using this. #TODO: Verify this. Verified.
+                rl_pos = new_positions[rl_id] 
                 
-                for i in range(len(sorted_veh_ids)):
-                    distance = self.k.vehicle.get_distance(sorted_veh_ids[i])
-                    #x = self.k.vehicle.get_x_by_id(sorted_veh_ids[i])
-                    #print(f"RL id: {rl_id} Distance: {distance}, x: {x}")
 
-                    rel_pos = (distance - rl_pos)
+                for i in range(len(sorted_veh_ids)):
+                    # Distance vs new_position 2
+                    distance = self.k.vehicle.get_distance(sorted_veh_ids[i])
+                    #rel_pos = (distance - rl_pos)
+
+                    veh_position = new_positions[sorted_veh_ids[i]]
+                    rel_pos = (veh_position - rl_pos)
+                    #print(f"RL id: {rl_id} Sorted veh id: {sorted_veh_ids[i]} Distance:{distance} New position: {veh_position}")
                     norm_pos = rel_pos / self.LOCAL_ZONE
 
                     vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
@@ -220,7 +230,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 observation_csc = np.array(observation_csc, dtype=np.float32)
                 csc_output = self.get_csc_output(observation_csc)
-                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}")
+                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}\n")
 
                 csc_output_encoded = np.zeros(6)
                 csc_output_encoded[csc_output] = 1 # i.e. something
@@ -234,8 +244,8 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # csc output is free flow 
             # if csc_output[0] == 2: 
             #     # Get an estimate of the free flow speed 
-            #     estimate = 0.60 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
-            #     # May need to change the scalar based on penetration rate. 0.60 for 0.05
+            #     estimate = 0.90 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+            #     # May need to change the scalar based on penetration rate. 0.60 for 0.05, 0.9 for 0.40
             #     if estimate > self.free_flow_speed:
             #         self.free_flow_speed = estimate
             
@@ -368,7 +378,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # if rl_vel >= self.free_flow_speed:
             #     rl_action = 0.0
 
-            self.k.vehicle.apply_acceleration(rl_id, rl_action)
+            # self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
 
     def additional_command(self):
