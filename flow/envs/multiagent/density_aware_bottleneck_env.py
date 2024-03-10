@@ -401,11 +401,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 observation_csc = np.array(observation_csc, dtype=np.float32)
                 csc_output = self.get_csc_output(observation_csc)
-                # print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}\n")
+                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}\n")
 
                 csc_output_encoded = np.zeros(6)
                 csc_output_encoded[csc_output] = 1 # i.e. something
 
+            #print("\n")
             # Add items to the dict
             self.rl_storedict[rl_id] = {'csc_output': csc_output, 
                                         'sorted_ids': sorted_veh_ids,} 
@@ -478,7 +479,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 # Speed 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                reward_value = 0.75*rl_vel- 4*magnitude
+                reward_value = 0.2*rl_vel- 4*magnitude
 
                 penalty_scalar = -5
                 fixed_penalty = -1
