@@ -185,12 +185,7 @@ class DensityAwareRLEnv(Env):
 
         return reward
 
-    
-    # Helper 1
-    # def sort_vehicle_list(self, vehicles_in_zone):
-    #     return sorted(vehicles_in_zone, key=lambda x: (x[:-1], -int(x[-1])) if len(x) > 1 else (x, 0))
-
-    # Helper 2: Get Monotonoicity based label. 
+    # Helper: Get Monotonoicity based label. 
     # The monotonocity based label is supported by the assymetric driving theory. 
     # That when accelerating, humans leave a larger gap in front and while decelerating, they leave a smaller gap. This is more intuitive to understand as well
     def get_monotonicity_label(self, distances):

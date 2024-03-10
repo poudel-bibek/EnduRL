@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from copy import deepcopy
 
+import os
+from time import strftime
 import numpy as np
 #from flow.envs.base import Env
 #from flow.envs.bottleneck import BottleneckEnv
@@ -78,12 +80,20 @@ class DensityAwareBottleneckEnv(MultiEnv):
                                     ":5_0":{ 0: [0, 1], 1: [0, 1], 2: [2, 3], 3: [2, 3],}}
 
         self.free_flow_speed = 0.0 # All the RL vehicles estimate a single free flow speed 
+        self.data_storage = []
 
     @property
     def observation_space(self):
         """
         Since policies are distributed, define observations for each RL vehicle.
         """
+        ########## FOR CSC DATA COLLECTION ##########
+        # return Box(low=-float('inf'), 
+        #            high=float('inf'), 
+        #            shape=((self.LOCAL_ZONE // self.VEHICLE_LENGTH), 2), 
+        #            dtype = np.float32)
+
+        ########## FOR REGULAR TRAINING ##########
         return Box(
             low=-float("inf"),
             high=float("inf"),
@@ -101,7 +111,93 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 high=self.env_params.additional_params['max_accel'],
                 shape=(1,),
                 dtype=np.float32)
+    
+    # Helper: Get Monotonoicity based label. 
+    # The monotonocity based label is supported by the assymetric driving theory. 
+    # That when accelerating, humans leave a larger gap in front and while decelerating, they leave a smaller gap. This is more intuitive to understand as well
+    def get_monotonicity_label(self, distances):
+        """
+        The normalized distance (sorted from RL at index 0 and furthest vehicle at index n) of the vehicles in front
+        Put else undefined condition as well for more than no vehicles in front
+        """
         
+        # Difference of distances. E.g., RL - the one in front.
+        differences = [-1*(distances[i] - distances[i+1]) for i in range(len(distances)-1)] # Rl has travelled the least distance so -1 in front
+        num_diff = len(differences)
+        print("Differences: ", differences)
+
+        # No vehicle in front
+        if num_diff == 0:
+            print("No vehicles in front")
+            return 5
+        
+        # Since the distance measures is center to center (length of vehicle + effective gap) 
+        min_gap = 6.8/self.LOCAL_ZONE 
+        
+        # For leaving, all vehicles should participate in monotonic increase (as we move away from RL). i.e., diff at 1 is higher than at 0, 2 is higher than 1..etc
+        # So that its actually clear to accelerate (and wont have to brake again immediately later)
+        leaving = []
+        for i in range(num_diff-1):
+            # Nearest to Farthest, the difference is increasing
+            if (1.05)*differences[i] < differences[i+1]: # 5% increments
+                leaving.append(True)
+            else:
+                leaving.append(False)
+
+        # For forming, any vehicle can participate in monotonic decrease (as we away from RL)
+        # To account for both formation of congestion that travels upstream and occurs within the local zone
+        forming = []
+        for i in range(num_diff-1):
+            if differences[i] > (1.10)*differences[i+1]: 
+                forming.append(True)
+            else:
+                forming.append(False)
+
+        identifier = []
+        # Once a condition is met immediately return 
+        if len(distances) == 0:
+            identifier.append(5) # No vehicles in front, This never occurs because we include RL in distances
+        
+        # Check increasing or decreasing (leaving for forming)
+        if all(leaving):
+            print("Leaving")
+            identifier.append(0) # Leaving congestion
+        
+        if any(forming): # TODO idea: Any is a problem. Because when RL approaches a platoon of HVs this will be true. It could be any, excluding the vehicle in front
+            print("Forming")
+            identifier.append(1)
+        
+        # Then check with thresholds (congested or free flow)
+        # threshold for free flow 
+        if all([difference >= 1.40*min_gap for difference in differences]):
+            print("Free flow")
+            identifier.append(2)
+        
+        # threshold for congestion: all vehicles will have more or less the small multiple of minGap distance
+        # When there is congestion, there will be many vehicles in the local zone, so instead of all check any?
+        # This check is performed after the leaving check is performed, so it will not be confused with leaving
+        if all([difference <= 1.25*min_gap for difference in differences]): # Changed from 1.2 in ring to 1.25 in bottleneck
+            print("Congested")
+            identifier.append(3)
+
+        if len(identifier) == 0:
+            print("Undefined")
+            identifier.append(4)
+            
+        # If both leaving and free flow, then free flow (0 vs 2) i.e., Higher should win
+        if 0 in identifier and 2 in identifier:
+            identifier.remove(0)
+        # If both forming and congested, then congested (1 vs 3) i.e., Higher should win
+        if 1 in identifier and 3 in identifier:
+            identifier.remove(1)
+        # If both forming and free flow then free flow (1 vs 2) i.e., Higher should win
+        if 1 in identifier and 2 in identifier:
+            identifier.remove(1)
+            
+        return_val = identifier[0]
+        return return_val
+    
+
     def get_csc_output(self, current_obs):
         """
         Get the output of Traffic State Estimator Neural Network
@@ -141,7 +237,11 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         input_size = 10*2
         num_classes = 6
-        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Estimator/resolve/main/best_cse_model.pt"
+        url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/bottleneck_best_csc_model.pt"
+
+        # Ring CSC
+        # url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/ring_best_csc_model.pt"
+
         saved_best_net = CSC_Net(input_size, num_classes)
 
         state_dict = torch.hub.load_state_dict_from_url(url)
@@ -158,7 +258,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
         lead_id = self.k.vehicle.get_leader_bottleneck(rl_id, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions) # Leader itself maybe hard to get in the bottleneck. In zipper lanes
         if lead_id is not None:
 
-            # print(f"RL id: {rl_id} Lead id: {lead_id}")
+            #print(f"RL id: {rl_id} Lead id: {lead_id}, RL position: {new_positions[rl_id]}, Lead position: {new_positions[lead_id]}")
             # Use similar normalizers,  arbitrary high values should suffice
             max_length = 270
 
@@ -181,13 +281,84 @@ class DensityAwareBottleneckEnv(MultiEnv):
             observation = np.array([-1, -1, -1])
         
         return observation
-        
+    
     def get_state(self):
         """
         First three observations are the default observations, last six are encoded csc output
 
         """
+        ########## FOR CSC DATA COLLECTION ##########
+        # new_positions = self.k.vehicle.corrected_position_zipper()
+        
+        # # Just like multiple density in ring, we conduct this at multiple inflow rates here. 
+        # current_inflow_rate = 4000 # Didnt have time to learn how to look this up so manually set
 
+        # observation = {}
+        # # All RL ids will be collecting data i.e., does not require many iterations of data collection
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     rl_pos = new_positions[rl_id]
+        #     print(f"New position RL: {rl_id}: {rl_pos}")
+        #     sorted_veh_ids = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, 
+        #                                                                        self.LOCAL_ZONE, 
+        #                                                                        self.lane_mapping_dict_outside, 
+        #                                                                        self.lane_mapping_dict_inside, 
+        #                                                                        new_positions)
+
+        #     # Due to the nature of zipper lanes, sometimes there can be more than 10 vehicles in the local zone.
+        #     # In that case, we will only consider the first 10 vehicles in the local zone.
+        #     sorted_veh_ids = sorted_veh_ids[:10] # Only truncates if there are more than 10
+        #     self.rl_storedict[rl_id] = {'sorted_ids': sorted_veh_ids,}
+
+        #     observation_csc = np.full((10, 2), -1.0) 
+        #     distances = []
+        #     for i in range(len(sorted_veh_ids)):
+        #         veh_position = new_positions[sorted_veh_ids[i]]
+        #         rel_pos = (veh_position - rl_pos)
+        #         norm_pos = rel_pos / self.LOCAL_ZONE
+        #         distances.append(norm_pos)
+
+        #         vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
+        #         norm_vel = vel / self.MAX_SPEED
+        #         observation_csc[i] = [norm_pos, norm_vel]
+            
+        #     timestep = self.step_counter
+        #     label = self.get_monotonicity_label(distances)
+        #     label_meaning = self.label_meanings[label]
+
+        #     # Collect data independently for each RL vehicle. 
+        #     # Ensure high quality data collection. (Data should be in a single seqnence, and inclusive of zipper lanes)
+        #     if "flow_00" in rl_id:
+        #         rl_identifier = int(rl_id.split('.')[1])
+        #         if timestep > 4000 and rl_pos > 350: # and rl_pos < 460): # or (rl_pos > 650 and rl_pos < 900): # Only collect data before the first zipper. Exclude others
+        #             print(f"Writing data for {rl_id}:\n {timestep}, {label_meaning}, {observation_csc}")
+        #             self.data_storage.append([rl_identifier, timestep, label, observation_csc])
+        #         else:
+        #             continue
+
+        #     # During data collection, adding some irrational behavior to some HVs (as if RLs would do) i.e., make it stop for no reason
+        #     # Because some HVs stopped and others moving, this scenario is hard to obtain naturally during CSC data collection.
+        #     # Doubt: In case of Bottleneck, irrational behavior is polluting the data because zero velocity cases occur i.e., since label is based on monotonicity of distance...
+        #     stop_timesteps = [(4200, 4220), (4600, 4620), (4800, 4820)]
+
+        #     # If timestep is in ranges of stop_timesteps, then stop the RL vehicle
+        #     if any([timestep in range(start, end) for start, end in stop_timesteps]):
+        #         self.k.vehicle.apply_acceleration(rl_id, -1.0)
+
+        #     observation[rl_id] = observation_csc 
+
+        # # Save data collected for all RL vehicle
+        # # We are collecting data in warmup. So just train like regular training but increase warmup to 4000 for this data collection.
+        # if self.step_counter == self.env_params.warmup_steps - 1: 
+        #     # if does not exist 
+        #     if not os.path.exists(f"./csc_data/inflow_{int(current_inflow_rate)}"):
+        #         os.makedirs(f"./csc_data/inflow_{int(current_inflow_rate)}")
+        #     time_now = strftime("%Y-%m-%d-%H:%M:%S")
+        #     np.save(f"./csc_data/inflow_{int(current_inflow_rate)}/csc_data_{time_now}.npy", np.array(self.data_storage))
+
+        # return observation
+
+
+        ########## FOR REGULAR TRAINING ##########
         new_positions = self.k.vehicle.corrected_position_zipper()
         observation = {}
         for rl_id in self.k.vehicle.get_rl_ids():
@@ -199,7 +370,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # Due to the nature of zipper lanes, sometimes there can be more than 10 vehicles in the local zone.
             # In that case, we will only consider the first 10 vehicles in the local zone.
             sorted_veh_ids = sorted_veh_ids[:10] # Only truncates if there are more than 10
-            #print(f"RL id: {rl_id} Sorted veh ids: {sorted_veh_ids}") #TODO: Verify this. Verified.
+            # print(f"RL id: {rl_id} Sorted veh ids: {sorted_veh_ids}") #TODO: Verify this. Verified.
             
             if len(sorted_veh_ids) == 0:
                 csc_output_encoded = np.zeros(6) # i.e., nothing
@@ -215,12 +386,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 for i in range(len(sorted_veh_ids)):
                     # Distance vs new_position 2
-                    distance = self.k.vehicle.get_distance(sorted_veh_ids[i])
+                    #distance = self.k.vehicle.get_distance(sorted_veh_ids[i])
                     #rel_pos = (distance - rl_pos)
 
                     veh_position = new_positions[sorted_veh_ids[i]]
                     rel_pos = (veh_position - rl_pos)
-                    #print(f"RL id: {rl_id} Sorted veh id: {sorted_veh_ids[i]} Distance:{distance} New position: {veh_position}")
+                    # print(f"RL id: {rl_id} Sorted veh id: {sorted_veh_ids[i]} New position: {veh_position}")
                     norm_pos = rel_pos / self.LOCAL_ZONE
 
                     vel = self.k.vehicle.get_speed(sorted_veh_ids[i])
@@ -230,7 +401,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 observation_csc = np.array(observation_csc, dtype=np.float32)
                 csc_output = self.get_csc_output(observation_csc)
-                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}\n")
+                # print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output[0]]}\n")
 
                 csc_output_encoded = np.zeros(6)
                 csc_output_encoded[csc_output] = 1 # i.e. something
@@ -244,8 +415,13 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # csc output is free flow 
             # if csc_output[0] == 2: 
             #     # Get an estimate of the free flow speed 
-            #     estimate = 0.90 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
-            #     # May need to change the scalar based on penetration rate. 0.60 for 0.05, 0.9 for 0.40
+            #     estimate = 0.70 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+            #     # May need to change the scalar based on penetration rate. 
+            #     # 0.60 for penetration rates of 0.05
+            #     # 0.65 for penetration rates of 0.20
+            #     # 0.70 for penetration rates of 0.40
+            #     # 
+            #     # If the free flow estimate is too high, HVs wont dillegently follow the RL vehicle. They will cause disturbances.
             #     if estimate > self.free_flow_speed:
             #         self.free_flow_speed = estimate
             
@@ -263,6 +439,14 @@ class DensityAwareBottleneckEnv(MultiEnv):
         
 
         """
+
+        ########## FOR CSC DATA COLLECTION ##########
+        # reward = {}
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     reward[rl_id] = 0.0
+        # return reward
+
+        ########## FOR REGULAR TRAINING ##########
         if rl_actions is None:
             return {}
         
@@ -279,85 +463,85 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         ##############
         # Reward for safety and stability
-        # reward = {}
-        # for rl_id in self.k.vehicle.get_rl_ids():
-        #     if rl_id not in rl_actions.keys():
-        #         #print(f"\nRL id: {rl_id} not in rl_actions\n")
-        #         # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
-        #         # the vehicle just entered
-        #         reward[rl_id] = 0.0
-                
-        #     else: 
-        #         rl_action = rl_actions[rl_id] # Acceleration
-        #         sign = np.sign(rl_action)
-        #         magnitude = np.abs(rl_action)
-
-        #         # Speed 
-        #         rl_vel = self.k.vehicle.get_speed(rl_id)
-
-        #         # Perhaps we need to add a small component of its own velocity so that it does not stop in zippers
-        #         reward_value = 0.25*rl_vel- 2*magnitude
-
-        #         penalty_scalar = -5 
-        #         fixed_penalty = -1 
-        #         csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-        #         #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
-
-        #         # Shaping component 1
-        #         if csc_output == 1: # Forming
-        #             if sign >= 0:
-        #                 forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
-        #                 #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
-        #                 reward_value += forming_penalty
-
-        #         reward[rl_id] = reward_value[0]
-
-        #print(f"Reward: {reward}")
-        #print(f"\n Reward keys: {reward.keys()}")
-        #return reward
-
-        ##############
-        # Reward for efficiency
         reward = {}
         for rl_id in self.k.vehicle.get_rl_ids():
             if rl_id not in rl_actions.keys():
+                #print(f"\nRL id: {rl_id} not in rl_actions\n")
+                # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
+                # the vehicle just entered
                 reward[rl_id] = 0.0
-
-            else:
-                rl_action = rl_actions[rl_id]
+                
+            else: 
+                rl_action = rl_actions[rl_id] # Acceleration
                 sign = np.sign(rl_action)
                 magnitude = np.abs(rl_action)
-                # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
-                # Here, its its own velocity. 
+
+                # Speed 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
+                reward_value = 0.75*rl_vel- 4*magnitude
 
-                # Average velocity of vehicles in its lane? Behind it.
-                # Just want it to behave that way, does not have to be part of observations
-                reward_value = 0.75*rl_vel - 2*magnitude 
-
-                penalty_scalar = -10
-                penalty_scalar_2 = -10
+                penalty_scalar = -5
                 fixed_penalty = -1
+                
                 csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-
                 #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
 
-                # Forming states are allowed.
-                if csc_output == 3 : # Congested
-                    if sign > 0: 
-                        reward_value += min(fixed_penalty, penalty_scalar * magnitude)
-                        #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
-                
-                elif csc_output == 0: # Leaving
-                    if sign < 0: 
-                        # Fixed penalty
-                        reward_value += penalty_scalar_2 * magnitude
-                        #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
-                
-                reward[rl_id] = reward_value[0]
+                # Shaping component 1
+                # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
+                if csc_output == 1: # Forming or congested.
+                    if sign >= 0:
+                        forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
+                        #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
+                        reward_value += forming_penalty
 
+                reward[rl_id] = reward_value[0]
+        #print("\n")
         #print(f"Reward: {reward}")
+        #print(f"\n Reward keys: {reward.keys()}")
         return reward
+
+        #############
+        # Reward for efficiency
+        # reward = {}
+        # for rl_id in self.k.vehicle.get_rl_ids():
+        #     if rl_id not in rl_actions.keys():
+        #         reward[rl_id] = 0.0
+
+        #     else:
+        #         rl_action = rl_actions[rl_id]
+        #         sign = np.sign(rl_action)
+        #         magnitude = np.abs(rl_action)
+        #         # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
+        #         # Here, its its own velocity. 
+        #         rl_vel = self.k.vehicle.get_speed(rl_id)
+
+        #         # Average velocity of vehicles in its lane? Behind it.
+        #         # Just want it to behave that way, does not have to be part of observations
+        #         reward_value = 0.75*rl_vel - 2*magnitude 
+
+        #         penalty_scalar = -10
+        #         penalty_scalar_2 = -10
+        #         fixed_penalty = -1
+        #         csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+
+        #         #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+
+        #         # Forming states are allowed.
+        #         if csc_output == 3 : # Congested
+        #             if sign > 0: 
+        #                 reward_value += min(fixed_penalty, penalty_scalar * magnitude)
+        #                 #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
+                
+        #         elif csc_output == 0: # Leaving
+        #             if sign < 0: 
+        #                 # Fixed penalty
+        #                 reward_value += penalty_scalar_2 * magnitude
+        #                 #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
+                
+        #         reward[rl_id] = reward_value[0]
+
+        # #print(f"Reward: {reward}")
+        # return reward
     
 
     def _apply_rl_actions(self, rl_actions):
@@ -367,8 +551,11 @@ class DensityAwareBottleneckEnv(MultiEnv):
         """
         for rl_id in self.k.vehicle.get_rl_ids():
             if rl_id not in rl_actions.keys():
+                # rl_0 and rl_1 when they enter, tend to stop 
+                # self.k.vehicle.apply_acceleration(rl_id, 0.5)
                 # the vehicle just entered, so ignore
                 continue
+                
             rl_action = rl_actions[rl_id]
             ############## SAFETY + STAILITY (AT TEST TIME) ##############
 
@@ -378,8 +565,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # if rl_vel >= self.free_flow_speed:
             #     rl_action = 0.0
 
-            # self.k.vehicle.apply_acceleration(rl_id, rl_action)
-
+            self.k.vehicle.apply_acceleration(rl_id, rl_action)
 
     def additional_command(self):
         """
@@ -387,14 +573,6 @@ class DensityAwareBottleneckEnv(MultiEnv):
         """
 
         super().additional_command()
-        
-        # This is too expensive just to show color
-        # new_positions = self.k.vehicle.corrected_position_zipper()
-        # for rl_id in self.k.vehicle.get_rl_ids():
-        #     vehicles_in_zone = self.k.vehicle.get_veh_list_local_zone_bottleneck(rl_id, self.LOCAL_ZONE, new_positions)
-        #     for veh_id in vehicles_in_zone:
-        #         self.k.vehicle.set_observed(veh_id)
-
         #print(f"\nRL storedict {self.rl_storedict}")
         for rl_id in self.rl_storedict.keys():
             vehicles_in_zone = self.rl_storedict[rl_id]['sorted_ids']
