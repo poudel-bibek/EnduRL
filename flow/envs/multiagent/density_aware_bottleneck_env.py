@@ -237,9 +237,10 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         input_size = 10*2
         num_classes = 6
+        # CSC specifically traind for bottleneck
         url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/bottleneck_best_csc_model.pt"
 
-        # Ring CSC
+        # CSC specifically traind for the Ring
         # url = "https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/resolve/main/ring_best_csc_model.pt"
 
         saved_best_net = CSC_Net(input_size, num_classes)
@@ -431,6 +432,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             obs_for_this_vehicle = np.concatenate((default_obs, csc_output_encoded), axis=None)
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
+            print(f"RL id: {rl_id} Observation: {obs_for_this_vehicle}")
 
         #print(f"Free flow speed: {self.free_flow_speed}")
         return observation
@@ -479,7 +481,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 # Speed 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                reward_value = 0.2*rl_vel- 4*magnitude
+                reward_value = 0.75*rl_vel -4*magnitude
 
                 penalty_scalar = -5
                 fixed_penalty = -1
@@ -489,7 +491,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 # Shaping component 1
                 # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
-                if csc_output == 1: # Forming or congested.
+                if csc_output == 1 or csc_output==3: # Forming or congested.
                     if sign >= 0:
                         forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
                         #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
