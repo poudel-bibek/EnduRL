@@ -432,7 +432,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             obs_for_this_vehicle = np.concatenate((default_obs, csc_output_encoded), axis=None)
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
-            print(f"RL id: {rl_id} Observation: {obs_for_this_vehicle}")
+            #print(f"RL id: {rl_id} Observation: {obs_for_this_vehicle}")
 
         #print(f"Free flow speed: {self.free_flow_speed}")
         return observation
@@ -477,30 +477,37 @@ class DensityAwareBottleneckEnv(MultiEnv):
             else: 
                 rl_action = rl_actions[rl_id] # Acceleration
                 sign = np.sign(rl_action)
-                magnitude = np.abs(rl_action)
+                acceleration_magnitude = np.abs(rl_action)
 
                 # Speed 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                reward_value = 0.75*rl_vel -4*magnitude
+                #speed_magnitude = np.abs(rl_vel)
 
-                penalty_scalar = -5
-                fixed_penalty = -1
+                # Speeds are high . So 0.1*rl_vel is a good. 
+                # When speeds are high, it takes a longer time to come to a stop even when the acceleration is negative.
+                # Acceleration magniude penalty is required to keep CAV low.
+                reward_value = 0.1*rl_vel -10*acceleration_magnitude # -10 will mean milder speeds.
+
+                penalty_scalar = -20
+                fixed_penalty = -2 # 0.1*20 = 2 
                 
                 csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-                #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output]}, Speed: {rl_vel}, Action: {rl_action},", end = "\t")
 
                 # Shaping component 1
                 # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
-                if csc_output == 1 or csc_output==3: # Forming or congested.
+                if csc_output == 1 or csc_output==3 or csc_output==4: # Forming, congested, Undefined because of lower accuracy.
                     if sign >= 0:
-                        forming_penalty = min(fixed_penalty, penalty_scalar * magnitude) # Min because both quantities are negative
-                        #print(f"RL id: {rl_id} Forming penalty: {forming_penalty}")
+                        # Forming penalty based on speed when approaching these 3 states.
+                        forming_penalty = min(fixed_penalty, penalty_scalar * acceleration_magnitude) # Min because both quantities are negative
+                        #print(f" F++ penalty: {forming_penalty}")
                         reward_value += forming_penalty
+
+                #print(f", Reward: {reward_value}")
 
                 reward[rl_id] = reward_value[0]
         #print("\n")
         #print(f"Reward: {reward}")
-        #print(f"\n Reward keys: {reward.keys()}")
         return reward
 
         #############
