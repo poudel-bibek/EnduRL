@@ -481,14 +481,14 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
                 # Speed 
                 rl_vel = self.k.vehicle.get_speed(rl_id)
-                #speed_magnitude = np.abs(rl_vel)
 
                 # Speeds are high . So 0.1*rl_vel is a good. 
                 # When speeds are high, it takes a longer time to come to a stop even when the acceleration is negative.
                 # Acceleration magniude penalty is required to keep CAV low.
-                reward_value = 0.1*rl_vel -10*acceleration_magnitude # -10 will mean milder speeds.
+                reward_value = 0.5*rl_vel -4*acceleration_magnitude # -4 will mean milder speeds.
 
-                penalty_scalar = -20
+                penalty_scalar_1 = -1
+                penalty_scalar_2 = -20
                 fixed_penalty = -2 # 0.1*20 = 2 
                 
                 csc_output = self.rl_storedict[rl_id]['csc_output'][0]
@@ -497,9 +497,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 # Shaping component 1
                 # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
                 if csc_output == 1 or csc_output==3 or csc_output==4: # Forming, congested, Undefined because of lower accuracy.
+                    # If these states are encountered, then regardless of acceleration, penalize speed magnitude (speed is a positive quantity cannot be less than zero)
+                    reward_value += penalty_scalar_1 * rl_vel
+
+                    # If its accelerating, then a higher penalty
                     if sign >= 0:
-                        # Forming penalty based on speed when approaching these 3 states.
-                        forming_penalty = min(fixed_penalty, penalty_scalar * acceleration_magnitude) # Min because both quantities are negative
+                        forming_penalty = min(fixed_penalty, penalty_scalar_2 * acceleration_magnitude) # Min because both quantities are negative
                         #print(f" F++ penalty: {forming_penalty}")
                         reward_value += forming_penalty
 
