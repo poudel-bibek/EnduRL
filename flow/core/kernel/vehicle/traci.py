@@ -1497,7 +1497,6 @@ class TraCIVehicle(KernelVehicle):
         else:
             immediate_leader = vehicles_in_zone[1] # 0 is the RL itself
             return immediate_leader
-    
         
     # Stuff for intersection
     def get_veh_list_local_zone_intersection(self, veh_id, distance):

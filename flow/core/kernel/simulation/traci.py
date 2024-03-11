@@ -114,6 +114,9 @@ class TraCISimulation(KernelSimulation):
                 if t not in self.stored_data[veh_id].keys():
                     self.stored_data[veh_id][t] = dict()
 
+                env_name = self.master_kernel.network.network.name
+                print("Env Name: ", env_name)
+
                 # Bibek: Modify below according to our needs (more data means more computation time)
                 # Add the speed, position, and lane data.
                 self.stored_data[veh_id][t].update({
@@ -121,9 +124,10 @@ class TraCISimulation(KernelSimulation):
                     "edge": kv.get_edge(veh_id),
                     #"edge_id": kv.get_edge(veh_id),
                     #"relative_position": kv.get_position(veh_id),
-                    "x": kv.get_x_by_id(veh_id), # position[0], # For a single lane, we want position in 1D not 2D
+                    "x": kv.get_x_by_id(veh_id), # Is not accurate for bottleneck, do not use.
                     #"y": position[1],
-                    "space_headway": kv.get_headway(veh_id),
+
+                    "space_headway": kv.get_headway(veh_id), 
                     "leader_id": kv.get_leader(veh_id),
                     "follower_id": kv.get_follower(veh_id),
                     #"leader_rel_speed": kv.get_speed(kv.get_leader(veh_id)) - kv.get_speed(veh_id),

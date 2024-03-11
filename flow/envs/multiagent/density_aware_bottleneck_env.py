@@ -433,7 +433,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # TODO: Make sure this is good. 
             observation[rl_id] = obs_for_this_vehicle
             #print(f"RL id: {rl_id} Observation: {obs_for_this_vehicle}")
-
+            
         #print(f"Free flow speed: {self.free_flow_speed}")
         return observation
 
@@ -487,13 +487,15 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 # Acceleration magniude penalty is required to keep CAV low.
                 reward_value = 0.5*rl_vel -4*acceleration_magnitude # -4 will mean milder speeds.
 
-                penalty_scalar_1 = -1
+                penalty_scalar_1 = -4
                 penalty_scalar_2 = -20
                 fixed_penalty = -2 # 0.1*20 = 2 
                 
                 csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-                #print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output]}, Speed: {rl_vel}, Action: {rl_action},", end = "\t")
+                print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output]}, Speed: {rl_vel}, Action: {rl_action},", end = "\t")
 
+                # Having both RL's own speed and acceleration in penalty is tricky because .. since there is a penalty for acceleration magnitude, 
+                # RL cannot harshly brake when entering these states.
                 # Shaping component 1
                 # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
                 if csc_output == 1 or csc_output==3 or csc_output==4: # Forming, congested, Undefined because of lower accuracy.
@@ -503,13 +505,11 @@ class DensityAwareBottleneckEnv(MultiEnv):
                     # If its accelerating, then a higher penalty
                     if sign >= 0:
                         forming_penalty = min(fixed_penalty, penalty_scalar_2 * acceleration_magnitude) # Min because both quantities are negative
-                        #print(f" F++ penalty: {forming_penalty}")
+                        print(f" F++ penalty: {forming_penalty}")
                         reward_value += forming_penalty
 
-                #print(f", Reward: {reward_value}")
-
+                print(f", Reward: {reward_value}\n")
                 reward[rl_id] = reward_value[0]
-        #print("\n")
         #print(f"Reward: {reward}")
         return reward
 
