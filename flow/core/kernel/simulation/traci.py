@@ -114,9 +114,6 @@ class TraCISimulation(KernelSimulation):
                 if t not in self.stored_data[veh_id].keys():
                     self.stored_data[veh_id][t] = dict()
 
-                env_name = self.master_kernel.network.network.name
-                print("Env Name: ", env_name)
-
                 # Bibek: Modify below according to our needs (more data means more computation time)
                 # Add the speed, position, and lane data.
                 self.stored_data[veh_id][t].update({

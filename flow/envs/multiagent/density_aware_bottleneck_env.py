@@ -256,7 +256,7 @@ class DensityAwareBottleneckEnv(MultiEnv):
         We need to supply the position dict for the immediate leader
         """
 
-        lead_id = self.k.vehicle.get_leader_bottleneck(rl_id, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions) # Leader itself maybe hard to get in the bottleneck. In zipper lanes
+        lead_id = self.k.vehicle.get_leader_bottleneck(rl_id, self.lane_mapping_dict_outside, self.lane_mapping_dict_inside, new_positions, 100) # Leader itself maybe hard to get in the bottleneck. In zipper lanes
         if lead_id is not None:
 
             #print(f"RL id: {rl_id} Lead id: {lead_id}, RL position: {new_positions[rl_id]}, Lead position: {new_positions[lead_id]}")
@@ -466,95 +466,95 @@ class DensityAwareBottleneckEnv(MultiEnv):
 
         ##############
         # Reward for safety and stability
-        reward = {}
-        for rl_id in self.k.vehicle.get_rl_ids():
-            if rl_id not in rl_actions.keys():
-                #print(f"\nRL id: {rl_id} not in rl_actions\n")
-                # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
-                # the vehicle just entered
-                reward[rl_id] = 0.0
-                
-            else: 
-                rl_action = rl_actions[rl_id] # Acceleration
-                sign = np.sign(rl_action)
-                acceleration_magnitude = np.abs(rl_action)
-
-                # Speed 
-                rl_vel = self.k.vehicle.get_speed(rl_id)
-
-                # Speeds are high . So 0.1*rl_vel is a good. 
-                # When speeds are high, it takes a longer time to come to a stop even when the acceleration is negative.
-                # Acceleration magniude penalty is required to keep CAV low.
-                reward_value = 0.5*rl_vel -4*acceleration_magnitude # -4 will mean milder speeds.
-
-                penalty_scalar_1 = -4
-                penalty_scalar_2 = -20
-                fixed_penalty = -2 # 0.1*20 = 2 
-                
-                csc_output = self.rl_storedict[rl_id]['csc_output'][0]
-                print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output]}, Speed: {rl_vel}, Action: {rl_action},", end = "\t")
-
-                # Having both RL's own speed and acceleration in penalty is tricky because .. since there is a penalty for acceleration magnitude, 
-                # RL cannot harshly brake when entering these states.
-                # Shaping component 1
-                # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
-                if csc_output == 1 or csc_output==3 or csc_output==4: # Forming, congested, Undefined because of lower accuracy.
-                    # If these states are encountered, then regardless of acceleration, penalize speed magnitude (speed is a positive quantity cannot be less than zero)
-                    reward_value += penalty_scalar_1 * rl_vel
-
-                    # If its accelerating, then a higher penalty
-                    if sign >= 0:
-                        forming_penalty = min(fixed_penalty, penalty_scalar_2 * acceleration_magnitude) # Min because both quantities are negative
-                        print(f" F++ penalty: {forming_penalty}")
-                        reward_value += forming_penalty
-
-                print(f", Reward: {reward_value}\n")
-                reward[rl_id] = reward_value[0]
-        #print(f"Reward: {reward}")
-        return reward
-
-        #############
-        # Reward for efficiency
         # reward = {}
         # for rl_id in self.k.vehicle.get_rl_ids():
         #     if rl_id not in rl_actions.keys():
+        #         #print(f"\nRL id: {rl_id} not in rl_actions\n")
+        #         # TODO: Verify how many and which vehicles are not in rl_actions Verified. Only vehicles that just entered.
+        #         # the vehicle just entered
         #         reward[rl_id] = 0.0
-
-        #     else:
-        #         rl_action = rl_actions[rl_id]
+                
+        #     else: 
+        #         rl_action = rl_actions[rl_id] # Acceleration
         #         sign = np.sign(rl_action)
-        #         magnitude = np.abs(rl_action)
-        #         # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
-        #         # Here, its its own velocity. 
+        #         acceleration_magnitude = np.abs(rl_action)
+
+        #         # Speed 
         #         rl_vel = self.k.vehicle.get_speed(rl_id)
 
-        #         # Average velocity of vehicles in its lane? Behind it.
-        #         # Just want it to behave that way, does not have to be part of observations
-        #         reward_value = 0.75*rl_vel - 2*magnitude 
+        #         # Speeds are high . So 0.1*rl_vel is a good. 
+        #         # When speeds are high, it takes a longer time to come to a stop even when the acceleration is negative.
+        #         # Acceleration magniude penalty is required to keep CAV low.
+        #         reward_value = 0.5*rl_vel -4*acceleration_magnitude # -4 will mean milder speeds.
 
-        #         penalty_scalar = -10
-        #         penalty_scalar_2 = -10
-        #         fixed_penalty = -1
+        #         penalty_scalar_1 = -4
+        #         penalty_scalar_2 = -20
+        #         fixed_penalty = -2 # 0.1*20 = 2 
+                
         #         csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+        #         # print(f"RL id: {rl_id} CSC output: {self.label_meanings[csc_output]}, Speed: {rl_vel}, Action: {rl_action},", end = "\t")
 
-        #         #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+        #         # Having both RL's own speed and acceleration in penalty is tricky because .. since there is a penalty for acceleration magnitude, 
+        #         # RL cannot harshly brake when entering these states.
+        #         # Shaping component 1
+        #         # ['Leaving', 'Forming', 'Free Flow', 'Congested', 'Undefined', 'No vehicle in front']
+        #         if csc_output == 1 or csc_output==3 or csc_output==4: # Forming, congested, Undefined because of lower accuracy.
+        #             # If these states are encountered, then regardless of acceleration, penalize speed magnitude (speed is a positive quantity cannot be less than zero)
+        #             reward_value += penalty_scalar_1 * rl_vel
 
-        #         # Forming states are allowed.
-        #         if csc_output == 3 : # Congested
-        #             if sign > 0: 
-        #                 reward_value += min(fixed_penalty, penalty_scalar * magnitude)
-        #                 #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
-                
-        #         elif csc_output == 0: # Leaving
-        #             if sign < 0: 
-        #                 # Fixed penalty
-        #                 reward_value += penalty_scalar_2 * magnitude
-        #                 #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
-                
+        #             # If its accelerating, then a higher penalty
+        #             if sign >= 0:
+        #                 forming_penalty = min(fixed_penalty, penalty_scalar_2 * acceleration_magnitude) # Min because both quantities are negative
+        #                 # print(f" F++ penalty: {forming_penalty}")
+        #                 reward_value += forming_penalty
+
+        #         # print(f", Reward: {reward_value}\n")
         #         reward[rl_id] = reward_value[0]
-
         # #print(f"Reward: {reward}")
         # return reward
+
+        #############
+        # Reward for efficiency
+        reward = {}
+        for rl_id in self.k.vehicle.get_rl_ids():
+            if rl_id not in rl_actions.keys():
+                reward[rl_id] = 0.0
+
+            else:
+                rl_action = rl_actions[rl_id]
+                sign = np.sign(rl_action)
+                magnitude = np.abs(rl_action)
+                # In case of single agent ring, this reward component in efficiency would have been for for average velocity.
+                # Here, its its own velocity. 
+                rl_vel = self.k.vehicle.get_speed(rl_id)
+
+                # Average velocity of vehicles in its lane? Behind it.
+                # Just want it to behave that way, does not have to be part of observations
+                reward_value = 0.75*rl_vel - 2*magnitude 
+
+                penalty_scalar = -10
+                penalty_scalar_2 = -10
+                fixed_penalty = -1
+                csc_output = self.rl_storedict[rl_id]['csc_output'][0]
+
+                #print(f"RL id: {rl_id} CSC output: {csc_output}, Meaning: {self.label_meanings[csc_output]}")
+
+                # Forming states are allowed.
+                if csc_output == 3 : # Congested
+                    if sign > 0: 
+                        reward_value += min(fixed_penalty, penalty_scalar * magnitude)
+                        #print(f"RL id: {rl_id} Congested penalty: {reward_value}")
+                
+                elif csc_output == 0: # Leaving
+                    if sign < 0: 
+                        # Fixed penalty
+                        reward_value += penalty_scalar_2 * magnitude
+                        #print(f"RL id: {rl_id} Leaving penalty: {reward_value}")
+                
+                reward[rl_id] = reward_value[0]
+
+        #print(f"Reward: {reward}")
+        return reward
     
 
     def _apply_rl_actions(self, rl_actions):
@@ -570,8 +570,6 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 continue
                 
             rl_action = rl_actions[rl_id]
-            ############## SAFETY + STAILITY (AT TEST TIME) ##############
-
             ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
             # If rl velocity greater than estimated free flow velocity, acceleration = 0
             # rl_vel = self.k.vehicle.get_speed(rl_id)

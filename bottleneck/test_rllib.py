@@ -413,10 +413,6 @@ def perform_shock(args, env,
 
         
 
-            
-
-
-
     return shock_counter, current_duration_counter, shock_ids
 
 def create_parser():

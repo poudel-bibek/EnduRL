@@ -1481,14 +1481,13 @@ class TraCIVehicle(KernelVehicle):
         veh_list = sorted(veh_list, key=lambda x: position_dict[x])
         return veh_list
 
-    def get_leader_bottleneck(self, veh_id, lane_mapping_dict_outside, lane_mapping_dict_inside, position_dict):
+    def get_leader_bottleneck(self, veh_id, lane_mapping_dict_outside, lane_mapping_dict_inside, position_dict, local_zone):
         """
         Just use the function above to get the closest leader. 
         However, the leader may be way up ahead (outside the Local zone).
 
         In case of bottltneck, we can make use of the function above with local zone set to 100m. That should be fine.
         """
-        local_zone = 100
         vehicles_in_zone = self.get_veh_list_local_zone_bottleneck(veh_id, local_zone,  lane_mapping_dict_outside, lane_mapping_dict_inside, position_dict)
         #print(f"Vehicles in zone: {vehicles_in_zone}")
 

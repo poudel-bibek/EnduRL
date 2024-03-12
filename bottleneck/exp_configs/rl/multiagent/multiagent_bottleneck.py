@@ -13,7 +13,7 @@ from ray.tune.registry import register_env
 from flow.utils.registry import make_create_env
 
 # Time horizon of a single rollout
-HORIZON = 1300 
+HORIZON = 1300 # For CSC data collection set this to 100. 1300 for Regular Training
 
 # Number of parallel workers
 N_CPUS = 4
@@ -24,7 +24,8 @@ NUM_LANES = 4 * SCALING  # number of lanes in the widest highway
 DISABLE_TB = True
 DISABLE_RAMP_METER = True
 
-AV_FRAC = 0.05 # NEED to change this here everytime for a new training instance.
+# For CSC data collection, set this to 0.4
+AV_FRAC = 0.6 # NEED to change this here everytime for a new training instance.
 
 vehicles = VehicleParams()
 vehicles.add(
@@ -32,7 +33,11 @@ vehicles.add(
     acceleration_controller=(RLController, {}), #IDMController
     routing_controller=(ContinuousRouter, {}),
     car_following_params=SumoCarFollowingParams(
-        minGap=0.1, # Hack: # 
+        minGap= 0.1, 
+        
+        # During CSC training, make this 2.5 (same as HVs) because we are simulating HV behavior using RLs as well. # During Regular Training, make it 0.1 (or other RL default)
+        # It this is not set to 2.5 during CSC training, this pollutes the data during CSC training. # If the min gap is not made 2.5 default for our RL, this make CSC inaccurate as well.
+        # Just like in Single agent ring, all vehicles in LZ, except for RL is always 2.5. Other RLs here inside LZ.. can be a problem.
     ),
     lane_change_params=SumoLaneChangeParams(
         lane_change_mode=0,
@@ -64,11 +69,12 @@ additional_env_params = {
     "add_rl_if_exit": True,
     "max_accel": 5,
     "max_decel": 5,
-    "inflow_range": [3400, 3800] # Just like training at a fixed density.
-    #"inflow_range": [1300 * SCALING, 2600 * SCALING] # So that there is some randomness in the whole thing. Generalizes better
+    #"inflow_range": [4500, 4500] # Just like training at a fixed density. For CSC data collection, fix this at 3000, 3500, 4000, 4500. For regular training its [3400, 3800]
+    "inflow_range": [1300 * SCALING, 2600 * SCALING] # So that there is some randomness in the whole thing. Generalizes better
 }
 
 # flow rate
+# Just like training at a fixed density. For CSC data collection, fix this at 3500, 4000, 4500
 flow_rate = 1800 * SCALING
 
 # percentage of flow coming out of each lane
@@ -112,7 +118,7 @@ flow_params = dict(
 
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
-        sim_step=0.5, # 0.1 is too much 
+        sim_step=0.5, # For CSC data collection, set this to 0.1
         render=False,
         print_warnings=False,
         restart_instance=True,
@@ -120,7 +126,7 @@ flow_params = dict(
 
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
-        warmup_steps= 100,
+        warmup_steps= 100, # For CSC data collection, set this to 10000. For regular training, set this to 100
         sims_per_step=1, # Sims per step huh
         horizon=HORIZON,
         additional_params=additional_env_params,
