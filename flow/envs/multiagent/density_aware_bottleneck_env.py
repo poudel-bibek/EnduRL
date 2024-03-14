@@ -415,17 +415,17 @@ class DensityAwareBottleneckEnv(MultiEnv):
             ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
             # Add the free estimated flow speed for each RL.
             # csc output is free flow 
-            # if csc_output[0] == 2: 
-            #     # Get an estimate of the free flow speed 
-            #     estimate = 0.70 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
-            #     # May need to change the scalar based on penetration rate. 
-            #     # 0.60 for penetration rates of 0.05
-            #     # 0.65 for penetration rates of 0.20
-            #     # 0.70 for penetration rates of 0.40
-            #     # 
-            #     # If the free flow estimate is too high, HVs wont dillegently follow the RL vehicle. They will cause disturbances.
-            #     if estimate > self.free_flow_speed:
-            #         self.free_flow_speed = estimate
+            if csc_output[0] == 2: 
+                # Get an estimate of the free flow speed 
+                estimate = 0.30 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+                # May need to change the scalar based on penetration rate. 
+                # 0.40 for penetration rates of 0.05
+                # 0.40 for penetration rates of 0.20
+                # 0.30 for penetration rates of 0.40
+                # 
+                # If the free flow estimate is too high, HVs wont dillegently follow the RL vehicle. They will cause disturbances.
+                if estimate > self.free_flow_speed:
+                    self.free_flow_speed = estimate
             
             # Concatenate observations and return 
             default_obs = self.get_default_observations(rl_id, new_positions)
@@ -571,10 +571,10 @@ class DensityAwareBottleneckEnv(MultiEnv):
                 
             rl_action = rl_actions[rl_id]
             ############## EFFICIENCY (AT TEST TIME) ############## Comment during training
-            # If rl velocity greater than estimated free flow velocity, acceleration = 0
-            # rl_vel = self.k.vehicle.get_speed(rl_id)
-            # if rl_vel >= self.free_flow_speed:
-            #     rl_action = 0.0
+            # # If rl velocity greater than estimated free flow velocity, acceleration = 0
+            rl_vel = self.k.vehicle.get_speed(rl_id)
+            if rl_vel >= self.free_flow_speed:
+                rl_action = 0.0
 
             self.k.vehicle.apply_acceleration(rl_id, rl_action)
 

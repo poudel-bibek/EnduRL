@@ -25,7 +25,7 @@ DISABLE_TB = True
 DISABLE_RAMP_METER = True
 
 # For CSC data collection, set this to 0.4
-AV_FRAC = 0.05 # NEED to change this here everytime for a new training instance.
+AV_FRAC = 0.4 # NEED to change this here everytime for a new training instance.
 
 vehicles = VehicleParams()
 vehicles.add(
