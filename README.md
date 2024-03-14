@@ -1,11 +1,17 @@
-Created on top of snapshot of FLOW code obtained on Jan 3, 2023
+## EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning
+[arXiv](https://arxiv.org/abs/2311.12261)
+
+### Appendix section
+
+------
+This work was done on top of [FLOW](https://github.com/flow-project/flow) framework obtained on Jan 3, 2023.
 
 ### Installation instructions 
 
-Developed and tested on Ubuntu 18.04.5 LTS, Python 3.7.3
+Developed and tested on Ubuntu 18.04, Python 3.7.3
 
-- Install Anaconda
-- Setup (SUMO versio 1.15.0)[https://github.com/eclipse-sumo/sumo/releases/tag/v1_15_0] in your system
+- Install [Anaconda](https://www.anaconda.com/)
+- Setup [SUMO versio 1.15.0](https://github.com/eclipse-sumo/sumo/releases/tag/v1_15_0)
 - Clone this repository
 - Use the following commands
 
@@ -29,7 +35,7 @@ To view tensorboard while training:
 tensorboard --logdir=~/ray_results/
 ```
 
-## Part 2: Generate rollouts from trained RL agent or using Classic controllers and save as csv files.
+## Part 2: Generate rollouts from trained RL agent or using Classic RVs (Heuristic and Model based) and save as csv files.
 ### RL agents:
 Replace the method name to be one of: ours, wu
 
@@ -37,7 +43,7 @@ Replace the method name to be one of: ours, wu
 python test_rllib.py [Location of trained policy] [checkpoint number] --method wu --gen_emission --num_rollouts 10 --shock --render --length 260
 ```
 
-### Classic controllers:
+### Classic RVs (Heuristic and Model based):
 For all (replace the method_name to be one of: bcm, lacc, piws, fs, idm)
 ```
 python classic.py --method [method_name] --render --length 260 --num_rollouts [no_of_rollouts] --shock --gen_emission
@@ -64,12 +70,10 @@ python eval_plots.py --method [method_name]
 -------------------------------------
 
 
-Dataset: https://huggingface.co/datasets/matrix-multiply/BeyondSimulatedDrivers/
-Trained Model: 
+Data (including published experiment rollouts and videos): [HuggingFace](https://huggingface.co/datasets/matrix-multiply/EnduRL_data/tree/main)
 
-## License
+Trained CSC Models: [HuggingFace](https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/tree/main)
 
-[MIT](https://choosealicense.com/licenses/mit/)
 
 ------------
 Locations: 
@@ -85,3 +89,20 @@ To generate rollouts without shock:
 python classic.py --method bcm --render --length 220 --num_rollouts 20 --gen_emission
 
 for LACC, Shock start and end times are 1140 and 1500 respectively
+
+-------
+## Cite
+
+```
+
+@article{poudel2024endurl,
+  title={EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning},
+  author={Poudel, Bibek and Li, Weizi and Heaslip, Kevin},
+  journal={arXiv preprint arXiv:2311.12261},
+  year={2024}
+}
+
+```
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)
