@@ -417,12 +417,12 @@ class DensityAwareBottleneckEnv(MultiEnv):
             # csc output is free flow 
             if csc_output[0] == 2: 
                 # Get an estimate of the free flow speed 
-                estimate = 0.30 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
+                estimate = 0.40 * np.mean([self.k.vehicle.get_speed(veh_id) for veh_id in sorted_veh_ids]) 
                 # May need to change the scalar based on penetration rate. 
                 # 0.40 for penetration rates of 0.05
                 # 0.40 for penetration rates of 0.20
                 # 0.30 for penetration rates of 0.40
-                # 
+                # 0.40 for penetration rates of 0.60
                 # If the free flow estimate is too high, HVs wont dillegently follow the RL vehicle. They will cause disturbances.
                 if estimate > self.free_flow_speed:
                     self.free_flow_speed = estimate
