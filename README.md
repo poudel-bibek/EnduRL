@@ -2,7 +2,7 @@
 
 Paper in: [arXiv](https://arxiv.org/abs/2311.12261)
 
-### Appendix section
+### Appendix section ([appendix.pdf](https://github.com/poudel-bibek/EnduRL/blob/2f07b1e3acc5162c0551c9f194ad3c86bfb55e58/appendix.pdf) file)
 
 ```
   I. Car Following Filter
@@ -33,7 +33,12 @@ pip install -U pip setuptools
 pip install -r requirements.txt
 ```
 
-### Part 1: Training
+### Part 1: Training the Congestion Stage Classifier
+- Follow the Notebooks: [Ring](https://github.com/poudel-bibek/EnduRL/blob/2f07b1e3acc5162c0551c9f194ad3c86bfb55e58/ring/Ours/CSC_training_ring.ipynb), [Bottleneck](https://github.com/poudel-bibek/EnduRL/blob/2f07b1e3acc5162c0551c9f194ad3c86bfb55e58/bottleneck/Ours/CSC_training_bottleneck.ipynb)
+
+If you want to use the trained CSCs, see `Data` section below. 
+
+### Part 2: Training RL based RVs
 Go to the respective folders for the environment `ring/Ours` or `bottleneck/Ours` and enter the command:
 
 ```
@@ -53,7 +58,7 @@ To view tensorboard while training:
 tensorboard --logdir=~/ray_results/
 ```
 
-## Part 2: Generate rollouts for RL based RVs or Heuristic and Model based RVs and save as csv files.
+## Part 3: Generate rollouts for RL based RVs or Heuristic and Model based RVs and save as csv files.
 All scripts related to this part are consolidated [Evaluate Ring](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/ring/Evaluate%20Ring.ipynb) and [Evaluate Bottleneck](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/bottleneck/Evaluate%20Bottleneck.ipynb) Jupyter Notebooks. 
 
 ### I. RL based RVs:
@@ -72,7 +77,7 @@ python classic.py --method [method_name] --render --length 260 --num_rollouts [n
 ```
 For stability tests where a standard perturbation is applied by a leading HV, include --stability to the line above
 
-## Part 3: Evaluate the generated rollouts
+## Part 4: Evaluate the generated rollouts
 
 To evaluate the generated rollouts into Safety, Efficiency and Stability metrics:
 Replace the method name to be one of: bcm, idm, fs, piws, lacc, wu, ours
