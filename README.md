@@ -58,10 +58,10 @@ To view tensorboard while training:
 tensorboard --logdir=~/ray_results/
 ```
 
-## Part 3: Generate rollouts for RL based RVs or Heuristic and Model based RVs and save as csv files.
+### Part 3: Generate rollouts for RL based RVs or Heuristic and Model based RVs and save as csv files.
 All scripts related to this part are consolidated [Evaluate Ring](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/ring/Evaluate%20Ring.ipynb) and [Evaluate Bottleneck](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/bottleneck/Evaluate%20Bottleneck.ipynb) Jupyter Notebooks. 
 
-### I. RL based RVs:
+#### I. RL based RVs:
 
 Replace the method name to be one of: ours, wu
 
@@ -69,7 +69,7 @@ Replace the method name to be one of: ours, wu
 python test_rllib.py [Location of trained policy] [checkpoint number] --method wu --gen_emission --num_rollouts [no_of_rollouts] --shock --render --length 260
 ```
 
-### II. Heuristic and Model based RVs:
+#### II. Heuristic and Model based RVs:
 For all (replace the method_name to be one of: bcm, lacc, piws, fs, idm)
 
 ```
@@ -77,7 +77,7 @@ python classic.py --method [method_name] --render --length 260 --num_rollouts [n
 ```
 For stability tests where a standard perturbation is applied by a leading HV, include --stability to the line above
 
-## Part 4: Evaluate the generated rollouts
+### Part 4: Evaluate the generated rollouts
 
 To evaluate the generated rollouts into Safety, Efficiency and Stability metrics:
 Replace the method name to be one of: bcm, idm, fs, piws, lacc, wu, ours
@@ -95,14 +95,14 @@ python eval_plots.py --method [method_name]
 ```
 
 -------
-## Data
+### Data
 
 - Data (including experiments rollouts and full policies): [HuggingFace](https://huggingface.co/datasets/matrix-multiply/EnduRL_data/tree/main)
 
 - Trained CSC Models: [HuggingFace](https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/tree/main)
 
 -------
-## Cite
+### Cite
 
 ```
 
