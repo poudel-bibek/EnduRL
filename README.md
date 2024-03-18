@@ -1,7 +1,17 @@
 ## EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning
-[arXiv](https://arxiv.org/abs/2311.12261)
+
+Paper in: [arXiv](https://arxiv.org/abs/2311.12261)
 
 ### Appendix section
+
+```
+  I. Car Following Filter
+  II. Model Based Robot Vehicles
+  III. Heuristic Based Robot Vehicles
+  IV. Reinforcement Learning (RL) Benchmarks
+  V. Congestion Stage Classifier
+
+```
 
 ------
 This work was done on top of [FLOW](https://github.com/flow-project/flow) framework obtained on Jan 3, 2023.
@@ -24,32 +34,43 @@ pip install -r requirements.txt
 ```
 
 ### Part 1: Training
+Go to the respective folders for the environment `ring/Ours` or `bottleneck/Ours` and enter the command:
+
 ```
-python train.py --exp_config singleagent_ring
-python train.py singleagent_bottleneck
-python train.py intersection
+# Train our policy in Ring (at 5% penetration) 
+python train.py singleagent_ring
+
+# Train our policy in Ring (at penetrations >5%)
+python train.py multiagent_ring
+
+# Train our policy in Bottleneck (for all penetrations)
+python train.py multiagent_bottleneck
 ```
+Make sure to change the exp_config files accordingly to specify the RV penetration rate and `Safety + Stability` or `Efficiency` mode.
 
 To view tensorboard while training: 
 ```
 tensorboard --logdir=~/ray_results/
 ```
 
-## Part 2: Generate rollouts from trained RL agent or using Classic RVs (Heuristic and Model based) and save as csv files.
-### RL agents:
+## Part 2: Generate rollouts for RL based RVs or Heuristic and Model based RVs and save as csv files.
+All scripts related to this part are consolidated [Evaluate Ring](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/ring/Evaluate%20Ring.ipynb) and [Evaluate Bottleneck](https://github.com/poudel-bibek/EnduRL/blob/c52adc2286ea0a2d98095315d27eb314b74bc746/bottleneck/Evaluate%20Bottleneck.ipynb) Jupyter Notebooks. 
+
+### I. RL based RVs:
+
 Replace the method name to be one of: ours, wu
 
 ```
-python test_rllib.py [Location of trained policy] [checkpoint number] --method wu --gen_emission --num_rollouts 10 --shock --render --length 260
+python test_rllib.py [Location of trained policy] [checkpoint number] --method wu --gen_emission --num_rollouts [no_of_rollouts] --shock --render --length 260
 ```
 
-### Classic RVs (Heuristic and Model based):
+### II. Heuristic and Model based RVs:
 For all (replace the method_name to be one of: bcm, lacc, piws, fs, idm)
+
 ```
 python classic.py --method [method_name] --render --length 260 --num_rollouts [no_of_rollouts] --shock --gen_emission
 ```
-
-For stability tests where just the leader adds perturbations, include --stability to the lines above
+For stability tests where a standard perturbation is applied by a leading HV, include --stability to the line above
 
 ## Part 3: Evaluate the generated rollouts
 
@@ -63,32 +84,17 @@ python eval_metrics.py --method [method_name] --num_rollouts [no_of_rollouts]
 To add plots to the metrics, include --save_plots
 
 For Stability plots
+
 ```
 python eval_plots.py --method [method_name]
 ```
 
--------------------------------------
+-------
+## Data
 
+- Data (including experiments rollouts and full policies): [HuggingFace](https://huggingface.co/datasets/matrix-multiply/EnduRL_data/tree/main)
 
-Data (including published experiment rollouts and videos): [HuggingFace](https://huggingface.co/datasets/matrix-multiply/EnduRL_data/tree/main)
-
-Trained CSC Models: [HuggingFace](https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/tree/main)
-
-
-------------
-Locations: 
-
-./Ours/Trained_policies/Last_good/weak_accept_policy/PPO_DensityAwareRlEnv-v0_719f478a_2022-06-05_13-36-42okip6tqy 18
-
-./Wu_et_al/Trained_policies/PPO_WaveAttenuationPOEnv-v0_25b5cb6e_2022-01-26_10-58-12e9f4i3ao 50 
-
-Requirements have been modified 
-
----------------------
-To generate rollouts without shock: 
-python classic.py --method bcm --render --length 220 --num_rollouts 20 --gen_emission
-
-for LACC, Shock start and end times are 1140 and 1500 respectively
+- Trained CSC Models: [HuggingFace](https://huggingface.co/matrix-multiply/Congestion_Stage_Classifier/tree/main)
 
 -------
 ## Cite
@@ -103,6 +109,3 @@ for LACC, Shock start and end times are 1140 and 1500 respectively
 }
 
 ```
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
