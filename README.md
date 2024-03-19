@@ -5,6 +5,13 @@
   <br>
   <i>Our RVs in the Ring</i>
 </p>
+<br>
+<br>
+<p align="center">
+  <img src="https://github.com/poudel-bibek/EnduRL/blob/ac475279d6a35036a8fe6ca8fba767b5d10817b6/bottleneck/bottleneck_banner.gif" alt="Alt Text">
+  <br>
+  <i>Our RVs in the Ring</i>
+</p>
 
 Paper in: [arXiv](https://arxiv.org/abs/2311.12261)
 
