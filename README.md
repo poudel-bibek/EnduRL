@@ -1,7 +1,7 @@
 ## EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning
 
 <p align="center">
-  <img src="" alt="Alt Text">
+  <img src="https://github.com/poudel-bibek/EnduRL/blob/af31417b2c9cfab7c593571a4eb74717b0a58e6a/ring/ring_banner.gif" alt="Alt Text">
   <br>
   <i>Our RVs in the Ring</i>
 </p>
