@@ -1,5 +1,11 @@
 ## EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning
 
+<p align="center">
+  <img src="" alt="Alt Text">
+  <br>
+  <i>Our RVs in the Ring</i>
+</p>
+
 Paper in: [arXiv](https://arxiv.org/abs/2311.12261)
 
 ### Appendix section ([appendix.pdf](https://github.com/poudel-bibek/EnduRL/blob/2f07b1e3acc5162c0551c9f194ad3c86bfb55e58/appendix.pdf) file)
