@@ -1,4 +1,8 @@
-## EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning
+> **EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning**
+>
+> Bibek Poudel, Weizi Li, and Kevin Heaslip
+>
+> <a href='https://arxiv.org/abs/2311.12261'><img src='https://img.shields.io/badge/arXiv-2301.05294-red'></a> 
 
 <p align="center">
   <img src="https://github.com/poudel-bibek/EnduRL/blob/5241e6f905b16dcb43df86fbb328b52c64050550/ring/ring_banner.gif" alt="Alt Text">
@@ -12,7 +16,7 @@
   <i>Our RVs in the Bottleneck</i>
 </p>
 
-Paper in: [arXiv](https://arxiv.org/abs/2311.12261)
+Paper in: [arXiv]()
 
 ### Appendix section ([appendix.pdf](https://github.com/poudel-bibek/EnduRL/blob/2f07b1e3acc5162c0551c9f194ad3c86bfb55e58/appendix.pdf) file)
 
