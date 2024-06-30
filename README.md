@@ -122,7 +122,7 @@ python eval_plots.py --method [method_name]
 @article{poudel2024endurl,
   title={EnduRL: Enhancing Safety, Stability, and Efficiency of Mixed Traffic Under Real-World Perturbations Via Reinforcement Learning},
   author={Poudel, Bibek and Li, Weizi and Heaslip, Kevin},
-  journal={arXiv preprint arXiv:2311.12261},
+  journal={2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
   year={2024}
 }
 
